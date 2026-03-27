@@ -1,0 +1,47 @@
+from __future__ import annotations
+
+from app.core.config import get_runtime
+from app.services.settings import settings_service
+
+
+class AnchorService:
+    def build_system_prompt(self) -> str:
+        runtime = get_runtime()
+        current = settings_service.get_frontend_settings()
+
+        display_name = (current.get("display_name") or runtime.yaml.assistant.display_name).strip()
+        user_display_name = (current.get("user_display_name") or runtime.yaml.user_profile.display_name).strip()
+        system_goal = (current.get("system_goal") or runtime.yaml.assistant.system_goal).strip()
+        persona_core = (current.get("persona_core") or runtime.yaml.assistant.persona_core).strip()
+        relationship_context = (current.get("relationship_context") or runtime.yaml.assistant.relationship_context).strip()
+        user_summary = (current.get("user_summary") or runtime.yaml.user_profile.summary).strip()
+
+        sections: list[str] = []
+        sections.append(f"[Assistant Name]\n{display_name}")
+        sections.append(f"[User Name]\n{user_display_name}")
+        sections.append(f"[System Goal]\n{system_goal}")
+        if persona_core:
+            sections.append(f"[Persona Core]\n{persona_core}")
+        if relationship_context:
+            sections.append(f"[Relationship Context]\n{relationship_context}")
+        if runtime.yaml.assistant.style_rules:
+            sections.append("[Style Rules]\n- " + "\n- ".join(runtime.yaml.assistant.style_rules))
+        if runtime.yaml.assistant.boundaries:
+            sections.append("[Boundaries]\n- " + "\n- ".join(runtime.yaml.assistant.boundaries))
+        if user_summary:
+            sections.append(f"[User Summary]\n{user_summary}")
+        if runtime.yaml.user_profile.preferences:
+            sections.append("[User Preferences]\n- " + "\n- ".join(runtime.yaml.user_profile.preferences))
+        sections.append("[Operational Rules]\n- 保持语境连续\n- 不要擅自重置人格\n- 优先准确、稳定、自然\n- 不要因为省 token 就丢失核心关系和设定")
+        return "\n\n".join(sections)
+
+    def quick_guard(self, message: str) -> tuple[bool, str | None]:
+        text = message.strip()
+        runtime = get_runtime()
+        min_len = runtime.yaml.cost_control.invalid_message_min_len
+        if len(text) < min_len:
+            return False, "消息太短，已拦截以节省 token。"
+        return True, None
+
+
+anchor_service = AnchorService()

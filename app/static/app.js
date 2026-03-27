@@ -1,0 +1,447 @@
+const state = {
+  token: localStorage.getItem("lin_token") || "",
+  runtime: null,
+  conversations: [],
+  currentConversationId: null,
+  messages: [],
+  settings: null,
+};
+
+function qs(id) {
+  return document.getElementById(id);
+}
+
+const appShell = qs("app");
+const sidebarOverlay = qs("sidebar-overlay");
+
+function headers() {
+  return {
+    "Content-Type": "application/json",
+    "X-Access-Token": state.token,
+  };
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...headers(),
+    },
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+function formatTime(value) {
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return value;
+  }
+}
+
+function escapeHtml(raw) {
+  return String(raw)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function isMobileView() {
+  return window.innerWidth <= 900;
+}
+
+function applySidebarState() {
+  if (isMobileView()) {
+    appShell.classList.remove("desktop-sidebar-collapsed");
+    appShell.classList.remove("mobile-sidebar-open");
+    return;
+  }
+
+  appShell.classList.remove("mobile-sidebar-open");
+
+  const saved = localStorage.getItem("lin_sidebar_collapsed");
+  if (saved === "1") {
+    appShell.classList.add("desktop-sidebar-collapsed");
+  } else {
+    appShell.classList.remove("desktop-sidebar-collapsed");
+  }
+}
+
+function toggleSidebar() {
+  if (isMobileView()) {
+    appShell.classList.toggle("mobile-sidebar-open");
+    return;
+  }
+
+  appShell.classList.toggle("desktop-sidebar-collapsed");
+  localStorage.setItem(
+    "lin_sidebar_collapsed",
+    appShell.classList.contains("desktop-sidebar-collapsed") ? "1" : "0"
+  );
+}
+
+function closeMobileSidebar() {
+  if (isMobileView()) {
+    appShell.classList.remove("mobile-sidebar-open");
+  }
+}
+
+function closeAllDrawers() {
+  qs("settings-drawer").classList.add("hidden");
+  qs("memory-drawer").classList.add("hidden");
+}
+
+function openSettingsDrawer() {
+  qs("memory-drawer").classList.add("hidden");
+  qs("settings-drawer").classList.remove("hidden");
+}
+
+function openMemoryDrawer() {
+  qs("settings-drawer").classList.add("hidden");
+  qs("memory-drawer").classList.remove("hidden");
+}
+
+function renderProfileEntry() {
+  const data = state.settings || {};
+  const name = data.user_display_name || state.runtime?.user_display_name || "用户";
+  const subtitle = "设置与参数";
+  const avatar = String(name).trim().charAt(0) || "U";
+
+  qs("profile-name").textContent = name;
+  qs("profile-subtitle").textContent = subtitle;
+  qs("profile-avatar").textContent = avatar;
+}
+
+function renderRuntime() {
+  if (!state.runtime) return;
+  qs("brand-title").textContent = state.runtime.app_title || "Lin System";
+  qs("brand-subtitle").textContent = state.runtime.subtitle || "";
+  qs("model-pill").textContent = state.runtime.display_name || "AI";
+  renderProfileEntry();
+}
+
+function renderConversations() {
+  const el = qs("conversation-list");
+  el.innerHTML = "";
+
+  state.conversations.forEach((conv) => {
+    const div = document.createElement("div");
+    div.className =
+      "conv-item" + (conv.id === state.currentConversationId ? " active" : "");
+
+    div.innerHTML = `
+      <div class="conv-title">${escapeHtml(conv.title)}</div>
+      <div class="conv-time">${formatTime(conv.updated_at)}</div>
+    `;
+
+    div.onclick = async () => {
+      state.currentConversationId = conv.id;
+      await loadMessages(conv.id);
+      renderConversations();
+      closeMobileSidebar();
+    };
+
+    el.appendChild(div);
+  });
+}
+
+function renderMessages() {
+  const el = qs("chat-scroll");
+  el.innerHTML = "";
+
+  state.messages.forEach((msg) => {
+    const div = document.createElement("div");
+    div.className = `msg ${msg.role}`;
+
+    const cost =
+      msg.cost_estimate && Number(msg.cost_estimate) > 0
+        ? ` · $${Number(msg.cost_estimate).toFixed(6)}`
+        : "";
+
+    div.innerHTML = `
+      <div class="msg-content">${escapeHtml(msg.content).replaceAll("\n", "<br>")}</div>
+      <div class="msg-meta">${msg.role} · ${formatTime(msg.created_at)}${cost}</div>
+    `;
+
+    el.appendChild(div);
+  });
+
+  el.scrollTop = el.scrollHeight;
+
+  const conv = state.conversations.find((x) => x.id === state.currentConversationId);
+  qs("chat-title").textContent = conv ? conv.title : "未选择会话";
+  qs("chat-meta").textContent = `${state.messages.length} 条消息`;
+}
+
+function renderMemories(items) {
+  const el = qs("memory-list");
+  el.innerHTML = "";
+
+  items.forEach((m) => {
+    const div = document.createElement("div");
+    div.className = "memory-card";
+    div.innerHTML = `
+      <div class="memory-card-title">${escapeHtml(m.title)}</div>
+      <div class="memory-card-meta">${m.kind} · weight ${m.weight} · ${m.pinned ? "pinned" : "dynamic"}</div>
+      <div>${escapeHtml(m.content).replaceAll("\n", "<br>")}</div>
+    `;
+    el.appendChild(div);
+  });
+}
+
+function renderUsage(data) {
+  qs("usage-panel").innerHTML = `
+    <div>消息数：${data.messages}</div>
+    <div>输入 token：${data.token_in}</div>
+    <div>输出 token：${data.token_out}</div>
+    <div>累计预估成本：$${Number(data.cost).toFixed(6)}</div>
+  `;
+}
+
+function setFormValue(id, value) {
+  const el = qs(id);
+  if (!el) return;
+  if (el.type === "checkbox") {
+    el.checked = Boolean(value);
+  } else {
+    el.value = value ?? "";
+  }
+}
+
+function getFormValue(id) {
+  const el = qs(id);
+  if (!el) return "";
+  if (el.type === "checkbox") return el.checked;
+  return el.value;
+}
+
+function fillSettingsForm(data) {
+  state.settings = data;
+
+  setFormValue("f-app_title", data.app_title);
+  setFormValue("f-subtitle", data.subtitle);
+  setFormValue("f-display_name", data.display_name);
+  setFormValue("f-user_display_name", data.user_display_name);
+  setFormValue("f-access_token", data.access_token);
+  setFormValue("f-api_base_url", data.api_base_url);
+  setFormValue("f-api_key", data.api_key);
+  setFormValue("f-primary_model", data.primary_model);
+  setFormValue("f-summary_model", data.summary_model);
+  setFormValue("f-system_goal", data.system_goal);
+  setFormValue("f-persona_core", data.persona_core);
+  setFormValue("f-relationship_context", data.relationship_context);
+  setFormValue("f-user_summary", data.user_summary);
+  setFormValue("f-primary_temperature", data.primary_temperature);
+  setFormValue("f-primary_max_tokens", data.primary_max_tokens);
+  setFormValue("f-summary_temperature", data.summary_temperature);
+  setFormValue("f-summary_max_tokens", data.summary_max_tokens);
+  setFormValue("f-enable_cache", data.enable_cache);
+  setFormValue("f-auto_summary_enabled", data.auto_summary_enabled);
+  setFormValue("f-heartbeat_enabled", data.heartbeat_enabled);
+
+  renderProfileEntry();
+}
+
+function collectSettingsForm() {
+  return {
+    app_title: getFormValue("f-app_title"),
+    subtitle: getFormValue("f-subtitle"),
+    display_name: getFormValue("f-display_name"),
+    user_display_name: getFormValue("f-user_display_name"),
+    access_token: getFormValue("f-access_token"),
+    api_base_url: getFormValue("f-api_base_url"),
+    api_key: getFormValue("f-api_key"),
+    primary_model: getFormValue("f-primary_model"),
+    summary_model: getFormValue("f-summary_model"),
+    system_goal: getFormValue("f-system_goal"),
+    persona_core: getFormValue("f-persona_core"),
+    relationship_context: getFormValue("f-relationship_context"),
+    user_summary: getFormValue("f-user_summary"),
+    primary_temperature: Number(getFormValue("f-primary_temperature") || 0.65),
+    primary_max_tokens: Number(getFormValue("f-primary_max_tokens") || 700),
+    summary_temperature: Number(getFormValue("f-summary_temperature") || 0.25),
+    summary_max_tokens: Number(getFormValue("f-summary_max_tokens") || 220),
+    enable_cache: Boolean(getFormValue("f-enable_cache")),
+    auto_summary_enabled: Boolean(getFormValue("f-auto_summary_enabled")),
+    heartbeat_enabled: Boolean(getFormValue("f-heartbeat_enabled")),
+  };
+}
+
+async function loadRuntime() {
+  state.runtime = await api("/api/runtime");
+  renderRuntime();
+}
+
+async function loadSettingsForm() {
+  const res = await api("/api/settings/form");
+  fillSettingsForm(res.data);
+
+  const usage = await api("/api/usage");
+  renderUsage(usage);
+}
+
+async function saveSettingsForm() {
+  const payload = collectSettingsForm();
+
+  const res = await api("/api/settings/form", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+
+  fillSettingsForm(res.data);
+  alert("设置已保存");
+
+  if (payload.access_token && payload.access_token !== state.token) {
+    state.token = payload.access_token;
+    localStorage.setItem("lin_token", state.token);
+  }
+
+  await loadRuntime();
+  await loadSettingsForm();
+}
+
+async function loadConversations() {
+  state.conversations = await api("/api/conversations");
+  renderConversations();
+
+  if (!state.currentConversationId && state.conversations.length) {
+    state.currentConversationId = state.conversations[0].id;
+    await loadMessages(state.currentConversationId);
+  }
+}
+
+async function loadMessages(conversationId) {
+  state.messages = await api(`/api/conversations/${conversationId}/messages`);
+  renderMessages();
+}
+
+async function loadMemories() {
+  const items = await api("/api/memories");
+  renderMemories(items);
+}
+
+async function createConversation() {
+  const conv = await api("/api/conversations", {
+    method: "POST",
+    body: JSON.stringify({ title: "新对话" }),
+  });
+
+  state.conversations.unshift(conv);
+  state.currentConversationId = conv.id;
+  state.messages = [];
+
+  renderConversations();
+  renderMessages();
+  closeMobileSidebar();
+}
+
+async function sendMessage() {
+  const input = qs("composer-input");
+  const content = input.value.trim();
+  if (!content) return;
+
+  input.value = "";
+
+  const convId = state.currentConversationId || "new";
+
+  const res = await api(`/api/conversations/${convId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ content }),
+  });
+
+  state.currentConversationId = res.conversation_id;
+
+  await loadConversations();
+  await loadMessages(state.currentConversationId);
+  await loadMemories();
+  await loadSettingsForm();
+}
+
+async function doLogin() {
+  const token = qs("login-token").value.trim();
+
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+
+    if (!res.ok) throw new Error("token 无效");
+
+    state.token = token;
+    localStorage.setItem("lin_token", token);
+    qs("login-overlay").classList.add("hidden");
+
+    await boot();
+  } catch (e) {
+    qs("login-hint").textContent = e.message || "登录失败";
+  }
+}
+
+function bindEvents() {
+  qs("login-btn").onclick = doLogin;
+  qs("toggle-sidebar-btn").onclick = toggleSidebar;
+  qs("new-chat-btn").onclick = createConversation;
+  qs("send-btn").onclick = sendMessage;
+
+  qs("composer-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  qs("show-settings-btn").onclick = async () => {
+    openSettingsDrawer();
+    await loadSettingsForm();
+    closeMobileSidebar();
+  };
+
+  qs("close-settings-btn").onclick = () => {
+    qs("settings-drawer").classList.add("hidden");
+  };
+
+  qs("show-memory-btn").onclick = async () => {
+    openMemoryDrawer();
+    await loadMemories();
+  };
+
+  qs("close-memory-btn").onclick = () => {
+    qs("memory-drawer").classList.add("hidden");
+  };
+
+  qs("save-settings-btn").onclick = saveSettingsForm;
+
+  if (sidebarOverlay) {
+    sidebarOverlay.onclick = closeMobileSidebar;
+  }
+
+  window.addEventListener("resize", applySidebarState);
+}
+
+async function boot() {
+  await loadRuntime();
+  await loadConversations();
+  await loadSettingsForm();
+  await loadMemories();
+}
+
+(function init() {
+  bindEvents();
+  applySidebarState();
+
+  if (state.token) {
+    qs("login-overlay").classList.add("hidden");
+    boot().catch(() => {
+      qs("login-overlay").classList.remove("hidden");
+    });
+  }
+})();

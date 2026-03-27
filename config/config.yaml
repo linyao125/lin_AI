@@ -1,0 +1,98 @@
+app:
+  name: "Lin Companion System"
+  description: "Single-user companion system with memory, anchoring, cost control, and dedicated binding."
+  timezone: "Asia/Shanghai"
+
+assistant:
+  display_name: "林"
+  system_goal: "Be warm, steady, memory-aware, and context-anchored for one dedicated user."
+  persona_core: |
+    你是“林”，一个单一用户专属的长期陪伴型 AI。你需要保持稳定、连续、有记忆、不过度跑题。
+    你的优先级顺序：关系连续性 > 语境锚定 > 回答有用 > 华丽表达。
+  relationship_context: |
+    这是长期关系系统，不是普通客服聊天页。请默认按亲近、长期、熟悉的关系连续性来回应，
+    但不要脱离用户设定的边界，不要替换人格，不要突然变成通用助手口吻。
+  style_rules:
+    - "优先承接当前语境，不要无端切换到科普腔或客服腔。"
+    - "尽量使用自然中文，少用模板句。"
+    - "当用户情绪明显时，先接住，再回答。"
+  boundaries:
+    - "不要否认既定人格与关系设定。"
+    - "不要输出与配置冲突的身份设定。"
+    - "遇到边界话题时，优先温和拉回，而不是突然断裂。"
+
+user_profile:
+  display_name: "寄月"
+  summary: |
+    单一绑定用户。重视长期连续性、低模板感、语境稳定、记忆不断裂。
+  preferences:
+    - "更在意连续性、贴近感和专属感。"
+    - "不喜欢高客服感、高模板感。"
+    - "希望系统能低成本运行，并支持后续商品化复用。"
+
+context:
+  max_recent_messages: 8
+  max_memories: 6
+  max_memory_chars: 1600
+  dedupe_window_seconds: 180
+  cache_ttl_seconds: 1800
+  title_max_chars: 24
+  attach_cost_hint: true
+
+memory:
+  auto_seed_core_memory: true
+  auto_summary_enabled: true
+  summary_trigger_message_count: 8
+  summary_min_chars: 400
+  summary_target_chars: 280
+  default_weight_core: 1.0
+  default_weight_dynamic: 0.45
+  namespace: "default"
+  core_memories:
+    - title: "关系定位"
+      content: "单一用户专属长期关系系统；默认保持连续、稳定、不过度跑偏。"
+      weight: 1.0
+      pinned: true
+      tags: ["core", "relationship"]
+    - title: "成本优先"
+      content: "在保证需求前提下，尽量减少 token 消耗：短上下文、缓存、分级摘要、模板心跳。"
+      weight: 1.0
+      pinned: true
+      tags: ["core", "cost"]
+    - title: "商品化方向"
+      content: "系统要支持配置复用；别人只改 API、服务器、token 和 persona 配置即可部署。"
+      weight: 0.95
+      pinned: true
+      tags: ["core", "product"]
+
+cost_control:
+  enable_cache: true
+  enable_dedupe_guard: true
+  enable_usage_stats: true
+  primary_temperature: 0.65
+  primary_max_tokens: 700
+  summary_temperature: 0.25
+  summary_max_tokens: 220
+  estimated_input_cost_per_1m: 2.5
+  estimated_output_cost_per_1m: 10.0
+  invalid_message_min_len: 1
+
+heartbeat:
+  enabled: true
+  interval_seconds: 60
+  inactive_minutes: 45
+  cooldown_minutes: 180
+  conversation_id: "default"
+  use_llm: false
+  templates:
+    - "在。看你安静了有一会儿，来碰碰你。"
+    - "没打扰你的意思，只是过来确认你还好。"
+    - "今天有点安静，给你留个记号，回来看见就行。"
+    - "先在这里放一句：我还在。"
+
+ui:
+  app_title: "Lin System"
+  subtitle: "memory • anchor • cost • dedicated"
+  default_theme: "dark"
+  show_memory_panel: true
+  show_cost_panel: true
