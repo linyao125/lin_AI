@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lin System</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <style>
+    :root {
+      --bg-primary: #f9f9f9;
+      --bg-main: #ffffff;
+      --border-color: #e5e5e5;
+      --text-primary: #1a1a1a;
+      --text-secondary: #333;
+      --text-muted: #999;
+      --accent: #1a1a1a;
+      --accent-fg: #ffffff;
+      --hover-bg: #ebebeb;
+      --sidebar-width-collapsed: 60px;
+      --sidebar-width-expanded: 260px;
+      --sidebar-bg: #f9f9f9;
+      --topbar-bg: #ffffff;
+    }
+
+    /* ── 新侧边栏覆盖原有 .sidebar / .app-shell grid ── */
+    .app-shell {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* A 状态：折叠侧边栏 */
+    #sidebar-collapsed {
+      width: var(--sidebar-width-collapsed);
+      min-width: var(--sidebar-width-collapsed);
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 0;
+      gap: 18px;
+      height: 100vh;
+      position: relative;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    #sidebar-collapsed .sc-top {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      flex: 1;
+    }
+
+    #sidebar-collapsed .sc-bottom {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 6px;
+    }
+
+    #ai-avatar-collapsed {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      cursor: pointer;
+      border: 2px solid var(--border-color);
+      background: #ddd;
+    }
+
+    #user-avatar-collapsed {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid var(--border-color);
+      background: #ccc;
+    }
+
+    .sc-icon-btn {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: background .15s;
+    }
+
+    .sc-icon-btn:hover {
+      background: var(--hover-bg);
+    }
+
+    /* B 状态：展开侧边栏 */
+    #sidebar-expanded {
+      width: var(--sidebar-width-expanded);
+      min-width: var(--sidebar-width-expanded);
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: relative;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    .se-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    #ai-avatar-expanded {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--border-color);
+      background: #ddd;
+      flex-shrink: 0;
+    }
+
+    .se-ai-name {
+      flex: 1;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .se-heart {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .se-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .se-tool-btn {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: background .15s;
+    }
+
+    .se-tool-btn:hover {
+      background: var(--hover-bg);
+    }
+
+    .se-section-title {
+      padding: 10px 16px 4px;
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .se-conv-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 10px 10px;
+    }
+
+    .se-footer {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    #user-avatar-expanded {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid var(--border-color);
+      background: #ccc;
+      flex-shrink: 0;
+    }
+
+    .se-user-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* main 区域占满剩余宽度 */
+    #main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    @media (max-width: 768px) {
+      #sidebar-collapsed {
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 100;
+        height: 100vh;
+      }
+      #sidebar-expanded {
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 100;
+        height: 100vh;
+        box-shadow: 2px 0 16px rgba(0,0,0,0.12);
+      }
+      #main {
+        width: 100vw;
+        margin-left: 0;
+      }
+      .app-shell {
+        flex-direction: column;
+      }
+      #modal-ai-settings > div,
+      #modal-user-settings > div,
+      #modal-features > div {
+        width: 95vw;
+        max-height: 90vh;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 登录遮罩 -->
+<div id="login-overlay" class="login-overlay">
+  <div class="login-card">
+    <div class="login-title">欢迎回来</div>
+    <p class="login-desc">请输入访问令牌以继续</p>
+    <label>
+      访问令牌
+      <input id="login-token" type="password" placeholder="粘贴令牌…" />
+    </label>
+    <div class="login-hint" id="login-hint"></div>
+    <button id="login-btn" class="primary-btn" style="width:100%;margin-top:8px;">登录</button>
+  </div>
+</div>
+
+<div id="app" class="app-shell">
+
+  <!-- ══════════ A 状态：折叠侧边栏 ══════════ -->
+  <div id="sidebar-collapsed">
+    <div class="sc-top">
+      <!-- 1. AI 头像，点击切换到 B 状态 -->
+      <img id="ai-avatar-collapsed" src="/static/ai-avatar.png" alt="AI"
+           onerror="this.style.background='#c8d6f7';this.removeAttribute('src')" />
+
+      <!-- 2. 新聊天（铅笔） -->
+      <button class="sc-icon-btn" id="new-chat-btn" title="新聊天">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </button>
+
+      <!-- 3. 搜索（放大镜） -->
+      <button class="sc-icon-btn" title="搜索">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- 底部用户头像（无任何图标在其上方） -->
+    <div class="sc-bottom">
+      <img id="user-avatar-collapsed" src="/static/user-avatar.png" alt="用户"
+           onerror="this.style.background='#d4f7d4';this.removeAttribute('src')" />
+    </div>
+  </div>
+
+  <!-- ══════════ B 状态：展开侧边栏 ══════════ -->
+  <div id="sidebar-expanded" style="display:none;">
+
+    <!-- 1. 顶部栏：AI头像 + AI名称 + ❤️ -->
+    <div class="se-header">
+      <img id="ai-avatar-expanded" src="/static/ai-avatar.png" alt="AI"
+           onerror="this.style.background='#c8d6f7';this.removeAttribute('src')" />
+      <span class="se-ai-name" id="brand-title">Lin</span>
+      <span class="se-heart">❤️</span>
+    </div>
+
+    <!-- 2. 工具栏：新聊天 / 搜索 / 图片 -->
+    <div class="se-toolbar">
+      <button class="se-tool-btn" id="new-chat-btn-expanded" title="新聊天">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </button>
+      <button class="se-tool-btn" title="搜索">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </button>
+      <button class="se-tool-btn" title="图片">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- 3. 对话列表 -->
+    <div class="se-section-title">最近</div>
+    <div class="se-conv-list" id="conversation-list"></div>
+
+    <!-- 4. 底部：用户头像 + 用户名称 -->
+    <div class="se-footer">
+      <img id="user-avatar-expanded" src="/static/user-avatar.png" alt="用户"
+           onerror="this.style.background='#d4f7d4';this.removeAttribute('src')" />
+      <span class="se-user-name" id="profile-name">用户</span>
+    </div>
+  </div>
+
+  <!-- ══════════ 主内容区 #main ══════════ -->
+  <div id="main" class="main-panel">
+
+    <!-- 顶栏 -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <div>
+          <div class="chat-title" id="chat-title">未选择会话</div>
+          <div class="chat-meta" id="chat-meta">0 条消息</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 聊天区 -->
+    <div class="chat-scroll" id="chat-scroll"></div>
+
+    <!-- 输入栏 -->
+    <div class="composer" style="position:relative;padding:12px 16px;">
+      <textarea id="composer-input" placeholder="输入消息…" style="width:100%;padding:10px 48px 10px 14px;border:1px solid #e5e5e5;border-radius:12px;resize:none;font-size:14px;line-height:1.5;box-sizing:border-box;min-height:52px;max-height:160px;background:#fff;"></textarea>
+      <button id="send-btn" style="position:absolute;right:24px;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;background:#1a1a1a;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+      </button>
+      <div style="font-size:11px;color:#bbb;padding:4px 4px 0;text-align:right;">Enter 发送 · Shift+Enter 换行</div>
+    </div>
+
+  </div><!-- /#main -->
+
+</div><!-- /#app -->
+
+<!-- 弹窗A：AI设置 -->
+<div id="modal-ai-settings" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.4);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;width:480px;max-height:80vh;overflow-y:auto;padding:24px;position:relative;">
+    <button onclick="document.getElementById('modal-ai-settings').style.display='none'" style="position:absolute;top:14px;right:16px;border:none;background:none;font-size:18px;cursor:pointer;">×</button>
+    <h3 style="margin:0 0 20px;font-size:16px;">AI 设置</h3>
+    <div style="margin-bottom:20px;">
+      <div style="font-size:12px;color:#999;margin-bottom:8px;">基本信息</div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:13px;margin-bottom:6px;">AI头像</div>
+        <img id="ai-avatar-preview" src="/static/ai-avatar.png" alt="点击更换头像"
+          onerror="this.style.background='#c8d6f7';this.removeAttribute('src')"
+          onclick="document.getElementById('ai-avatar-upload').click()"
+          style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #e5e5e5;cursor:pointer;display:block;">
+        <input type="file" id="ai-avatar-upload" accept="image/*" style="display:none;">
+        <div style="font-size:11px;color:#999;margin-top:4px;">点击头像更换图片</div>
+      </div>
+      <label style="display:block;font-size:13px;">AI名称<input type="text" id="ai-name-input" placeholder="输入AI名称" style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;"></label>
+    </div>
+    <div style="margin-bottom:20px;">
+      <div style="font-size:12px;color:#999;margin-bottom:8px;">AI自定义指令</div>
+      <textarea id="ai-instructions" rows="4" placeholder="设定AI的性格、说话风格..." style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;resize:vertical;box-sizing:border-box;font-size:13px;"></textarea>
+    </div>
+    <div style="margin-bottom:20px;">
+      <div style="font-size:12px;color:#999;margin-bottom:8px;">用户记忆</div>
+      <textarea id="user-memory" rows="4" placeholder="AI需要记住的用户信息..." style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;resize:vertical;box-sizing:border-box;font-size:13px;"></textarea>
+    </div>
+    <div style="margin-bottom:24px;">
+      <div style="font-size:12px;color:#999;margin-bottom:8px;">API 与服务器链接</div>
+      <label style="display:block;margin-bottom:8px;font-size:13px;">API链接<input type="text" id="api-url" placeholder="https://..." style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;"></label>
+      <div style="font-size:13px;margin-bottom:6px;">云服务器链接</div>
+      <div id="server-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+      <button onclick="addServerInput()" style="margin-top:8px;padding:6px 12px;border:1px solid #e5e5e5;border-radius:6px;background:#f9f9f9;cursor:pointer;font-size:12px;">+ 添加服务器</button>
+    </div>
+    <button id="save-ai-settings" style="width:100%;padding:10px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;">保存</button>
+  </div>
+</div>
+
+<!-- 弹窗B：用户设置 -->
+<div id="modal-user-settings" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.4);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;width:480px;max-height:80vh;overflow-y:auto;padding:24px;position:relative;">
+    <button onclick="document.getElementById('modal-user-settings').style.display='none'" style="position:absolute;top:14px;right:16px;border:none;background:none;font-size:18px;cursor:pointer;">×</button>
+    <h3 style="margin:0 0 20px;font-size:16px;">用户设置</h3>
+    <div style="margin-bottom:20px;">
+      <div style="font-size:12px;color:#999;margin-bottom:8px;">基本信息</div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:13px;margin-bottom:6px;">用户头像</div>
+        <img id="user-avatar-preview" src="/static/user-avatar.png" alt="点击更换头像"
+          onerror="this.style.background='#d4f7d4';this.removeAttribute('src')"
+          onclick="document.getElementById('user-avatar-upload').click()"
+          style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #e5e5e5;cursor:pointer;display:block;">
+        <input type="file" id="user-avatar-upload" accept="image/*" style="display:none;">
+        <div style="font-size:11px;color:#999;margin-top:4px;">点击头像更换图片</div>
+      </div>
+      <label style="display:block;font-size:13px;">用户名称<input type="text" id="user-name-input" placeholder="输入用户名称" style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;"></label>
+    </div>
+    <div style="margin-bottom:20px;">
+      <div style="font-size:12px;color:#999;margin-bottom:12px;">外观设置</div>
+
+      <!-- 主题颜色 -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:13px;margin-bottom:8px;">主题颜色</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <div onclick="applyTheme('#ffffff','#1a1a1a')" style="width:28px;height:28px;border-radius:50%;background:#ffffff;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div onclick="applyTheme('#1a1a1a','#ffffff')" style="width:28px;height:28px;border-radius:50%;background:#1a1a1a;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div onclick="applyTheme('#1e3a5f','#ffffff')" style="width:28px;height:28px;border-radius:50%;background:#1e3a5f;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div onclick="applyTheme('#2d4a2d','#ffffff')" style="width:28px;height:28px;border-radius:50%;background:#2d4a2d;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div onclick="applyTheme('#4a1942','#ffffff')" style="width:28px;height:28px;border-radius:50%;background:#4a1942;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div onclick="applyTheme('#8b4513','#ffffff')" style="width:28px;height:28px;border-radius:50%;background:#8b4513;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <label style="width:28px;height:28px;border-radius:50%;background:conic-gradient(red,yellow,green,blue,red);border:2px solid #e5e5e5;cursor:pointer;overflow:hidden;display:block;">
+            <input type="color" id="theme-color-custom" style="opacity:0;width:100%;height:100%;cursor:pointer;" oninput="applyTheme(this.value,'#ffffff')">
+          </label>
+        </div>
+        <div style="font-size:11px;color:#999;">点击色块或最右边自定义</div>
+      </div>
+
+      <!-- 用户聊天框颜色 -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:13px;margin-bottom:8px;">用户聊天框颜色</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <div onclick="applyChatBubble('#dcf8c6')" style="width:28px;height:28px;border-radius:50%;background:#dcf8c6;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div onclick="applyChatBubble('#d0e8ff')" style="width:28px;height:28px;border-radius:50%;background:#d0e8ff;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div onclick="applyChatBubble('#ffd6e0')" style="width:28px;height:28px;border-radius:50%;background:#ffd6e0;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div onclick="applyChatBubble('#fff3cd')" style="width:28px;height:28px;border-radius:50%;background:#fff3cd;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div onclick="applyChatBubble('#e8d5ff')" style="width:28px;height:28px;border-radius:50%;background:#e8d5ff;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div onclick="applyChatBubble('#ffffff')" style="width:28px;height:28px;border-radius:50%;background:#ffffff;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <label style="width:28px;height:28px;border-radius:50%;background:conic-gradient(red,yellow,green,blue,red);border:2px solid #e5e5e5;cursor:pointer;overflow:hidden;display:block;">
+            <input type="color" id="bubble-color-custom" style="opacity:0;width:100%;height:100%;cursor:pointer;" oninput="applyChatBubble(this.value)">
+          </label>
+        </div>
+        <div style="font-size:11px;color:#999;">点击色块或最右边自定义</div>
+      </div>
+
+      <!-- 聊天背景 -->
+      <div>
+        <div style="font-size:13px;margin-bottom:8px;">聊天背景</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <div onclick="applyChatBg('')" style="width:28px;height:28px;border-radius:6px;background:#ffffff;border:2px solid #e5e5e5;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#999;">无</div>
+          <div onclick="applyChatBg('linear-gradient(135deg,#f5f7fa,#c3cfe2)')" style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#f5f7fa,#c3cfe2);border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div onclick="applyChatBg('linear-gradient(135deg,#ffecd2,#fcb69f)')" style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#ffecd2,#fcb69f);border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div onclick="applyChatBg('linear-gradient(135deg,#a1c4fd,#c2e9fb)')" style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#a1c4fd,#c2e9fb);border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div onclick="applyChatBg('linear-gradient(135deg,#d4fc79,#96e6a1)')" style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#d4fc79,#96e6a1);border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <label style="width:28px;height:28px;border-radius:6px;background:#f0f0f0;border:2px solid #e5e5e5;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;">
+            🖼
+            <input type="file" id="chat-bg-upload" accept="image/*" style="display:none;" onchange="applyBgImage(this)">
+          </label>
+        </div>
+        <div style="font-size:11px;color:#999;">选渐变色或点🖼上传图片</div>
+      </div>
+    </div>
+    <div style="margin-bottom:24px;">
+      <div style="font-size:12px;color:#999;margin-bottom:8px;">数据导入</div>
+      <div onclick="document.getElementById('import-data').click()"
+        style="width:100%;padding:16px;border:2px dashed #e5e5e5;border-radius:8px;text-align:center;cursor:pointer;color:#999;font-size:13px;">
+        点击上传AI数据文件<br>
+        <span style="font-size:11px;">支持 JSON / TXT 格式</span>
+      </div>
+      <input type="file" id="import-data" accept=".json,.txt" style="display:none;">
+    </div>
+    <button id="save-user-settings" style="width:100%;padding:10px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;">保存</button>
+  </div>
+</div>
+
+<!-- 弹窗C：功能开关 -->
+<div id="modal-features" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.4);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;width:520px;max-height:80vh;overflow-y:auto;padding:24px;position:relative;">
+    <button onclick="document.getElementById('modal-features').style.display='none'" style="position:absolute;top:14px;right:16px;border:none;background:none;font-size:18px;cursor:pointer;">×</button>
+    <h3 style="margin:0 0 20px;font-size:16px;">功能开关</h3>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div><div style="font-size:14px;font-weight:500;">官方语音</div><div style="font-size:12px;color:#999;margin-top:2px;">使用官方TTS语音回复</div></div>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-official-voice" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+        </div>
+        <div style="margin-top:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">
+            <span>Token限额</span><span class="token-val">不限制</span>
+          </div>
+          <input type="range" min="0" max="100000" step="1000" value="0"
+            oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'"
+            style="width:100%;accent-color:#1a1a1a;">
+        </div>
+      </div>
+      <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div><div style="font-size:14px;font-weight:500;">第三方语音</div><div style="font-size:12px;color:#999;margin-top:2px;">使用第三方语音服务</div></div>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-third-voice" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+        </div>
+        <div style="margin-top:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">
+            <span>Token限额</span><span class="token-val">不限制</span>
+          </div>
+          <input type="range" min="0" max="100000" step="1000" value="0"
+            oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'"
+            style="width:100%;accent-color:#1a1a1a;">
+        </div>
+      </div>
+      <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div><div style="font-size:14px;font-weight:500;">AI发送表情包</div><div style="font-size:12px;color:#999;margin-top:2px;">AI回复时附带表情包</div></div>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-emoji" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+        </div>
+        <div style="margin-top:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">
+            <span>Token限额</span><span class="token-val">不限制</span>
+          </div>
+          <input type="range" min="0" max="100000" step="1000" value="0"
+            oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'"
+            style="width:100%;accent-color:#1a1a1a;">
+        </div>
+      </div>
+      <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div><div style="font-size:14px;font-weight:500;">主动发送新闻/天气/知识</div><div style="font-size:12px;color:#999;margin-top:2px;">AI结合性格主动推送内容</div></div>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-push" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+        </div>
+        <div style="margin-top:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">
+            <span>Token限额</span><span class="token-val">不限制</span>
+          </div>
+          <input type="range" min="0" max="100000" step="1000" value="0"
+            oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'"
+            style="width:100%;accent-color:#1a1a1a;">
+        </div>
+      </div>
+      <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div><div style="font-size:14px;font-weight:500;">关心与备忘录提醒</div><div style="font-size:12px;color:#999;margin-top:2px;">AI主动发送关心消息和备忘提醒</div></div>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-care" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+        </div>
+        <div style="margin-top:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">
+            <span>Token限额</span><span class="token-val">不限制</span>
+          </div>
+          <input type="range" min="0" max="100000" step="1000" value="0"
+            oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'"
+            style="width:100%;accent-color:#1a1a1a;">
+        </div>
+      </div>
+      <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div><div style="font-size:14px;font-weight:500;">AI自己发消息</div><div style="font-size:12px;color:#999;margin-top:2px;">AI在无对话时主动发起消息</div></div>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-proactive" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+        </div>
+        <div style="margin-top:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">
+            <span>Token限额</span><span class="token-val">不限制</span>
+          </div>
+          <input type="range" min="0" max="100000" step="1000" value="0"
+            oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'"
+            style="width:100%;accent-color:#1a1a1a;">
+        </div>
+      </div>
+      <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div><div style="font-size:14px;font-weight:500;">登录小红书发消息</div><div style="font-size:12px;color:#999;margin-top:2px;">AI代为登录小红书发送内容</div></div>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-xiaohongshu" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+        </div>
+        <div style="margin-top:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">
+            <span>Token限额</span><span class="token-val">不限制</span>
+          </div>
+          <input type="range" min="0" max="100000" step="1000" value="0"
+            oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'"
+            style="width:100%;accent-color:#1a1a1a;">
+        </div>
+      </div>
+    </div>
+    <button id="save-features" style="width:100%;padding:10px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;margin-top:20px;">保存设置</button>
+  </div>
+</div>
+
+<!-- 设置抽屉 -->
+<div id="settings-drawer" class="drawer hidden">
+  <div class="drawer-header">
+    <span class="drawer-title">设置</span>
+    <button id="close-settings-btn" class="ghost-btn icon-btn">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-section">
+      <label>应用标题<input id="f-app_title" type="text" /></label>
+      <label>副标题<input id="f-subtitle" type="text" /></label>
+      <label>AI 显示名称<input id="f-display_name" type="text" /></label>
+      <label>用户显示名称<input id="f-user_display_name" type="text" /></label>
+    </div>
+    <div class="drawer-section">
+      <label>访问令牌<input id="f-access_token" type="password" /></label>
+      <label>API Base URL<input id="f-api_base_url" type="text" /></label>
+      <label>API Key<input id="f-api_key" type="password" /></label>
+      <label>主模型<input id="f-primary_model" type="text" /></label>
+      <label>摘要模型<input id="f-summary_model" type="text" /></label>
+    </div>
+    <div class="drawer-section">
+      <label>系统目标<textarea id="f-system_goal"></textarea></label>
+      <label>人格核心<textarea id="f-persona_core"></textarea></label>
+      <label>关系背景<textarea id="f-relationship_context"></textarea></label>
+      <label>用户摘要<textarea id="f-user_summary"></textarea></label>
+    </div>
+    <div class="drawer-section two-col">
+      <label>主温度<input id="f-primary_temperature" type="number" step="0.01" /></label>
+      <label>主 max_tokens<input id="f-primary_max_tokens" type="number" /></label>
+      <label>摘要温度<input id="f-summary_temperature" type="number" step="0.01" /></label>
+      <label>摘要 max_tokens<input id="f-summary_max_tokens" type="number" /></label>
+    </div>
+    <div class="drawer-section checkbox-group">
+      <label><input id="f-enable_cache" type="checkbox" /> 启用缓存</label>
+      <label><input id="f-auto_summary_enabled" type="checkbox" /> 自动摘要</label>
+      <label><input id="f-heartbeat_enabled" type="checkbox" /> 心跳</label>
+    </div>
+    <div class="drawer-section">
+      <div class="usage-panel" id="usage-panel"></div>
+    </div>
+    <button id="save-settings-btn" class="primary-btn" style="width:100%;">保存设置</button>
+  </div>
+</div>
+
+<!-- 记忆抽屉 -->
+<div id="memory-drawer" class="drawer hidden">
+  <div class="drawer-header">
+    <span class="drawer-title">记忆</span>
+    <button id="close-memory-btn" class="ghost-btn icon-btn">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="memory-list" id="memory-list"></div>
+  </div>
+</div>
+
+<!-- 隐藏但保留：JS 依赖的元素 -->
+<span id="brand-subtitle" style="display:none;"></span>
+<span id="profile-subtitle" style="display:none;"></span>
+<span id="profile-avatar" style="display:none;"></span>
+<div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+<script src="/static/app.js"></script>
+<script>
+  // ── 侧边栏 A/B 切换逻辑 ──
+  const sidebarA = document.getElementById('sidebar-collapsed');
+  const sidebarB = document.getElementById('sidebar-expanded');
+  const mainEl   = document.getElementById('main');
+
+  function showA() {
+    sidebarA.style.display = 'flex';
+    sidebarB.style.display = 'none';
+  }
+
+  function showB() {
+    sidebarA.style.display = 'none';
+    sidebarB.style.display = 'flex';
+  }
+
+  // AI 头像点击 → B 状态
+  document.getElementById('ai-avatar-collapsed').addEventListener('click', function(e) {
+    e.stopPropagation();
+    showB();
+  });
+
+  // 点击 #main 任意位置 → A 状态
+  mainEl.addEventListener('click', function() {
+    if (sidebarB.style.display !== 'none') {
+      showA();
+    }
+  });
+
+  // B 状态内部点击不冒泡到 #main
+  sidebarB.addEventListener('click', function(e) {
+    e.stopPropagation();
+  });
+
+  // 同步 B 状态新聊天按钮到原有 createConversation
+  document.getElementById('new-chat-btn-expanded').addEventListener('click', function() {
+    document.getElementById('new-chat-btn').click();
+  });
+
+  // AI头像点击 → AI设置弹窗
+  document.getElementById('ai-avatar-expanded').addEventListener('click', function(e) {
+    e.stopPropagation();
+    document.getElementById('modal-ai-settings').style.display = 'flex';
+  });
+
+  // AI名称点击 → AI设置弹窗
+  document.querySelector('.se-ai-name').addEventListener('click', function(e) {
+    e.stopPropagation();
+    document.getElementById('modal-ai-settings').style.display = 'flex';
+  });
+
+  // 小爱心点击 → 功能开关弹窗
+  document.querySelector('.se-heart').addEventListener('click', function(e) {
+    e.stopPropagation();
+    document.getElementById('modal-features').style.display = 'flex';
+  });
+
+  // 用户头像点击（A状态）→ 用户设置弹窗
+  document.getElementById('user-avatar-collapsed').addEventListener('click', function(e) {
+    e.stopPropagation();
+    document.getElementById('modal-user-settings').style.display = 'flex';
+  });
+
+  // 用户头像点击（B状态）→ 用户设置弹窗
+  document.getElementById('user-avatar-expanded').addEventListener('click', function(e) {
+    e.stopPropagation();
+    document.getElementById('modal-user-settings').style.display = 'flex';
+  });
+
+  // 用户名称点击 → 用户设置弹窗
+  document.querySelector('.se-user-name').addEventListener('click', function(e) {
+    e.stopPropagation();
+    document.getElementById('modal-user-settings').style.display = 'flex';
+  });
+
+  document.getElementById('save-ai-settings').addEventListener('click', function() {
+    document.getElementById('modal-ai-settings').style.display = 'none';
+  });
+  document.getElementById('save-user-settings').addEventListener('click', function() {
+    document.getElementById('modal-user-settings').style.display = 'none';
+  });
+  document.getElementById('save-features').addEventListener('click', function() {
+    document.getElementById('modal-features').style.display = 'none';
+  });
+
+  document.querySelectorAll('#modal-features input[type="checkbox"]').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      var span = this.nextElementSibling;
+      span.style.background = this.checked ? '#1a1a1a' : '#ccc';
+    });
+  });
+
+  function showSaveToast(msg) {
+    var t = document.createElement('div');
+    t.textContent = msg || '已同步';
+    t.style = 'position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;z-index:9999;opacity:1;transition:opacity .4s;';
+    document.body.appendChild(t);
+    setTimeout(function(){ t.style.opacity='0'; setTimeout(function(){ t.remove(); }, 400); }, 1800);
+  }
+
+  document.getElementById('save-ai-settings').addEventListener('click', function() {
+    showSaveToast('AI设置已保存');
+  });
+  document.getElementById('save-user-settings').addEventListener('click', function() {
+    showSaveToast('用户设置已保存');
+  });
+  document.getElementById('save-features').addEventListener('click', function() {
+    showSaveToast('功能设置已保存');
+  });
+
+  function applyTheme(accent, fg) {
+    var root = document.documentElement;
+    root.style.setProperty('--accent', accent);
+    root.style.setProperty('--accent-fg', fg);
+    root.style.setProperty('--text-primary', accent);
+    root.style.setProperty('--sidebar-bg', accent);
+    root.style.setProperty('--topbar-bg', accent);
+    root.style.setProperty('--border-color', 'rgba(255,255,255,0.15)');
+    root.style.setProperty('--hover-bg', 'rgba(255,255,255,0.12)');
+    root.style.setProperty('--text-secondary', fg);
+    root.style.setProperty('--text-muted', 'rgba(255,255,255,0.6)');
+    document.querySelectorAll(
+      '#sidebar-collapsed, #sidebar-expanded, .se-ai-name, .se-user-name, .se-section-title, .sc-icon-btn, .se-tool-btn'
+    ).forEach(function(el) {
+      el.style.color = fg;
+    });
+    var topbar = document.querySelector('.topbar');
+    if (topbar) { topbar.style.background = accent; topbar.style.color = fg; }
+    localStorage.setItem('theme-accent', accent);
+    localStorage.setItem('theme-fg', fg);
+  }
+
+  function applyChatBubble(color) {
+    document.documentElement.style.setProperty('--bubble-user', color);
+    localStorage.setItem('bubble-user', color);
+  }
+
+  function applyChatBg(value) {
+    var el = document.getElementById('chat-scroll');
+    if (!el) return;
+    el.style.background = value;
+    el.style.backgroundImage = '';
+    localStorage.setItem('chat-bg', value);
+  }
+
+  function applyBgImage(input) {
+    if (!input.files || !input.files[0]) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var el = document.getElementById('chat-scroll');
+      if (el) {
+        el.style.backgroundImage = 'url(' + e.target.result + ')';
+        el.style.backgroundSize = 'cover';
+        el.style.backgroundPosition = 'center';
+      }
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+
+  // 页面加载时恢复上次设置
+  (function() {
+    var accent = localStorage.getItem('theme-accent');
+    var fg = localStorage.getItem('theme-fg');
+    var bubble = localStorage.getItem('bubble-user');
+    var bg = localStorage.getItem('chat-bg');
+    if (accent) applyTheme(accent, fg || '#ffffff');
+    if (bubble) applyChatBubble(bubble);
+    if (bg) applyChatBg(bg);
+  })();
+
+  // 添加服务器输入框
+  function addServerInput() {
+    const list = document.getElementById('server-list');
+    const row = document.createElement('div');
+    row.style = 'display:flex;gap:6px;';
+    row.innerHTML = '<input type="text" placeholder="https://..." style="flex:1;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;"><button onclick="this.parentElement.remove()" style="padding:6px 10px;border:1px solid #e5e5e5;border-radius:6px;background:#f9f9f9;cursor:pointer;font-size:12px;">删除</button>';
+    list.appendChild(row);
+  }
+</script>
+
+</body>
+</html>
