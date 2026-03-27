@@ -219,6 +219,19 @@
       min-width: 0;
     }
 
+    #chat-bg-button {
+      transition: transform 0.2s, background-color 0.2s;
+      cursor: pointer;
+    }
+    #chat-bg-button.clicked {
+      transform: scale(0.95);
+      background-color: #dcdcdc !important;
+    }
+    #chat-bg-button:active {
+      transform: scale(0.95);
+      background-color: #dcdcdc !important;
+    }
+
     @media (max-width: 768px) {
       #sidebar-collapsed {
         position: fixed;
@@ -361,6 +374,15 @@
           <div class="chat-title" id="chat-title">未选择会话</div>
           <div class="chat-meta" id="chat-meta">0 条消息</div>
         </div>
+      </div>
+      <div class="topbar-right" style="display:flex;align-items:center;gap:8px;padding-right:16px;">
+        <button id="chat-bg-button" title="切换聊天背景色" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border-color);background:transparent;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 2a10 10 0 0 1 0 20"/>
+            <path d="M2 12h20"/>
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -842,6 +864,28 @@
     if (bubble) applyChatBubble(bubble);
     if (bg) applyChatBg(bg);
   })();
+
+  // chat-bg-button：循环切换聊天背景色
+  var chatBgButton = document.getElementById('chat-bg-button');
+  if (chatBgButton) {
+    chatBgButton.addEventListener('click', function() {
+      changeChatBackgroundColor();
+      chatBgButton.classList.add('clicked');
+      setTimeout(function() { chatBgButton.classList.remove('clicked'); }, 300);
+    });
+  }
+
+  function changeChatBackgroundColor() {
+    var chatArea = document.getElementById('chat-scroll');
+    if (!chatArea) return;
+    var colors = ['', '#f0f0f0', '#e0f7fa', '#fff8e1', '#fce4ec'];
+    var current = chatArea.dataset.bgIndex ? parseInt(chatArea.dataset.bgIndex) : 0;
+    var next = (current + 1) % colors.length;
+    chatArea.style.background = colors[next];
+    chatArea.style.backgroundImage = '';
+    chatArea.dataset.bgIndex = next;
+    localStorage.setItem('chat-bg', colors[next]);
+  }
 
   // 添加服务器输入框
   function addServerInput() {
