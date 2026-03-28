@@ -1,5 +1,4 @@
 const state = {
-  token: localStorage.getItem("lin_token") || "",
   runtime: null,
   conversations: [],
   currentConversationId: null,
@@ -11,31 +10,29 @@ function qs(id) {
   return document.getElementById(id);
 }
 
-const appShell = qs("app");
-const sidebarOverlay = qs("sidebar-overlay");
-
-function headers() {
-  return {
-    "Content-Type": "application/json",
-    "X-Access-Token": state.token,
-  };
-}
-
 async function api(path, options = {}) {
   const res = await fetch(path, {
     ...options,
     headers: {
+      "Content-Type": "application/json",
       ...(options.headers || {}),
-      ...headers(),
     },
   });
 
+  const contentType = res.headers.get("content-type") || "";
+  const data = contentType.includes("application/json")
+    ? await res.json().catch(() => ({}))
+    : await res.text().catch(() => "");
+
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || `HTTP ${res.status}`);
+    const detail =
+      (typeof data === "object" && data && (data.detail || data.message)) ||
+      (typeof data === "string" ? data : "") ||
+      `HTTP ${res.status}`;
+    throw new Error(detail);
   }
 
-  return res.json();
+  return data;
 }
 
 function formatTime(value) {
@@ -47,113 +44,56 @@ function formatTime(value) {
 }
 
 function escapeHtml(raw) {
-  return String(raw)
+  return String(raw ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
 }
 
-function isMobileView() {
-  return window.innerWidth <= 900;
-}
-
-function applySidebarState() {
-  if (isMobileView()) {
-    appShell.classList.remove("desktop-sidebar-collapsed");
-    appShell.classList.remove("mobile-sidebar-open");
-    return;
-  }
-
-  appShell.classList.remove("mobile-sidebar-open");
-
-  const saved = localStorage.getItem("lin_sidebar_collapsed");
-  if (saved === "1") {
-    appShell.classList.add("desktop-sidebar-collapsed");
-  } else {
-    appShell.classList.remove("desktop-sidebar-collapsed");
-  }
-}
-
-function toggleSidebar() {
-  if (isMobileView()) {
-    appShell.classList.toggle("mobile-sidebar-open");
-    return;
-  }
-
-  appShell.classList.toggle("desktop-sidebar-collapsed");
-  localStorage.setItem(
-    "lin_sidebar_collapsed",
-    appShell.classList.contains("desktop-sidebar-collapsed") ? "1" : "0"
-  );
-}
-
-function closeMobileSidebar() {
-  if (isMobileView()) {
-    appShell.classList.remove("mobile-sidebar-open");
-  }
-}
-
-function closeAllDrawers() {
-  qs("settings-drawer").classList.add("hidden");
-  qs("memory-drawer").classList.add("hidden");
-}
-
-function openSettingsDrawer() {
-  qs("memory-drawer").classList.add("hidden");
-  qs("settings-drawer").classList.remove("hidden");
-}
-
-function openMemoryDrawer() {
-  qs("settings-drawer").classList.add("hidden");
-  qs("memory-drawer").classList.remove("hidden");
-}
-
-function renderProfileEntry() {
-  const data = state.settings || {};
-  const name = data.user_display_name || state.runtime?.user_display_name || "用户";
-  const subtitle = "设置与参数";
-  const avatar = String(name).trim().charAt(0) || "U";
-
-  qs("profile-name").textContent = name;
-  qs("profile-subtitle").textContent = subtitle;
-  qs("profile-avatar").textContent = avatar;
-}
-
 function renderRuntime() {
   if (!state.runtime) return;
-  qs("brand-title").textContent = state.runtime.app_title || "Lin System";
-  qs("brand-subtitle").textContent = state.runtime.subtitle || "";
-  qs("model-pill").textContent = state.runtime.display_name || "AI";
-  renderProfileEntry();
+
+  const brandTitle = qs("brand-title");
+  if (brandTitle) brandTitle.textContent = state.runtime.app_title || "Lin System";
+
+  const profileName = qs("profile-name");
+  if (profileName) {
+    const data = state.settings || {};
+    const name = data.user_display_name || state.runtime.user_display_name || "用户";
+    profileName.textContent = name;
+  }
 }
 
 function renderConversations() {
-  const el = qs("conversation-list");
-  el.innerHTML = "";
+  const listA = qs("conversation-list");
+  const listB = qs("conversation-list-expanded");
 
-  state.conversations.forEach((conv) => {
-    const div = document.createElement("div");
-    div.className =
-      "conv-item" + (conv.id === state.currentConversationId ? " active" : "");
+  [listA, listB].forEach((el) => {
+    if (!el) return;
+    el.innerHTML = "";
 
-    div.innerHTML = `
-      <div class="conv-title">${escapeHtml(conv.title)}</div>
-      <div class="conv-time">${formatTime(conv.updated_at)}</div>
-    `;
-
-    div.onclick = async () => {
-      state.currentConversationId = conv.id;
-      await loadMessages(conv.id);
-      renderConversations();
-      closeMobileSidebar();
-    };
-
-    el.appendChild(div);
+    state.conversations.forEach((conv) => {
+      const div = document.createElement("div");
+      div.className =
+        "conv-item" + (conv.id === state.currentConversationId ? " active" : "");
+      div.innerHTML = `
+        <div class="conv-title">${escapeHtml(conv.title)}</div>
+        <div class="conv-time">${formatTime(conv.updated_at)}</div>
+      `;
+      div.onclick = async () => {
+        state.currentConversationId = conv.id;
+        await loadMessages(conv.id);
+        renderConversations();
+      };
+      el.appendChild(div);
+    });
   });
 }
 
 function renderMessages() {
   const el = qs("chat-scroll");
+  if (!el) return;
+
   el.innerHTML = "";
 
   state.messages.forEach((msg) => {
@@ -169,21 +109,24 @@ function renderMessages() {
       <div class="msg-content">${escapeHtml(msg.content).replaceAll("\n", "<br>")}</div>
       <div class="msg-meta">${msg.role} · ${formatTime(msg.created_at)}${cost}</div>
     `;
-
     el.appendChild(div);
   });
 
   el.scrollTop = el.scrollHeight;
 
   const conv = state.conversations.find((x) => x.id === state.currentConversationId);
-  qs("chat-title").textContent = conv ? conv.title : "未选择会话";
-  qs("chat-meta").textContent = `${state.messages.length} 条消息`;
+  const chatTitle = qs("chat-title");
+  if (chatTitle) chatTitle.textContent = conv ? conv.title : "新对话";
+
+  const chatMeta = qs("chat-meta");
+  if (chatMeta) chatMeta.textContent = `${state.messages.length} 条消息`;
 }
 
 function renderMemories(items) {
   const el = qs("memory-list");
-  el.innerHTML = "";
+  if (!el) return;
 
+  el.innerHTML = "";
   items.forEach((m) => {
     const div = document.createElement("div");
     div.className = "memory-card";
@@ -197,7 +140,9 @@ function renderMemories(items) {
 }
 
 function renderUsage(data) {
-  qs("usage-panel").innerHTML = `
+  const el = qs("usage-panel");
+  if (!el) return;
+  el.innerHTML = `
     <div>消息数：${data.messages}</div>
     <div>输入 token：${data.token_in}</div>
     <div>输出 token：${data.token_out}</div>
@@ -223,7 +168,7 @@ function getFormValue(id) {
 }
 
 function fillSettingsForm(data) {
-  state.settings = data;
+  state.settings = data || {};
 
   setFormValue("f-app_title", data.app_title);
   setFormValue("f-subtitle", data.subtitle);
@@ -246,7 +191,7 @@ function fillSettingsForm(data) {
   setFormValue("f-auto_summary_enabled", data.auto_summary_enabled);
   setFormValue("f-heartbeat_enabled", data.heartbeat_enabled);
 
-  renderProfileEntry();
+  renderRuntime();
 }
 
 function collectSettingsForm() {
@@ -281,30 +226,21 @@ async function loadRuntime() {
 
 async function loadSettingsForm() {
   const res = await api("/api/settings/form");
-  fillSettingsForm(res.data);
-
+  fillSettingsForm(res.data || {});
   const usage = await api("/api/usage");
   renderUsage(usage);
 }
 
 async function saveSettingsForm() {
   const payload = collectSettingsForm();
-
   const res = await api("/api/settings/form", {
     method: "PUT",
     body: JSON.stringify(payload),
   });
-
-  fillSettingsForm(res.data);
-  alert("设置已保存");
-
-  if (payload.access_token && payload.access_token !== state.token) {
-    state.token = payload.access_token;
-    localStorage.setItem("lin_token", state.token);
-  }
-
+  fillSettingsForm(res.data || {});
   await loadRuntime();
   await loadSettingsForm();
+  alert("设置已保存");
 }
 
 async function loadConversations() {
@@ -314,6 +250,9 @@ async function loadConversations() {
   if (!state.currentConversationId && state.conversations.length) {
     state.currentConversationId = state.conversations[0].id;
     await loadMessages(state.currentConversationId);
+  } else if (!state.currentConversationId) {
+    state.messages = [];
+    renderMessages();
   }
 }
 
@@ -336,95 +275,86 @@ async function createConversation() {
   state.conversations.unshift(conv);
   state.currentConversationId = conv.id;
   state.messages = [];
-
   renderConversations();
   renderMessages();
-  closeMobileSidebar();
 }
 
 async function sendMessage() {
   const input = qs("composer-input");
+  if (!input) {
+    console.error("composer-input not found");
+    return;
+  }
+
   const content = input.value.trim();
   if (!content) return;
 
+  const sendBtn = qs("send-btn");
+  if (sendBtn) sendBtn.disabled = true;
+
   input.value = "";
 
-  const convId = state.currentConversationId || "new";
-
-  const res = await api(`/api/conversations/${convId}/messages`, {
-    method: "POST",
-    body: JSON.stringify({ content }),
-  });
-
-  state.currentConversationId = res.conversation_id;
-
-  await loadConversations();
-  await loadMessages(state.currentConversationId);
-  await loadMemories();
-  await loadSettingsForm();
-}
-
-async function doLogin() {
-  const token = qs("login-token").value.trim();
-
   try {
-    const res = await fetch("/api/auth/login", {
+    const convId = state.currentConversationId || "new";
+    const res = await api(`/api/conversations/${convId}/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ content }),
     });
 
-    if (!res.ok) throw new Error("token 无效");
-
-    state.token = token;
-    localStorage.setItem("lin_token", token);
-    qs("login-overlay").classList.add("hidden");
-
-    await boot();
-  } catch (e) {
-    qs("login-hint").textContent = e.message || "登录失败";
+    state.currentConversationId = res.conversation_id;
+    await loadConversations();
+    await loadMessages(state.currentConversationId);
+    await loadMemories();
+    await loadSettingsForm();
+  } catch (err) {
+    input.value = content;
+    alert(`发送失败：${err.message || err}`);
+    console.error("sendMessage failed:", err);
+  } finally {
+    if (sendBtn) sendBtn.disabled = false;
+    input.focus();
   }
+}
+
+function bindClick(id, handler) {
+  const el = qs(id);
+  if (!el) return;
+  el.onclick = handler;
 }
 
 function bindEvents() {
-  qs("login-btn").onclick = doLogin;
-  qs("toggle-sidebar-btn").onclick = toggleSidebar;
-  qs("new-chat-btn").onclick = createConversation;
-  qs("send-btn").onclick = sendMessage;
+  bindClick("new-chat-btn", createConversation);
+  bindClick("new-chat-btn-expanded", createConversation);
 
-  qs("composer-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+  const sendBtn = qs("send-btn");
+  if (sendBtn) {
+    sendBtn.addEventListener("click", (e) => {
       e.preventDefault();
       sendMessage();
-    }
-  });
-
-  qs("show-settings-btn").onclick = async () => {
-    openSettingsDrawer();
-    await loadSettingsForm();
-    closeMobileSidebar();
-  };
-
-  qs("close-settings-btn").onclick = () => {
-    qs("settings-drawer").classList.add("hidden");
-  };
-
-  qs("show-memory-btn").onclick = async () => {
-    openMemoryDrawer();
-    await loadMemories();
-  };
-
-  qs("close-memory-btn").onclick = () => {
-    qs("memory-drawer").classList.add("hidden");
-  };
-
-  qs("save-settings-btn").onclick = saveSettingsForm;
-
-  if (sidebarOverlay) {
-    sidebarOverlay.onclick = closeMobileSidebar;
+    });
   }
 
-  window.addEventListener("resize", applySidebarState);
+  const composerInput = qs("composer-input");
+  if (composerInput) {
+    composerInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  }
+
+  bindClick("close-settings-btn", () => {
+    const el = qs("settings-drawer");
+    if (el) el.classList.add("hidden");
+  });
+
+  bindClick("close-memory-btn", () => {
+    const el = qs("memory-drawer");
+    if (el) el.classList.add("hidden");
+  });
+
+  bindClick("save-settings-btn", saveSettingsForm);
 }
 
 async function boot() {
@@ -434,14 +364,14 @@ async function boot() {
   await loadMemories();
 }
 
-(function init() {
-  bindEvents();
-  applySidebarState();
+document.addEventListener("DOMContentLoaded", () => {
+  const loginOverlay = qs("login-overlay");
+  if (loginOverlay) loginOverlay.remove();
 
-  if (state.token) {
-    qs("login-overlay").classList.add("hidden");
-    boot().catch(() => {
-      qs("login-overlay").classList.remove("hidden");
-    });
-  }
-})();
+  bindEvents();
+
+  boot().catch((err) => {
+    console.error("boot failed:", err);
+    alert(`页面初始化失败：${err.message || err}`);
+  });
+});
