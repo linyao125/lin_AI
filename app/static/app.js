@@ -105,9 +105,12 @@ function renderMessages() {
         ? ` · $${Number(msg.cost_estimate).toFixed(6)}`
         : "";
 
+    const aiName = (state.runtime && state.runtime.display_name) || "AI";
+    const senderName = msg.role === "assistant" ? aiName : "我";
     div.innerHTML = `
+      <div class="msg-sender">${escapeHtml(senderName)}</div>
       <div class="msg-content">${escapeHtml(msg.content).replaceAll("\n", "<br>")}</div>
-      <div class="msg-meta">${msg.role} · ${formatTime(msg.created_at)}${cost}</div>
+      <div class="msg-meta">${formatTime(msg.created_at)}${cost}</div>
     `;
     el.appendChild(div);
   });
@@ -167,6 +170,17 @@ function getFormValue(id) {
   return el.value;
 }
 
+function applyAiBubbleColor() {
+  const root = document.documentElement;
+  const s = state.settings || {};
+  if (s.ai_bubble_color) {
+    root.style.setProperty('--ai-bubble', s.ai_bubble_color);
+  } else {
+    const userColor = getComputedStyle(root).getPropertyValue('--user');
+    root.style.setProperty('--ai-bubble', userColor);
+  }
+}
+
 function fillSettingsForm(data) {
   state.settings = data || {};
 
@@ -192,6 +206,7 @@ function fillSettingsForm(data) {
   setFormValue("f-heartbeat_enabled", data.heartbeat_enabled);
 
   renderRuntime();
+  applyAiBubbleColor();
 }
 
 function collectSettingsForm() {
@@ -240,7 +255,6 @@ async function saveSettingsForm() {
   fillSettingsForm(res.data || {});
   await loadRuntime();
   await loadSettingsForm();
-  alert("设置已保存");
 }
 
 async function loadConversations() {
@@ -281,18 +295,48 @@ async function createConversation() {
 
 async function sendMessage() {
   const input = qs("composer-input");
-  if (!input) {
-    console.error("composer-input not found");
-    return;
-  }
+  if (!input) return;
 
   const content = input.value.trim();
   if (!content) return;
 
   const sendBtn = qs("send-btn");
   if (sendBtn) sendBtn.disabled = true;
-
   input.value = "";
+
+  // 立刻显示用户消息
+  const chatScroll = qs("chat-scroll");
+  const userDiv = document.createElement("div");
+  userDiv.className = "msg user";
+  userDiv.innerHTML = `
+    <div class="msg-sender">我</div>
+    <div class="msg-content">${escapeHtml(content).replaceAll("\n", "<br>")}</div>
+  `;
+  if (chatScroll) {
+    chatScroll.appendChild(userDiv);
+    chatScroll.scrollTop = chatScroll.scrollHeight;
+  }
+
+  // 显示AI加载动画
+  const aiName = (state.runtime && state.runtime.display_name) || "AI";
+  const loadingDiv = document.createElement("div");
+  loadingDiv.className = "msg assistant";
+  loadingDiv.id = "msg-loading";
+
+  const senderEl = document.createElement("div");
+  senderEl.className = "msg-sender";
+  senderEl.textContent = aiName;
+  loadingDiv.appendChild(senderEl);
+
+  const ecgLoader = typeof createEcgLoader === "function" ? createEcgLoader() : null;
+  if (ecgLoader) {
+    loadingDiv.appendChild(ecgLoader);
+  }
+
+  if (chatScroll) {
+    chatScroll.appendChild(loadingDiv);
+    chatScroll.scrollTop = chatScroll.scrollHeight;
+  }
 
   try {
     const convId = state.currentConversationId || "new";
@@ -305,9 +349,11 @@ async function sendMessage() {
     await loadConversations();
     await loadMessages(state.currentConversationId);
     await loadMemories();
-    await loadSettingsForm();
   } catch (err) {
     input.value = content;
+    const loading = qs("msg-loading");
+    if (loading) loading.remove();
+    userDiv.remove();
     alert(`发送失败：${err.message || err}`);
     console.error("sendMessage failed:", err);
   } finally {
@@ -336,11 +382,17 @@ function bindEvents() {
 
   const composerInput = qs("composer-input");
   if (composerInput) {
+    composerInput.focus();
     composerInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
+        e.stopPropagation();
         sendMessage();
       }
+    });
+    composerInput.addEventListener("input", function () {
+      this.style.height = "auto";
+      this.style.height = Math.min(this.scrollHeight, 160) + "px";
     });
   }
 

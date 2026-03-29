@@ -1,5 +1,6 @@
 :root {
   --bg: #0f1115;
+  --chat-bg: var(--bg);
   --panel: #151922;
   --panel-2: #1b2130;
   --panel-3: #222a3a;
@@ -10,6 +11,9 @@
   --accent-2: #93c5fd;
   --user: #243b69;
   --assistant: #1a2130;
+  --ai-bubble: var(--assistant);
+  --chat-bg-color: transparent;
+  --chat-bg-image: none;
   --shadow: 0 14px 40px rgba(0,0,0,.32);
   --radius: 16px;
   --sidebar-w: 280px;
@@ -211,7 +215,7 @@ label {
   min-width: 0;
   display: grid;
   grid-template-rows: 72px minmax(0, 1fr) auto;
-  background: linear-gradient(180deg, #0f1115 0%, #111521 100%);
+  background: linear-gradient(180deg, var(--chat-bg) 0%, #111521 100%);
 }
 
 .topbar {
@@ -267,6 +271,12 @@ label {
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  background-color: var(--chat-bg-color);
+  background-image: var(--chat-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: background-color .2s ease, background-image .2s ease;
 }
 
 .msg {
@@ -285,7 +295,7 @@ label {
 
 .msg.assistant {
   align-self: flex-start;
-  background: var(--assistant);
+  background: var(--ai-bubble);
   border: 1px solid var(--line);
 }
 
@@ -546,4 +556,46 @@ label {
   .two-col {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── typing / loading indicator ── */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 0;
+}
+
+.typing-indicator .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: wave 1.2s infinite ease-in-out;
+}
+
+.typing-indicator .dot:nth-child(1) { animation-delay: 0s; }
+.typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes wave {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+/* ── 颜色选择器选中态 ── */
+.color-chip.active {
+  outline: 2px solid rgba(59,130,246,.9);
+  box-shadow: 0 0 0 4px rgba(59,130,246,.28);
+}
+
+.color-custom.active {
+  outline: 2px solid rgba(59,130,246,.9);
+  box-shadow: 0 0 0 4px rgba(59,130,246,.28);
 }

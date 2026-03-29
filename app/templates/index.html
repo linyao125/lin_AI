@@ -22,7 +22,6 @@
       --topbar-bg: #ffffff;
     }
 
-    /* ── 新侧边栏覆盖原有 .sidebar / .app-shell grid ── */
     .app-shell {
       display: flex;
       width: 100vw;
@@ -45,6 +44,7 @@
       position: relative;
       z-index: 10;
       flex-shrink: 0;
+      transition: width 0.25s ease, background 0.25s ease;
     }
 
     #sidebar-collapsed .sc-top {
@@ -79,6 +79,7 @@
       object-fit: cover;
       border: 1px solid var(--border-color);
       background: #ccc;
+      cursor: pointer;
     }
 
     .sc-icon-btn {
@@ -111,6 +112,7 @@
       position: relative;
       z-index: 10;
       flex-shrink: 0;
+      transition: width 0.25s ease, background 0.25s ease;
     }
 
     .se-header {
@@ -129,6 +131,7 @@
       border: 2px solid var(--border-color);
       background: #ddd;
       flex-shrink: 0;
+      cursor: pointer;
     }
 
     .se-ai-name {
@@ -139,11 +142,13 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      cursor: pointer;
     }
 
     .se-heart {
       font-size: 16px;
       flex-shrink: 0;
+      cursor: pointer;
     }
 
     .se-toolbar {
@@ -202,6 +207,7 @@
       border: 1px solid var(--border-color);
       background: #ccc;
       flex-shrink: 0;
+      cursor: pointer;
     }
 
     .se-user-name {
@@ -211,27 +217,73 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      cursor: pointer;
+      flex: 1;
     }
 
-    /* main 区域占满剩余宽度 */
+    .se-features-btn {
+      font-size: 16px;
+      flex-shrink: 0;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      line-height: 1;
+    }
+
+    /* main 区域 */
     #main {
       flex: 1;
       min-width: 0;
     }
 
-    #chat-bg-button {
-      transition: transform 0.2s, background-color 0.2s;
+    /* 侧边栏收回按钮 */
+    .se-collapse-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
       cursor: pointer;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      transition: background .15s;
     }
-    #chat-bg-button.clicked {
-      transform: scale(0.95);
-      background-color: #dcdcdc !important;
-    }
-    #chat-bg-button:active {
-      transform: scale(0.95);
-      background-color: #dcdcdc !important;
+    .se-collapse-btn:hover {
+      background: var(--hover-bg);
     }
 
+    /* ECG动画 */
+    @keyframes symbol-fly {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(var(--fly-y, -40px)) translateX(var(--fly-x, 0px)) scale(0.6); }
+    }
+
+    .ecg-container {
+      position: relative;
+      width: 280px;
+      height: 50px;
+      overflow: hidden;
+    }
+
+    .ecg-symbol {
+      position: absolute;
+      font-size: 14px;
+      pointer-events: none;
+      animation: symbol-fly 1s ease-out forwards;
+    }
+
+    .msg-sender {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+
+    /* 响应式 */
     @media (max-width: 768px) {
       #sidebar-collapsed {
         position: fixed;
@@ -266,18 +318,14 @@
 </head>
 <body>
 
-
-
 <div id="app" class="app-shell">
 
   <!-- ══════════ A 状态：折叠侧边栏 ══════════ -->
   <div id="sidebar-collapsed">
     <div class="sc-top">
-      <!-- 1. AI 头像，点击切换到 B 状态 -->
       <img id="ai-avatar-collapsed" src="/static/ai-avatar.png" alt="AI"
            onerror="this.style.background='#c8d6f7';this.removeAttribute('src')" />
 
-      <!-- 2. 新聊天（铅笔） -->
       <button class="sc-icon-btn" id="new-chat-btn" title="新聊天">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -286,7 +334,6 @@
         </svg>
       </button>
 
-      <!-- 3. 搜索（放大镜） -->
       <button class="sc-icon-btn" title="搜索">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -294,9 +341,17 @@
           <line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
       </button>
+
+      <button class="sc-icon-btn" title="图片">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+      </button>
     </div>
 
-    <!-- 底部用户头像（无任何图标在其上方） -->
     <div class="sc-bottom">
       <img id="user-avatar-collapsed" src="/static/user-avatar.png" alt="用户"
            onerror="this.style.background='#d4f7d4';this.removeAttribute('src')" />
@@ -306,15 +361,20 @@
   <!-- ══════════ B 状态：展开侧边栏 ══════════ -->
   <div id="sidebar-expanded" style="display:none;">
 
-    <!-- 1. 顶部栏：AI头像 + AI名称 + ❤️ -->
+    <!-- 顶部栏：AI头像 + AI名称 + 收回按钮 -->
     <div class="se-header">
       <img id="ai-avatar-expanded" src="/static/ai-avatar.png" alt="AI"
            onerror="this.style.background='#c8d6f7';this.removeAttribute('src')" />
       <span class="se-ai-name" id="brand-title">Lin</span>
-      <span class="se-heart">❤️</span>
+      <button class="se-collapse-btn" id="sidebar-collapse-btn" title="收起侧边栏">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </button>
     </div>
 
-    <!-- 2. 工具栏：新聊天 / 搜索 / 图片 -->
+    <!-- 工具栏 -->
     <div class="se-toolbar">
       <button class="se-tool-btn" id="new-chat-btn-expanded" title="新聊天">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -340,22 +400,22 @@
       </button>
     </div>
 
-    <!-- 3. 对话列表 -->
+    <!-- 对话列表 -->
     <div class="se-section-title">最近</div>
     <div class="se-conv-list" id="conversation-list"></div>
 
-    <!-- 4. 底部：用户头像 + 用户名称 -->
+    <!-- 底部：用户头像 + 用户名称 + 爱心功能按钮 -->
     <div class="se-footer">
       <img id="user-avatar-expanded" src="/static/user-avatar.png" alt="用户"
            onerror="this.style.background='#d4f7d4';this.removeAttribute('src')" />
       <span class="se-user-name" id="profile-name">用户</span>
+      <button class="se-features-btn" id="features-btn" title="功能开关">❤️</button>
     </div>
   </div>
 
   <!-- ══════════ 主内容区 #main ══════════ -->
   <div id="main" class="main-panel">
 
-    <!-- 顶栏 -->
     <div class="topbar">
       <div class="topbar-left">
         <div>
@@ -363,21 +423,10 @@
           <div class="chat-meta" id="chat-meta">0 条消息</div>
         </div>
       </div>
-      <div class="topbar-right" style="display:flex;align-items:center;gap:8px;padding-right:16px;">
-        <button id="chat-bg-button" title="切换聊天背景色" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border-color);background:transparent;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M12 2a10 10 0 0 1 0 20"/>
-            <path d="M2 12h20"/>
-          </svg>
-        </button>
-      </div>
     </div>
 
-    <!-- 聊天区 -->
     <div class="chat-scroll" id="chat-scroll"></div>
 
-    <!-- 输入栏 -->
     <div class="composer" style="position:relative;padding:12px 16px;">
       <textarea id="composer-input" placeholder="输入消息…" style="width:100%;padding:10px 48px 10px 14px;border:1px solid #e5e5e5;border-radius:12px;resize:none;font-size:14px;line-height:1.5;box-sizing:border-box;min-height:52px;max-height:160px;background:#fff;"></textarea>
       <button id="send-btn" style="position:absolute;right:24px;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;background:#1a1a1a;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;">
@@ -386,9 +435,9 @@
       <div style="font-size:11px;color:#bbb;padding:4px 4px 0;text-align:right;">Enter 发送 · Shift+Enter 换行</div>
     </div>
 
-  </div><!-- /#main -->
+  </div>
 
-</div><!-- /#app -->
+</div>
 
 <!-- 弹窗A：AI设置 -->
 <div id="modal-ai-settings" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.4);align-items:center;justify-content:center;">
@@ -418,7 +467,7 @@
     </div>
     <div style="margin-bottom:24px;">
       <div style="font-size:12px;color:#999;margin-bottom:8px;">API 与服务器链接</div>
-      <label style="display:block;margin-bottom:8px;font-size:13px;">API链接<input type="text" id="api-url" placeholder="https://..." style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;"></label>
+      <label style="display:block;margin-bottom:8px;font-size:13px;">API Key<input type="text" id="api-url" placeholder="sk-or-v1-..." style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;"></label>
       <div style="font-size:13px;margin-bottom:6px;">云服务器链接</div>
       <div id="server-list" style="display:flex;flex-direction:column;gap:6px;"></div>
       <button onclick="addServerInput()" style="margin-top:8px;padding:6px 12px;border:1px solid #e5e5e5;border-radius:6px;background:#f9f9f9;cursor:pointer;font-size:12px;">+ 添加服务器</button>
@@ -447,8 +496,6 @@
     </div>
     <div style="margin-bottom:20px;">
       <div style="font-size:12px;color:#999;margin-bottom:12px;">外观设置</div>
-
-      <!-- 主题颜色 -->
       <div style="margin-bottom:16px;">
         <div style="font-size:13px;margin-bottom:8px;">主题颜色</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
@@ -464,34 +511,49 @@
         </div>
         <div style="font-size:11px;color:#999;">点击色块或最右边自定义</div>
       </div>
-
-      <!-- 用户聊天框颜色 -->
       <div style="margin-bottom:16px;">
         <div style="font-size:13px;margin-bottom:8px;">用户聊天框颜色</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-          <div onclick="applyChatBubble('#dcf8c6')" style="width:28px;height:28px;border-radius:50%;background:#dcf8c6;border:2px solid #e5e5e5;cursor:pointer;"></div>
-          <div onclick="applyChatBubble('#d0e8ff')" style="width:28px;height:28px;border-radius:50%;background:#d0e8ff;border:2px solid #e5e5e5;cursor:pointer;"></div>
-          <div onclick="applyChatBubble('#ffd6e0')" style="width:28px;height:28px;border-radius:50%;background:#ffd6e0;border:2px solid #e5e5e5;cursor:pointer;"></div>
-          <div onclick="applyChatBubble('#fff3cd')" style="width:28px;height:28px;border-radius:50%;background:#fff3cd;border:2px solid #e5e5e5;cursor:pointer;"></div>
-          <div onclick="applyChatBubble('#e8d5ff')" style="width:28px;height:28px;border-radius:50%;background:#e8d5ff;border:2px solid #e5e5e5;cursor:pointer;"></div>
-          <div onclick="applyChatBubble('#ffffff')" style="width:28px;height:28px;border-radius:50%;background:#ffffff;border:2px solid #e5e5e5;cursor:pointer;"></div>
-          <label style="width:28px;height:28px;border-radius:50%;background:conic-gradient(red,yellow,green,blue,red);border:2px solid #e5e5e5;cursor:pointer;overflow:hidden;display:block;">
-            <input type="color" id="bubble-color-custom" style="opacity:0;width:100%;height:100%;cursor:pointer;" oninput="applyChatBubble(this.value)">
+          <div class="color-chip" data-group="user-bubble" data-color="#dcf8c6" onclick="applyChatBubble('#dcf8c6')" style="width:28px;height:28px;border-radius:50%;background:#dcf8c6;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="user-bubble" data-color="#d0e8ff" onclick="applyChatBubble('#d0e8ff')" style="width:28px;height:28px;border-radius:50%;background:#d0e8ff;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="user-bubble" data-color="#ffd6e0" onclick="applyChatBubble('#ffd6e0')" style="width:28px;height:28px;border-radius:50%;background:#ffd6e0;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="user-bubble" data-color="#fff3cd" onclick="applyChatBubble('#fff3cd')" style="width:28px;height:28px;border-radius:50%;background:#fff3cd;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="user-bubble" data-color="#e8d5ff" onclick="applyChatBubble('#e8d5ff')" style="width:28px;height:28px;border-radius:50%;background:#e8d5ff;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="user-bubble" data-color="#ffffff" onclick="applyChatBubble('#ffffff')" style="width:28px;height:28px;border-radius:50%;background:#ffffff;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <label class="color-custom" data-group="user-bubble" style="width:28px;height:28px;border-radius:50%;background:conic-gradient(red,yellow,green,blue,red);border:2px solid #e5e5e5;cursor:pointer;overflow:hidden;display:block;">
+            <input type="color" id="bubble-color-custom" style="opacity:0;width:100%;height:100%;cursor:pointer;" oninput="applyChatBubble(this.value);updateColorSelection('user-bubble',this.value,true)">
           </label>
         </div>
         <div style="font-size:11px;color:#999;">点击色块或最右边自定义</div>
       </div>
-
-      <!-- 聊天背景 -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:13px;margin-bottom:8px;">AI聊天框颜色</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <div class="color-chip" data-group="ai-bubble" data-color="#e9eefc" onclick="applyAiBubble('#e9eefc')" style="width:28px;height:28px;border-radius:50%;background:#e9eefc;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="ai-bubble" data-color="#dbeafe" onclick="applyAiBubble('#dbeafe')" style="width:28px;height:28px;border-radius:50%;background:#dbeafe;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="ai-bubble" data-color="#f3e8ff" onclick="applyAiBubble('#f3e8ff')" style="width:28px;height:28px;border-radius:50%;background:#f3e8ff;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="ai-bubble" data-color="#ffe4e6" onclick="applyAiBubble('#ffe4e6')" style="width:28px;height:28px;border-radius:50%;background:#ffe4e6;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="ai-bubble" data-color="#fef3c7" onclick="applyAiBubble('#fef3c7')" style="width:28px;height:28px;border-radius:50%;background:#fef3c7;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="ai-bubble" data-color="#ffffff" onclick="applyAiBubble('#ffffff')" style="width:28px;height:28px;border-radius:50%;background:#ffffff;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <label class="color-custom" data-group="ai-bubble" style="width:28px;height:28px;border-radius:50%;background:conic-gradient(red,yellow,green,blue,red);border:2px solid #e5e5e5;cursor:pointer;overflow:hidden;display:block;">
+            <input type="color" id="ai-bubble-color-custom" style="opacity:0;width:100%;height:100%;cursor:pointer;" oninput="applyAiBubble(this.value);updateColorSelection('ai-bubble',this.value,true)">
+          </label>
+        </div>
+        <div style="font-size:11px;color:#999;">点击色块或最右边自定义</div>
+      </div>
       <div>
         <div style="font-size:13px;margin-bottom:8px;">聊天背景</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-          <div onclick="applyChatBg('')" style="width:28px;height:28px;border-radius:6px;background:#ffffff;border:2px solid #e5e5e5;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#999;">无</div>
-          <div onclick="applyChatBg('linear-gradient(135deg,#f5f7fa,#c3cfe2)')" style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#f5f7fa,#c3cfe2);border:2px solid #e5e5e5;cursor:pointer;"></div>
-          <div onclick="applyChatBg('linear-gradient(135deg,#ffecd2,#fcb69f)')" style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#ffecd2,#fcb69f);border:2px solid #e5e5e5;cursor:pointer;"></div>
-          <div onclick="applyChatBg('linear-gradient(135deg,#a1c4fd,#c2e9fb)')" style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#a1c4fd,#c2e9fb);border:2px solid #e5e5e5;cursor:pointer;"></div>
-          <div onclick="applyChatBg('linear-gradient(135deg,#d4fc79,#96e6a1)')" style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#d4fc79,#96e6a1);border:2px solid #e5e5e5;cursor:pointer;"></div>
-          <label style="width:28px;height:28px;border-radius:6px;background:#f0f0f0;border:2px solid #e5e5e5;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;">
+          <div class="color-chip" data-group="chat-bg" data-color="" onclick="applyChatBg('')" style="width:28px;height:28px;border-radius:6px;background:#ffffff;border:2px solid #e5e5e5;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#999;">无</div>
+          <div class="color-chip" data-group="chat-bg" data-color="#ffffff" onclick="applyChatBg('#ffffff')" style="width:28px;height:28px;border-radius:6px;background:#ffffff;border:2px solid #ccc;cursor:pointer;"></div>
+          <div class="color-chip" data-group="chat-bg" data-color="#f8fafc" onclick="applyChatBg('#f8fafc')" style="width:28px;height:28px;border-radius:6px;background:#f8fafc;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="chat-bg" data-color="#fef3c7" onclick="applyChatBg('#fef3c7')" style="width:28px;height:28px;border-radius:6px;background:#fef3c7;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="chat-bg" data-color="#dbeafe" onclick="applyChatBg('#dbeafe')" style="width:28px;height:28px;border-radius:6px;background:#dbeafe;border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="chat-bg" data-color="linear-gradient(135deg,#f5f7fa,#c3cfe2)" onclick="applyChatBg('linear-gradient(135deg,#f5f7fa,#c3cfe2)')" style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#f5f7fa,#c3cfe2);border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="chat-bg" data-color="linear-gradient(135deg,#ffecd2,#fcb69f)" onclick="applyChatBg('linear-gradient(135deg,#ffecd2,#fcb69f)')" style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#ffecd2,#fcb69f);border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="chat-bg" data-color="linear-gradient(135deg,#a1c4fd,#c2e9fb)" onclick="applyChatBg('linear-gradient(135deg,#a1c4fd,#c2e9fb)')" style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#a1c4fd,#c2e9fb);border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <div class="color-chip" data-group="chat-bg" data-color="linear-gradient(135deg,#d4fc79,#96e6a1)" onclick="applyChatBg('linear-gradient(135deg,#d4fc79,#96e6a1)')" style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#d4fc79,#96e6a1);border:2px solid #e5e5e5;cursor:pointer;"></div>
+          <label class="color-custom" data-group="chat-bg" style="width:28px;height:28px;border-radius:6px;background:#f0f0f0;border:2px solid #e5e5e5;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;">
             🖼
             <input type="file" id="chat-bg-upload" accept="image/*" style="display:none;" onchange="applyBgImage(this)">
           </label>
@@ -518,110 +580,69 @@
     <button onclick="document.getElementById('modal-features').style.display='none'" style="position:absolute;top:14px;right:16px;border:none;background:none;font-size:18px;cursor:pointer;">×</button>
     <h3 style="margin:0 0 20px;font-size:16px;">功能开关</h3>
     <div style="display:flex;flex-direction:column;gap:16px;">
+
       <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
           <div><div style="font-size:14px;font-weight:500;">官方语音</div><div style="font-size:12px;color:#999;margin-top:2px;">使用官方TTS语音回复</div></div>
-          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-official-voice" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-official-voice" style="opacity:0;width:0;height:0;" onchange="toggleFeatureToken(this)"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
         </div>
-        <div style="margin-top:8px;">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">
-            <span>Token限额</span><span class="token-val">不限制</span>
-          </div>
-          <input type="range" min="0" max="100000" step="1000" value="0"
-            oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'"
-            style="width:100%;accent-color:#1a1a1a;">
-        </div>
+        <div style="margin-top:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;"><span>Token限额</span><span class="token-val">不限制</span></div><input type="range" disabled min="0" max="100000" step="1000" value="0" oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'" style="width:100%;accent-color:#1a1a1a;opacity:0.4;cursor:not-allowed;"></div>
       </div>
+
       <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
           <div><div style="font-size:14px;font-weight:500;">第三方语音</div><div style="font-size:12px;color:#999;margin-top:2px;">使用第三方语音服务</div></div>
-          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-third-voice" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-third-voice" style="opacity:0;width:0;height:0;" onchange="toggleFeatureToken(this)"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
         </div>
-        <div style="margin-top:8px;">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">
-            <span>Token限额</span><span class="token-val">不限制</span>
-          </div>
-          <input type="range" min="0" max="100000" step="1000" value="0"
-            oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'"
-            style="width:100%;accent-color:#1a1a1a;">
-        </div>
+        <div style="margin-top:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;"><span>Token限额</span><span class="token-val">不限制</span></div><input type="range" disabled min="0" max="100000" step="1000" value="0" oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'" style="width:100%;accent-color:#1a1a1a;opacity:0.4;cursor:not-allowed;"></div>
       </div>
+
       <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
           <div><div style="font-size:14px;font-weight:500;">AI发送表情包</div><div style="font-size:12px;color:#999;margin-top:2px;">AI回复时附带表情包</div></div>
-          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-emoji" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-emoji" style="opacity:0;width:0;height:0;" onchange="toggleFeatureToken(this)"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
         </div>
-        <div style="margin-top:8px;">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">
-            <span>Token限额</span><span class="token-val">不限制</span>
-          </div>
-          <input type="range" min="0" max="100000" step="1000" value="0"
-            oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'"
-            style="width:100%;accent-color:#1a1a1a;">
-        </div>
+        <div style="margin-top:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;"><span>Token限额</span><span class="token-val">不限制</span></div><input type="range" disabled min="0" max="100000" step="1000" value="0" oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'" style="width:100%;accent-color:#1a1a1a;opacity:0.4;cursor:not-allowed;"></div>
       </div>
+
       <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
           <div><div style="font-size:14px;font-weight:500;">主动发送新闻/天气/知识</div><div style="font-size:12px;color:#999;margin-top:2px;">AI结合性格主动推送内容</div></div>
-          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-push" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-push" style="opacity:0;width:0;height:0;" onchange="toggleFeatureToken(this)"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
         </div>
-        <div style="margin-top:8px;">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">
-            <span>Token限额</span><span class="token-val">不限制</span>
-          </div>
-          <input type="range" min="0" max="100000" step="1000" value="0"
-            oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'"
-            style="width:100%;accent-color:#1a1a1a;">
-        </div>
+        <div style="margin-top:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;"><span>Token限额</span><span class="token-val">不限制</span></div><input type="range" disabled min="0" max="100000" step="1000" value="0" oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'" style="width:100%;accent-color:#1a1a1a;opacity:0.4;cursor:not-allowed;"></div>
       </div>
+
       <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
           <div><div style="font-size:14px;font-weight:500;">关心与备忘录提醒</div><div style="font-size:12px;color:#999;margin-top:2px;">AI主动发送关心消息和备忘提醒</div></div>
-          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-care" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-care" style="opacity:0;width:0;height:0;" onchange="toggleFeatureToken(this)"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
         </div>
-        <div style="margin-top:8px;">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">
-            <span>Token限额</span><span class="token-val">不限制</span>
-          </div>
-          <input type="range" min="0" max="100000" step="1000" value="0"
-            oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'"
-            style="width:100%;accent-color:#1a1a1a;">
-        </div>
+        <div style="margin-top:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;"><span>Token限额</span><span class="token-val">不限制</span></div><input type="range" disabled min="0" max="100000" step="1000" value="0" oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'" style="width:100%;accent-color:#1a1a1a;opacity:0.4;cursor:not-allowed;"></div>
       </div>
+
       <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
           <div><div style="font-size:14px;font-weight:500;">AI自己发消息</div><div style="font-size:12px;color:#999;margin-top:2px;">AI在无对话时主动发起消息</div></div>
-          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-proactive" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-proactive" style="opacity:0;width:0;height:0;" onchange="toggleFeatureToken(this)"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
         </div>
-        <div style="margin-top:8px;">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">
-            <span>Token限额</span><span class="token-val">不限制</span>
-          </div>
-          <input type="range" min="0" max="100000" step="1000" value="0"
-            oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'"
-            style="width:100%;accent-color:#1a1a1a;">
-        </div>
+        <div style="margin-top:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;"><span>Token限额</span><span class="token-val">不限制</span></div><input type="range" disabled min="0" max="100000" step="1000" value="0" oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'" style="width:100%;accent-color:#1a1a1a;opacity:0.4;cursor:not-allowed;"></div>
       </div>
+
       <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
           <div><div style="font-size:14px;font-weight:500;">登录小红书发消息</div><div style="font-size:12px;color:#999;margin-top:2px;">AI代为登录小红书发送内容</div></div>
-          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-xiaohongshu" style="opacity:0;width:0;height:0;"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-xiaohongshu" style="opacity:0;width:0;height:0;" onchange="toggleFeatureToken(this)"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
         </div>
-        <div style="margin-top:8px;">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">
-            <span>Token限额</span><span class="token-val">不限制</span>
-          </div>
-          <input type="range" min="0" max="100000" step="1000" value="0"
-            oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'"
-            style="width:100%;accent-color:#1a1a1a;">
-        </div>
+        <div style="margin-top:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;"><span>Token限额</span><span class="token-val">不限制</span></div><input type="range" disabled min="0" max="100000" step="1000" value="0" oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'" style="width:100%;accent-color:#1a1a1a;opacity:0.4;cursor:not-allowed;"></div>
       </div>
+
     </div>
     <button id="save-features" style="width:100%;padding:10px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;margin-top:20px;">保存设置</button>
   </div>
 </div>
 
-<!-- 设置抽屉 -->
+<!-- 设置抽屉（保留原有后端设置功能） -->
 <div id="settings-drawer" class="drawer hidden">
   <div class="drawer-header">
     <span class="drawer-title">设置</span>
@@ -699,17 +720,16 @@
     sidebarB.style.display = 'flex';
   }
 
-  // AI 头像点击 → B 状态
+  // AI 头像点击（A状态）→ B 状态
   document.getElementById('ai-avatar-collapsed').addEventListener('click', function(e) {
     e.stopPropagation();
     showB();
   });
 
-  // 点击 #main 任意位置 → A 状态
-  mainEl.addEventListener('click', function() {
-    if (sidebarB.style.display !== 'none') {
-      showA();
-    }
+  // 收回按钮点击 → A 状态
+  document.getElementById('sidebar-collapse-btn').addEventListener('click', function(e) {
+    e.stopPropagation();
+    showA();
   });
 
   // B 状态内部点击不冒泡到 #main
@@ -717,64 +737,104 @@
     e.stopPropagation();
   });
 
-  // 同步 B 状态新聊天按钮到原有 createConversation
+  // 同步 B 状态新聊天按钮
   document.getElementById('new-chat-btn-expanded').addEventListener('click', function() {
     document.getElementById('new-chat-btn').click();
   });
 
-  // AI头像点击 → AI设置弹窗
-  document.getElementById('ai-avatar-expanded').addEventListener('click', function(e) {
+  // AI头像/名称点击 → AI设置弹窗
+  document.getElementById('ai-avatar-expanded').addEventListener('click', async function(e) {
     e.stopPropagation();
+    await loadAiSettingsForm();
     document.getElementById('modal-ai-settings').style.display = 'flex';
   });
 
-  // AI名称点击 → AI设置弹窗
-  document.querySelector('.se-ai-name').addEventListener('click', function(e) {
+  document.querySelector('.se-ai-name').addEventListener('click', async function(e) {
     e.stopPropagation();
+    await loadAiSettingsForm();
     document.getElementById('modal-ai-settings').style.display = 'flex';
   });
 
-  // 小爱心点击 → 功能开关弹窗
-  document.querySelector('.se-heart').addEventListener('click', function(e) {
+  // 功能开关按钮（爱心）→ 功能弹窗
+  document.getElementById('features-btn').addEventListener('click', function(e) {
     e.stopPropagation();
     document.getElementById('modal-features').style.display = 'flex';
   });
 
-  // 用户头像点击（A状态）→ 用户设置弹窗
+  // 用户头像/名称点击 → 用户设置弹窗
   document.getElementById('user-avatar-collapsed').addEventListener('click', function(e) {
     e.stopPropagation();
     document.getElementById('modal-user-settings').style.display = 'flex';
   });
 
-  // 用户头像点击（B状态）→ 用户设置弹窗
   document.getElementById('user-avatar-expanded').addEventListener('click', function(e) {
     e.stopPropagation();
     document.getElementById('modal-user-settings').style.display = 'flex';
   });
 
-  // 用户名称点击 → 用户设置弹窗
   document.querySelector('.se-user-name').addEventListener('click', function(e) {
     e.stopPropagation();
     document.getElementById('modal-user-settings').style.display = 'flex';
   });
 
-  document.getElementById('save-ai-settings').addEventListener('click', function() {
+  // 保存AI设置 → 发送到后端
+  document.getElementById('save-ai-settings').addEventListener('click', async function() {
+    var apiKey = document.getElementById('api-url').value.trim();
+    var aiName = document.getElementById('ai-name-input').value.trim();
+    var payload = {};
+    if (apiKey) payload.api_key = apiKey;
+    if (aiName) payload.display_name = aiName;
+    if (Object.keys(payload).length > 0) {
+      try {
+        await fetch('/api/settings/form', {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+      } catch(e) { console.error('保存AI设置失败', e); }
+    }
     document.getElementById('modal-ai-settings').style.display = 'none';
+    showSaveToast('AI设置已保存');
   });
-  document.getElementById('save-user-settings').addEventListener('click', function() {
+
+  // 保存用户设置
+  document.getElementById('save-user-settings').addEventListener('click', async function() {
+    var userName = document.getElementById('user-name-input').value.trim();
+    var payload = {};
+    if (userName) payload.user_display_name = userName;
+    if (Object.keys(payload).length > 0) {
+      try {
+        await fetch('/api/settings/form', {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+      } catch(e) { console.error('保存用户设置失败', e); }
+    }
     document.getElementById('modal-user-settings').style.display = 'none';
+    showSaveToast('用户设置已保存');
   });
+
+  // 保存功能设置
   document.getElementById('save-features').addEventListener('click', function() {
     document.getElementById('modal-features').style.display = 'none';
+    showSaveToast('功能设置已保存');
   });
 
-  document.querySelectorAll('#modal-features input[type="checkbox"]').forEach(function(cb) {
-    cb.addEventListener('change', function() {
-      var span = this.nextElementSibling;
-      span.style.background = this.checked ? '#1a1a1a' : '#ccc';
-    });
-  });
+  // 功能开关控制token滑条
+  function toggleFeatureToken(cb) {
+    var block = cb.closest('div[style*="border:1px solid #f0f0f0"]');
+    if (!block) return;
+    var range = block.querySelector('input[type="range"]');
+    if (!range) return;
+    range.disabled = !cb.checked;
+    range.style.opacity = cb.checked ? '1' : '0.4';
+    range.style.cursor = cb.checked ? 'pointer' : 'not-allowed';
+    var span = cb.nextElementSibling;
+    if (span) span.style.background = cb.checked ? '#1a1a1a' : '#ccc';
+  }
 
+  // 保存提示toast
   function showSaveToast(msg) {
     var t = document.createElement('div');
     t.textContent = msg || '已同步';
@@ -783,16 +843,7 @@
     setTimeout(function(){ t.style.opacity='0'; setTimeout(function(){ t.remove(); }, 400); }, 1800);
   }
 
-  document.getElementById('save-ai-settings').addEventListener('click', function() {
-    showSaveToast('AI设置已保存');
-  });
-  document.getElementById('save-user-settings').addEventListener('click', function() {
-    showSaveToast('用户设置已保存');
-  });
-  document.getElementById('save-features').addEventListener('click', function() {
-    showSaveToast('功能设置已保存');
-  });
-
+  // 主题换色
   function applyTheme(accent, fg) {
     var root = document.documentElement;
     root.style.setProperty('--accent', accent);
@@ -817,62 +868,114 @@
 
   function applyChatBubble(color) {
     document.documentElement.style.setProperty('--bubble-user', color);
+    document.documentElement.style.setProperty('--user', color);
+    document.querySelectorAll('.msg.user').forEach(function(el) {
+      el.style.background = color;
+    });
     localStorage.setItem('bubble-user', color);
+    updateColorSelection('user-bubble', color, false);
+  }
+
+  function applyAiBubble(color) {
+    document.documentElement.style.setProperty('--ai-bubble', color);
+    document.documentElement.style.setProperty('--assistant', color);
+    document.querySelectorAll('.msg.assistant').forEach(function(el) {
+      el.style.background = color;
+    });
+    localStorage.setItem('bubble-ai', color);
+    updateColorSelection('ai-bubble', color, false);
   }
 
   function applyChatBg(value) {
-    var el = document.getElementById('chat-scroll');
-    if (!el) return;
-    el.style.background = value;
-    el.style.backgroundImage = '';
+    var root = document.documentElement;
+    if (value === '' || value === null || value === undefined) {
+      root.style.setProperty('--chat-bg-color', 'transparent');
+      root.style.setProperty('--chat-bg-image', 'none');
+    } else if (value.indexOf('linear-gradient') === 0) {
+      root.style.setProperty('--chat-bg-color', 'transparent');
+      root.style.setProperty('--chat-bg-image', value);
+    } else {
+      root.style.setProperty('--chat-bg-color', value);
+      root.style.setProperty('--chat-bg-image', 'none');
+    }
     localStorage.setItem('chat-bg', value);
+    updateColorSelection('chat-bg', value, false);
+  }
+
+  function updateColorSelection(group, value, isCustom) {
+    var chips = document.querySelectorAll('.color-chip[data-group="' + group + '"]');
+    var customs = document.querySelectorAll('.color-custom[data-group="' + group + '"]');
+    chips.forEach(function(el) { el.classList.remove('active'); });
+    customs.forEach(function(el) { el.classList.remove('active'); });
+
+    if (isCustom) {
+      customs.forEach(function(el) { el.classList.add('active'); });
+      return;
+    }
+    var matched = false;
+    var v = (value || '').trim();
+    chips.forEach(function(el) {
+      if ((el.dataset.color || '').trim() === v) {
+        el.classList.add('active');
+        matched = true;
+      }
+    });
+    if (!matched) {
+      customs.forEach(function(el) { el.classList.add('active'); });
+    }
   }
 
   function applyBgImage(input) {
     if (!input.files || !input.files[0]) return;
     var reader = new FileReader();
     reader.onload = function(e) {
-      var el = document.getElementById('chat-scroll');
-      if (el) {
-        el.style.backgroundImage = 'url(' + e.target.result + ')';
-        el.style.backgroundSize = 'cover';
-        el.style.backgroundPosition = 'center';
-      }
+      var root = document.documentElement;
+      root.style.setProperty('--chat-bg-color', 'transparent');
+      root.style.setProperty('--chat-bg-image', 'url(' + e.target.result + ')');
+      localStorage.setItem('chat-bg-image', e.target.result);
     };
     reader.readAsDataURL(input.files[0]);
   }
 
-  // 页面加载时恢复上次设置
+  // 页面加载恢复主题
   (function() {
     var accent = localStorage.getItem('theme-accent');
     var fg = localStorage.getItem('theme-fg');
     var bubble = localStorage.getItem('bubble-user');
+    var aiBubble = localStorage.getItem('bubble-ai');
     var bg = localStorage.getItem('chat-bg');
+    var bgImage = localStorage.getItem('chat-bg-image');
     if (accent) applyTheme(accent, fg || '#ffffff');
     if (bubble) applyChatBubble(bubble);
-    if (bg) applyChatBg(bg);
+    if (aiBubble) applyAiBubble(aiBubble);
+    if (bgImage) {
+      var root = document.documentElement;
+      root.style.setProperty('--chat-bg-color', 'transparent');
+      root.style.setProperty('--chat-bg-image', 'url(' + bgImage + ')');
+      // 图片背景不匹配预设，高亮自定义入口
+      updateColorSelection('chat-bg', '__image__', true);
+    } else if (bg !== null && bg !== undefined) {
+      applyChatBg(bg);
+    }
   })();
 
-  // chat-bg-button：循环切换聊天背景色
-  var chatBgButton = document.getElementById('chat-bg-button');
-  if (chatBgButton) {
-    chatBgButton.addEventListener('click', function() {
-      changeChatBackgroundColor();
-      chatBgButton.classList.add('clicked');
-      setTimeout(function() { chatBgButton.classList.remove('clicked'); }, 300);
-    });
-  }
-
-  function changeChatBackgroundColor() {
-    var chatArea = document.getElementById('chat-scroll');
-    if (!chatArea) return;
-    var colors = ['', '#f0f0f0', '#e0f7fa', '#fff8e1', '#fce4ec'];
-    var current = chatArea.dataset.bgIndex ? parseInt(chatArea.dataset.bgIndex) : 0;
-    var next = (current + 1) % colors.length;
-    chatArea.style.background = colors[next];
-    chatArea.style.backgroundImage = '';
-    chatArea.dataset.bgIndex = next;
-    localStorage.setItem('chat-bg', colors[next]);
+  // 读取AI设置填入弹窗
+  async function loadAiSettingsForm() {
+    try {
+      var res = await fetch('/api/settings/form');
+      var data = await res.json();
+      var s = data.data || {};
+      var apiUrlInput = document.getElementById('api-url');
+      var aiNameInput = document.getElementById('ai-name-input');
+      var aiInstructions = document.getElementById('ai-instructions');
+      var userMemory = document.getElementById('user-memory');
+      if (apiUrlInput && s.api_key) apiUrlInput.value = s.api_key;
+      if (aiNameInput && s.display_name) aiNameInput.value = s.display_name;
+      if (aiInstructions && s.persona_core) aiInstructions.value = s.persona_core;
+      if (userMemory && s.user_summary) userMemory.value = s.user_summary;
+    } catch(e) {
+      console.error('读取AI设置失败', e);
+    }
   }
 
   // 添加服务器输入框
@@ -882,6 +985,301 @@
     row.style = 'display:flex;gap:6px;';
     row.innerHTML = '<input type="text" placeholder="https://..." style="flex:1;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;"><button onclick="this.parentElement.remove()" style="padding:6px 10px;border:1px solid #e5e5e5;border-radius:6px;background:#f9f9f9;cursor:pointer;font-size:12px;">删除</button>';
     list.appendChild(row);
+  }
+
+  // ECG加载动画
+  const ECG_DECO_CHARS = ['☆','★','♡','♥','◆','◇','▲','△','♫','♬','♪','♩','♭','✩','╯'];
+  const ECG_DECO_COLORS = ['#60a5fa','#a78bfa','#f472b6','#34d399','#f59e0b','#fb7185','#22d3ee','#fde047'];
+  // 8色霓虹线条颜色池 — 按色相连续排列，避免高对比跳变
+  const ECG_LINE_PALETTE = [
+    [96,165,250],   // #60a5fa 蓝
+    [167,139,250],  // #a78bfa 紫
+    [244,114,182],  // #f472b6 粉
+    [251,113,133],  // #fb7185 玫红
+    [245,158,11],   // #f59e0b 橙
+    [253,224,71],   // #fde047 黄
+    [52,211,153],   // #34d399 绿
+    [34,211,238]    // #22d3ee 青
+  ];
+
+  // globalShift 用于整体呼吸调制（共享时间轴）
+  let _ecgTime = 0;
+
+  function randomGradientColors() {
+    const hue1 = Math.floor(Math.random() * 360);
+    const hue2 = (hue1 + 60 + Math.floor(Math.random() * 120)) % 360;
+    const hue3 = (hue2 + 60 + Math.floor(Math.random() * 120)) % 360;
+    return [`hsl(${hue1},80%,60%)`, `hsl(${hue2},80%,60%)`, `hsl(${hue3},80%,60%)`];
+  }
+
+  // 从 ECG_LINE_PALETTE 按 0~1 的 t 值平滑插值（支持环绕），返回 rgba 字符串
+  function sampleLineColor(t, alpha) {
+    const pal = ECG_LINE_PALETTE;
+    const n = pal.length;
+    // 归一化到 [0, n) 的浮点索引，支持 % 1 环绕
+    const fi = (((t % 1) + 1) % 1) * n;
+    const lo = Math.floor(fi) % n;
+    const hi = (lo + 1) % n;
+    const frac = fi - Math.floor(fi);
+    const r = Math.round(pal[lo][0] + (pal[hi][0] - pal[lo][0]) * frac);
+    const g = Math.round(pal[lo][1] + (pal[hi][1] - pal[lo][1]) * frac);
+    const b = Math.round(pal[lo][2] + (pal[hi][2] - pal[lo][2]) * frac);
+    return `rgba(${r},${g},${b},${alpha.toFixed(3)})`;
+  }
+
+  function createEcgLoader() {
+    const colors = randomGradientColors();
+    const wrapper = document.createElement('div');
+    wrapper.className = 'ecg-container';
+    wrapper.id = 'ecg-loader';
+    wrapper.style.cssText = 'position:relative;width:280px;height:50px;overflow:hidden;';
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 280;
+    canvas.height = 50;
+    canvas.style.cssText = 'position:absolute;top:0;left:0;';
+    wrapper.appendChild(canvas);
+
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const baseline = H * 0.55;
+    const stepX = 2;
+    const maxPoints = Math.ceil(W / stepX) + 2;
+
+    // 预填基线点
+    const points = [];
+    for (let i = 0; i < maxPoints; i++) points.push(baseline);
+
+    let frameId;
+    let phase = 0;
+    let colorPhase = Math.random(); // 初始随机偏移，保证一开始就多彩
+
+    // spike 状态
+    let spikeActive = false;
+    let spikeFrame = 0;
+    let spikeDuration = 0;
+    let spikeAmp = 0;
+    let spikeDir = 1;
+    let nextSpikeCountdown = 20 + Math.floor(Math.random() * 40);
+
+    // 装饰字符状态
+    const decorations = [];
+    let decoCountdown = 8 + Math.floor(Math.random() * 16);
+
+    function getSpikeY(progress) {
+      let offset = 0;
+      if (progress < 0.20) {
+        const t = progress / 0.20;
+        offset = spikeDir * spikeAmp * 0.18 * t;
+      } else if (progress < 0.40) {
+        const t = (progress - 0.20) / 0.20;
+        offset = spikeDir * spikeAmp * (0.18 + 0.82 * t);
+      } else if (progress < 0.65) {
+        const t = (progress - 0.40) / 0.25;
+        offset = spikeDir * spikeAmp * (1 - 1.55 * t);
+      } else {
+        const t = (progress - 0.65) / 0.35;
+        offset = -spikeDir * spikeAmp * 0.55 * (1 - t) * Math.cos(t * Math.PI * 2);
+      }
+      return baseline - offset;
+    }
+
+    function nextPoint() {
+      if (spikeActive) {
+        spikeFrame++;
+        const progress = spikeFrame / spikeDuration;
+        if (spikeFrame >= spikeDuration) {
+          spikeActive = false;
+          nextSpikeCountdown = 20 + Math.floor(Math.random() * 40);
+        }
+        return getSpikeY(Math.min(progress, 1));
+      }
+
+      nextSpikeCountdown--;
+      if (nextSpikeCountdown <= 0) {
+        spikeActive = true;
+        spikeFrame = 0;
+        spikeDuration = 14 + Math.floor(Math.random() * 14);
+        spikeAmp = 10 + Math.random() * 12;
+        spikeDir = Math.random() > 0.5 ? 1 : -1;
+      }
+
+      phase += 0.18;
+      const jitter = (Math.random() - 0.5) * 1.2;
+      return baseline + Math.sin(phase) * 2.5 + jitter;
+    }
+
+    function spawnDecorations() {
+      // 同屏上限：最多 8 个存活装饰
+      if (decorations.length >= 8) return;
+
+      const len = points.length;
+      if (len < 4) return;
+
+      // 按左/中/右三段加权抽样（25% / 35% / 40%）
+      const r = Math.random();
+      let segStart, segEnd;
+      if (r < 0.25) {
+        segStart = 1;
+        segEnd = Math.floor(len * 0.33);
+      } else if (r < 0.60) {
+        segStart = Math.floor(len * 0.33);
+        segEnd = Math.floor(len * 0.66);
+      } else {
+        segStart = Math.floor(len * 0.66);
+        segEnd = len - 2;
+      }
+      if (segEnd <= segStart) segEnd = segStart + 1;
+      if (segEnd >= len) segEnd = len - 2;
+      if (segEnd <= segStart) return;
+
+      // 80% 生成 1 个，20% 生成 2 个；但不超过上限
+      const count = Math.random() < 0.8 ? 1 : 2;
+      const canSpawn = Math.min(count, 8 - decorations.length);
+
+      for (let n = 0; n < canSpawn; n++) {
+        const idx = segStart + Math.floor(Math.random() * (segEnd - segStart));
+        const px = idx * stepX;
+        const py = points[idx];
+
+        // 切线 / 法线
+        const prevY = points[Math.max(0, idx - 1)];
+        const nxY = points[Math.min(len - 1, idx + 1)];
+        const tx = stepX * 2;
+        const ty = nxY - prevY;
+        const tLen = Math.sqrt(tx * tx + ty * ty) || 1;
+        const normX = -ty / tLen;
+        const normY = tx / tLen;
+
+        const offsetSign = Math.random() < 0.75 ? -1 : 1;
+        const offset = (9 + Math.random() * 6) * offsetSign;
+        const bx = px + normX * offset;
+        const by = py + normY * offset;
+
+        const speed = 0.4 + Math.random() * 1.0;
+        const dx = normX * speed * offsetSign + (Math.random() - 0.5) * 0.5;
+        const dy = normY * speed * offsetSign + (Math.random() - 0.5) * 0.4;
+
+        decorations.push({
+          x: bx, y: by,
+          dx, dy,
+          life: 0,
+          maxLife: 20 + Math.floor(Math.random() * 20),
+          char: ECG_DECO_CHARS[Math.floor(Math.random() * ECG_DECO_CHARS.length)],
+          color: ECG_DECO_COLORS[Math.floor(Math.random() * ECG_DECO_COLORS.length)],
+          size: 12 + Math.floor(Math.random() * 11),
+          rotate: (Math.random() - 0.5) * 0.6,
+          spin: (Math.random() - 0.5) * 0.06
+        });
+      }
+    }
+
+    function draw() {
+      // 滚入新点
+      points.push(nextPoint());
+      if (points.length > maxPoints) points.shift();
+
+      ctx.clearRect(0, 0, W, H);
+
+      const len = points.length;
+
+      // 颜色相位每帧极缓慢推进（流体感），globalShift 提供整体呼吸调制
+      colorPhase = (colorPhase + 0.0012) % 1;
+      _ecgTime++;
+      const globalShift = Math.sin(_ecgTime * 0.0005) * 0.08;
+      // spread 低频：整条线只覆盖约 0.3 个颜色周期 → 长渐变带
+      const spread = 0.30;
+
+      // 底层 glow（宽线低透明度）
+      ctx.save();
+      ctx.lineWidth = 4;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      for (let i = 1; i < len; i++) {
+        const spatialT = i / (len - 1);
+        const dynamicT = (spatialT * spread + colorPhase + globalShift + 1) % 1;
+        const fadeAlpha = spatialT * 0.18;
+        ctx.beginPath();
+        ctx.moveTo((i - 1) * stepX, points[i - 1]);
+        ctx.lineTo(i * stepX, points[i]);
+        ctx.strokeStyle = sampleLineColor(dynamicT, fadeAlpha);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 主线（清晰、左淡右亮，长渐变多色流动）
+      ctx.save();
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      for (let i = 1; i < len; i++) {
+        const spatialT = i / (len - 1);
+        const dynamicT = (spatialT * spread + colorPhase + globalShift + 1) % 1;
+        // alpha：左侧渐出，右侧最亮（上限 0.92，避免刺眼）
+        const alpha = spatialT < 0.2
+          ? spatialT / 0.2 * 0.18
+          : 0.18 + (spatialT - 0.2) / 0.8 * 0.74;
+        ctx.beginPath();
+        ctx.moveTo((i - 1) * stepX, points[i - 1]);
+        ctx.lineTo(i * stepX, points[i]);
+        ctx.strokeStyle = sampleLineColor(dynamicT, alpha);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 生成新装饰字符（上限检查在 spawnDecorations 内）
+      decoCountdown--;
+      if (decoCountdown <= 0) {
+        spawnDecorations();
+        decoCountdown = 6 + Math.floor(Math.random() * 13);
+      }
+
+      // 更新并绘制装饰字符
+      for (let i = decorations.length - 1; i >= 0; i--) {
+        const d = decorations[i];
+        d.x += d.dx;
+        d.y += d.dy;
+        d.life++;
+        d.rotate += d.spin;
+
+        const progress = d.life / d.maxLife;
+        // alpha：前 30% 渐入，后 70% 渐出
+        const alpha = progress < 0.3
+          ? progress / 0.3
+          : 1 - (progress - 0.3) / 0.7;
+        // scale：从 0.85 升到 1.1 再回落
+        const scale = progress < 0.4
+          ? 0.85 + progress / 0.4 * 0.25
+          : 1.1 - (progress - 0.4) / 0.6 * 0.25;
+
+        if (d.life >= d.maxLife) {
+          decorations.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+        ctx.translate(d.x, d.y);
+        ctx.rotate(d.rotate);
+        ctx.scale(scale, scale);
+        ctx.font = `${d.size}px sans-serif`;
+        ctx.fillStyle = d.color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(d.char, 0, 0);
+        ctx.restore();
+      }
+
+      if (wrapper.isConnected) {
+        frameId = requestAnimationFrame(draw);
+      }
+    }
+
+    frameId = requestAnimationFrame(draw);
+
+    wrapper._stopSymbols = () => { cancelAnimationFrame(frameId); };
+    wrapper._destroy = () => { cancelAnimationFrame(frameId); };
+    return wrapper;
   }
 </script>
 
