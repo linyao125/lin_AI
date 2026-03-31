@@ -468,9 +468,25 @@
     <div style="margin-bottom:24px;">
       <div style="font-size:12px;color:#999;margin-bottom:8px;">API 与服务器链接</div>
       <label style="display:block;margin-bottom:8px;font-size:13px;">API Key<input type="text" id="api-url" placeholder="sk-or-v1-..." style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;"></label>
-      <label style="display:block;margin-bottom:8px;font-size:13px;">模型
-        <input type="text" id="model-input" placeholder="例如：openai/gpt-4o-mini" style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;">
-      </label>
+      <div style="margin-bottom:8px;">
+        <div style="font-size:13px;margin-bottom:6px;">AI厂商</div>
+        <select id="provider-select" onchange="onProviderChange()" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;">
+          <option value="openai">GPT (OpenAI)</option>
+          <option value="claude">Claude (Anthropic)</option>
+          <option value="gemini">Gemini (Google)</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="grok">Grok (xAI)</option>
+          <option value="custom">自定义</option>
+        </select>
+      </div>
+      <div style="margin-bottom:8px;">
+        <div style="font-size:13px;margin-bottom:6px;">模型版本</div>
+        <select id="model-select" onchange="onModelChange()" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;"></select>
+      </div>
+      <div id="custom-model-wrap" style="display:none;margin-bottom:8px;">
+        <div style="font-size:13px;margin-bottom:6px;">自定义模型ID</div>
+        <input type="text" id="model-input" placeholder="例如：openai/gpt-4o-mini" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;">
+      </div>
       <div style="font-size:13px;margin-bottom:6px;">云服务器链接</div>
       <div id="server-list" style="display:flex;flex-direction:column;gap:6px;"></div>
       <button onclick="addServerInput()" style="margin-top:8px;padding:6px 12px;border:1px solid #e5e5e5;border-radius:6px;background:#f9f9f9;cursor:pointer;font-size:12px;">+ 添加服务器</button>
@@ -788,7 +804,7 @@
     if (apiKey) payload.api_key = apiKey;
     if (aiName) payload.display_name = aiName;
     var modelInput = document.getElementById('model-input');
-    if (modelInput && modelInput.value.trim()) payload.primary_model = modelInput.value.trim();
+    payload.primary_model = getSelectedModel();
     if (Object.keys(payload).length > 0) {
       try {
         await fetch('/api/settings/form', {
@@ -1288,6 +1304,67 @@
     wrapper._destroy = () => { cancelAnimationFrame(frameId); };
     return wrapper;
   }
+
+  var modelMap = {
+    openai: [
+      {label: 'GPT-4o', value: 'openai/gpt-4o'},
+      {label: 'GPT-4o Mini', value: 'openai/gpt-4o-mini'},
+      {label: 'GPT-4.1', value: 'openai/gpt-4.1'},
+      {label: 'o3 Mini', value: 'openai/o3-mini'},
+    ],
+    claude: [
+      {label: 'Claude Sonnet 4.6', value: 'anthropic/claude-sonnet-4-6'},
+      {label: 'Claude Sonnet 4.5', value: 'anthropic/claude-sonnet-4-5'},
+      {label: 'Claude Haiku 4.5', value: 'anthropic/claude-haiku-4-5'},
+      {label: 'Claude Opus 4.6', value: 'anthropic/claude-opus-4-6'},
+    ],
+    gemini: [
+      {label: 'Gemini 2.5 Pro', value: 'google/gemini-2.5-pro'},
+      {label: 'Gemini 2.0 Flash', value: 'google/gemini-2.0-flash'},
+      {label: 'Gemini Flash 1.5', value: 'google/gemini-flash-1.5'},
+    ],
+    deepseek: [
+      {label: 'DeepSeek Chat', value: 'deepseek/deepseek-chat'},
+      {label: 'DeepSeek R1', value: 'deepseek/deepseek-r1'},
+    ],
+    grok: [
+      {label: 'Grok 3', value: 'x-ai/grok-3'},
+      {label: 'Grok 3 Mini', value: 'x-ai/grok-3-mini'},
+    ],
+    custom: []
+  };
+
+  function onProviderChange() {
+    var provider = document.getElementById('provider-select').value;
+    var modelSelect = document.getElementById('model-select');
+    var customWrap = document.getElementById('custom-model-wrap');
+    modelSelect.innerHTML = '';
+    if (provider === 'custom') {
+      customWrap.style.display = 'block';
+      modelSelect.style.display = 'none';
+    } else {
+      customWrap.style.display = 'none';
+      modelSelect.style.display = 'block';
+      modelMap[provider].forEach(function(m) {
+        var opt = document.createElement('option');
+        opt.value = m.value;
+        opt.textContent = m.label;
+        modelSelect.appendChild(opt);
+      });
+    }
+  }
+
+  function onModelChange() {}
+
+  function getSelectedModel() {
+    var provider = document.getElementById('provider-select').value;
+    if (provider === 'custom') {
+      return document.getElementById('model-input').value.trim();
+    }
+    return document.getElementById('model-select').value;
+  }
+
+  onProviderChange();
 </script>
 
 </body>
