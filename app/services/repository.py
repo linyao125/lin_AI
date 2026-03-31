@@ -141,6 +141,15 @@ class Repository:
     def mark_memory_accessed(self, memory_id: int) -> None:
         database.execute("UPDATE memories SET last_accessed=? WHERE id=?", (utc_now_iso(), memory_id))
 
+    def delete_memory(self, memory_id: int) -> None:
+        database.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
+
+    def update_memory(self, memory_id: int, content: str) -> None:
+        database.execute(
+            "UPDATE memories SET content = ?, updated_at = ? WHERE id = ?",
+            (content, utc_now_iso(), memory_id),
+        )
+
     def get_cache(self, cache_key: str) -> dict[str, Any] | None:
         row = database.fetch_one(
             "SELECT * FROM cache_entries WHERE cache_key=? AND expires_at>?", (cache_key, utc_now_iso())

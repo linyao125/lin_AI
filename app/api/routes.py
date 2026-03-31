@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter
 
 from app.core.config import get_runtime
@@ -86,6 +88,18 @@ def send_message(conversation_id: str, payload: MessageCreatePayload):
 def list_memories():
     runtime = get_runtime()
     return repo.list_memories(runtime.yaml.memory.namespace)
+
+
+@api_router.delete("/memories/{memory_id}")
+def delete_memory(memory_id: int):
+    repo.delete_memory(memory_id)
+    return {"ok": True}
+
+
+@api_router.put("/memories/{memory_id}")
+def update_memory(memory_id: int, body: dict[str, Any]):
+    repo.update_memory(memory_id, body.get("content", ""))
+    return {"ok": True}
 
 
 @api_router.get("/settings/toggles")
