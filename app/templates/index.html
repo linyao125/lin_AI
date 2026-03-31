@@ -468,6 +468,9 @@
     <div style="margin-bottom:24px;">
       <div style="font-size:12px;color:#999;margin-bottom:8px;">API 与服务器链接</div>
       <label style="display:block;margin-bottom:8px;font-size:13px;">API Key<input type="text" id="api-url" placeholder="sk-or-v1-..." style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;"></label>
+      <label style="display:block;margin-bottom:8px;font-size:13px;">模型
+        <input type="text" id="model-input" placeholder="例如：openai/gpt-4o-mini" style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;">
+      </label>
       <div style="font-size:13px;margin-bottom:6px;">云服务器链接</div>
       <div id="server-list" style="display:flex;flex-direction:column;gap:6px;"></div>
       <button onclick="addServerInput()" style="margin-top:8px;padding:6px 12px;border:1px solid #e5e5e5;border-radius:6px;background:#f9f9f9;cursor:pointer;font-size:12px;">+ 添加服务器</button>
@@ -784,6 +787,8 @@
     var payload = {};
     if (apiKey) payload.api_key = apiKey;
     if (aiName) payload.display_name = aiName;
+    var modelInput = document.getElementById('model-input');
+    if (modelInput && modelInput.value.trim()) payload.primary_model = modelInput.value.trim();
     if (Object.keys(payload).length > 0) {
       try {
         await fetch('/api/settings/form', {
@@ -971,6 +976,8 @@
       var userMemory = document.getElementById('user-memory');
       if (apiUrlInput && s.api_key) apiUrlInput.value = s.api_key;
       if (aiNameInput && s.display_name) aiNameInput.value = s.display_name;
+      var modelEl = document.getElementById('model-input');
+      if (modelEl) modelEl.value = s.primary_model || '';
       if (aiInstructions && s.persona_core) aiInstructions.value = s.persona_core;
       if (userMemory && s.user_summary) userMemory.value = s.user_summary;
     } catch(e) {
