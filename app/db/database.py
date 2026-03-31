@@ -51,6 +51,7 @@ class Database:
                     weight REAL NOT NULL DEFAULT 0.5,
                     pinned INTEGER NOT NULL DEFAULT 0,
                     tags TEXT DEFAULT '[]',
+                    source TEXT NOT NULL DEFAULT 'user_input',
                     last_accessed TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
