@@ -105,6 +105,8 @@ class ChatService:
             raw_text = "\n".join(f"{m['role']}: {m['content']}" for m in recent)
             memory_service.maybe_make_summary(cid, raw_text)
 
+        memory_service.maybe_soft_write(user_message=content, ai_reply=assistant_text)
+
         return {
             "conversation_id": cid,
             "user_message": user_msg,
