@@ -91,33 +91,35 @@ class Repository:
         )
         return row["created_at"] if row else None
 
-    def upsert_memory(
-        self,
-        namespace: str,
-        kind: str,
-        title: str,
-        content: str,
-        weight: float,
-        pinned: bool,
-        tags: list[str],
-    ) -> int:
-        existing = database.fetch_one(
-            "SELECT id FROM memories WHERE namespace=? AND kind=? AND title=?", (namespace, kind, title)
+    
+ def upsert_memory(
+    self,
+    namespace: str,
+    kind: str,
+    title: str,
+    content: str,
+    weight: float,
+    pinned: bool,
+    tags: list[str],
+    source: str = "user_input",
+) -> int:
+    existing = database.fetch_one(
+        "SELECT id FROM memories WHERE namespace=? AND kind=? AND title=?", (namespace, kind, title)
+    )
+    now = utc_now_iso()
+    if existing:
+        database.execute(
+            "UPDATE memories SET content=?, weight=?, pinned=?, tags=?, updated_at=? WHERE id=?",
+            (content, weight, int(pinned), json.dumps(tags, ensure_ascii=False), now, existing["id"]),
         )
-        now = utc_now_iso()
-        if existing:
-            database.execute(
-                "UPDATE memories SET content=?, weight=?, pinned=?, tags=?, updated_at=? WHERE id=?",
-                (content, weight, int(pinned), json.dumps(tags, ensure_ascii=False), now, existing["id"]),
-            )
-            return int(existing["id"])
-        return database.execute(
-            """
-            INSERT INTO memories (namespace, kind, title, content, weight, pinned, tags, last_accessed, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (namespace, kind, title, content, weight, int(pinned), json.dumps(tags, ensure_ascii=False), now, now, now),
-        )
+        return int(existing["id"])
+    return database.execute(
+        """
+        INSERT INTO memories (namespace, kind, title, content, weight, pinned, tags, source, last_accessed, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (namespace, kind, title, content, weight, int(pinned), json.dumps(tags, ensure_ascii=False), source, now, now, now),
+    )
 
     def list_memories(self, namespace: str, kind: str | None = None) -> list[dict[str, Any]]:
         if kind:
