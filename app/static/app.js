@@ -191,6 +191,7 @@ function fillSettingsForm(data) {
   setFormValue("f-access_token", data.access_token);
   setFormValue("f-api_base_url", data.api_base_url);
   setFormValue("f-api_key", data.api_key);
+  setFormValue("f-proxy_url", data.proxy_url || "");
   setFormValue("f-primary_model", data.primary_model);
   setFormValue("f-summary_model", data.summary_model);
   setFormValue("f-system_goal", data.system_goal);
@@ -231,6 +232,7 @@ function collectSettingsForm() {
     enable_cache: Boolean(getFormValue("f-enable_cache")),
     auto_summary_enabled: Boolean(getFormValue("f-auto_summary_enabled")),
     heartbeat_enabled: Boolean(getFormValue("f-heartbeat_enabled")),
+    proxy_url: getFormValue("f-proxy_url"),
   };
 }
 

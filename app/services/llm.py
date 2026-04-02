@@ -41,8 +41,12 @@ class LLMService:
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
-        _proxy = os.environ.get("HTTP_PROXY") or "http://127.0.0.1:7890"
-        with httpx.Client(timeout=120, proxy=_proxy) as client:
+        _settings = settings_service.get_frontend_settings()
+        _proxy = _settings.get("proxy_url") or os.environ.get("HTTP_PROXY") or ""
+        _client_kwargs = {"timeout": 120}
+        if _proxy:
+            _client_kwargs["proxy"] = _proxy
+        with httpx.Client(**_client_kwargs) as client:
             resp = client.post(self._endpoint(), headers=self._headers(), json=payload)
             resp.raise_for_status()
             data = resp.json()
