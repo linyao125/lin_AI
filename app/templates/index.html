@@ -684,9 +684,6 @@
     <div class="drawer-section">
       <label>访问令牌<input id="f-access_token" type="password" /></label>
       <label>API Base URL<input id="f-api_base_url" type="text" /></label>
-      <label>代理 URL<input id="f-proxy_url" type="text" placeholder="留空则直连，如 http://127.0.0.1:7890" /></label>
-      <label>VPN订阅链接<input id="f-vpn_subscription" type="text" placeholder="填入订阅链接自动配置代理" /></label>
-      <button type="button" id="apply-vpn-btn" style="margin-top:6px">应用订阅</button>
       <label>API Key<input id="f-api_key" type="password" /></label>
       <label>主模型<input id="f-primary_model" type="text" /></label>
       <label>摘要模型<input id="f-summary_model" type="text" /></label>
@@ -815,6 +812,8 @@
     if (aiName) payload.display_name = aiName;
     var modelInput = document.getElementById('model-input');
     payload.primary_model = getSelectedModel();
+    var serverUrlInput = document.getElementById('server-url-input');
+    if (serverUrlInput && serverUrlInput.value.trim()) payload.api_base_url = serverUrlInput.value.trim();
     if (Object.keys(payload).length > 0) {
       try {
         await fetch('/api/settings/form', {
@@ -1006,6 +1005,14 @@
       if (modelEl) modelEl.value = s.primary_model || '';
       if (aiInstructions && s.persona_core) aiInstructions.value = s.persona_core;
       if (userMemory && s.user_summary) userMemory.value = s.user_summary;
+      var serverList = document.getElementById('server-list');
+      if (serverList && s.api_base_url) {
+        serverList.innerHTML = '';
+        var row = document.createElement('div');
+        row.style = 'display:flex;gap:6px;';
+        row.innerHTML = '<input type="text" id="server-url-input" value="' + s.api_base_url + '" style="flex:1;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;">';
+        serverList.appendChild(row);
+      }
     } catch(e) {
       console.error('读取AI设置失败', e);
     }
