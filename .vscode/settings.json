@@ -1,0 +1,5 @@
+{
+    "ai.openai.key": "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",
+    "ai.openai.baseURL": "https://openrouter.ai/api/v1",
+    "ai.openai.model": "anthropic/claude-sonnet-4.6"
+  }
