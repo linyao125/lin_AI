@@ -247,7 +247,14 @@ async function loadSettingsForm() {
 }
 
 async function saveSettingsForm() {
-  const payload = collectSettingsForm();
+  const raw = collectSettingsForm();
+  const prev = state.settings || {};
+  const payload = {};
+  for (const key of Object.keys(raw)) {
+    const val = raw[key];
+    const isEmpty = val === "" || val === null || val === undefined;
+    payload[key] = isEmpty ? (prev[key] ?? val) : val;
+  }
   const res = await api("/api/settings/form", {
     method: "PUT",
     body: JSON.stringify(payload),
