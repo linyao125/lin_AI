@@ -36,6 +36,8 @@ class SettingsService:
             "enable_cache": toggles["enable_cache"],
             "auto_summary_enabled": toggles["auto_summary_enabled"],
             "heartbeat_enabled": toggles["heartbeat_enabled"],
+            "proxy_url": "",
+            "server_url": "",
         }
 
     def get_frontend_settings(self) -> dict:
