@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import httpx
@@ -40,7 +41,8 @@ class LLMService:
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
-        with httpx.Client(timeout=120) as client:
+        _proxy = os.environ.get("HTTP_PROXY") or "http://127.0.0.1:7890"
+        with httpx.Client(timeout=120, proxy=_proxy) as client:
             resp = client.post(self._endpoint(), headers=self._headers(), json=payload)
             resp.raise_for_status()
             data = resp.json()
