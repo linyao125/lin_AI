@@ -19,6 +19,10 @@ def apply_subscription(subscription_url: str) -> dict:
             resp.raise_for_status()
             content = resp.text
 
+        # 检查格式
+        if "proxies:" not in content and "proxy-providers:" not in content:
+            return {"success": False, "message": "订阅格式不支持，请使用Clash格式订阅链接"}
+
         # 写入配置文件
         with open(MIHOMO_CONFIG_PATH, "w", encoding="utf-8") as f:
             f.write(content)
