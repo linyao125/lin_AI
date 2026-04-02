@@ -416,6 +416,18 @@ function bindEvents() {
   });
 
   bindClick("save-settings-btn", saveSettingsForm);
+
+  bindClick("apply-vpn-btn", async () => {
+    const url = qs("f-vpn-subscription")
+      ? document.getElementById("f-vpn_subscription").value
+      : "";
+    if (!url) return alert("请先填入订阅链接");
+    const res = await api("/api/proxy/apply", {
+      method: "POST",
+      body: JSON.stringify({ subscription_url: url }),
+    });
+    alert(res.message || (res.success ? "更新成功" : "更新失败"));
+  });
 }
 
 async function boot() {

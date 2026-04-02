@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from app.core.config import get_runtime
 from app.models.schemas import (
@@ -19,6 +19,7 @@ from app.models.schemas import (
     SendMessageResponse,
 )
 from app.services.chat import chat_service
+from app.services.proxy import apply_subscription
 from app.services.repository import repo
 from app.services.settings import settings_service
 
@@ -38,6 +39,15 @@ def health():
 @api_router.post("/auth/login")
 def login(payload: LoginPayload):
     return {"ok": True}
+
+
+@api_router.post("/proxy/apply")
+async def proxy_apply(request: Request):
+    body = await request.json()
+    url = body.get("subscription_url", "")
+    result = apply_subscription(url)
+    return result
+
 
 @api_router.get("/runtime", response_model=RuntimeSettingsOut)
 def runtime_info():
