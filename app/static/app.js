@@ -358,6 +358,13 @@ async function sendMessage() {
     await loadConversations();
     await loadMessages(state.currentConversationId);
     await loadMemories();
+    // 上下文余量提示
+    const meta = res.context_meta || {};
+    if (meta.token_pct >= 90) {
+      showContextWarning(meta.token_pct, meta.token_used, meta.token_budget);
+    } else {
+      hideContextWarning();
+    }
   } catch (err) {
     input.value = content;
     const loading = qs("msg-loading");
@@ -435,6 +442,24 @@ async function boot() {
   await loadConversations();
   await loadSettingsForm();
   await loadMemories();
+}
+
+function showContextWarning(pct, used, budget) {
+  let el = document.getElementById("context-warning");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "context-warning";
+    el.style.cssText =
+      "position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:8px 16px;font-size:13px;color:#856404;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.1);";
+    document.body.appendChild(el);
+  }
+  el.style.display = "block";
+  el.innerHTML = `⚠️ 上下文已用 ${pct}%（${used}/${budget} token），对话将自动压缩`;
+}
+
+function hideContextWarning() {
+  const el = document.getElementById("context-warning");
+  if (el) el.style.display = "none";
 }
 
 document.addEventListener("DOMContentLoaded", () => {

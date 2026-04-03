@@ -36,6 +36,9 @@ class ContextBuilder:
             "recent_message_count": len(recent),
             "memory_count": len(memory_items),
             "memory_titles": [m["title"] for m in memory_items],
+            "token_used": used,
+            "token_budget": budget,
+            "token_pct": round(used / budget * 100, 1) if budget else 0,
         }
         return messages, meta
 
