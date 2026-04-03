@@ -264,6 +264,7 @@ async function saveSettingsForm() {
   fillSettingsForm(res.data || {});
   await loadRuntime();
   await loadSettingsForm();
+  bcNotify("settings_changed");
 }
 
 async function loadConversations() {
@@ -358,6 +359,7 @@ async function sendMessage() {
     await loadConversations();
     await loadMessages(state.currentConversationId);
     await loadMemories();
+    bcNotify("memory_changed");
     // 上下文余量提示
     const meta = res.context_meta || {};
     if (meta.token_pct >= 90) {
@@ -460,6 +462,22 @@ function showContextWarning(pct, used, budget) {
 function hideContextWarning() {
   const el = document.getElementById("context-warning");
   if (el) el.style.display = "none";
+}
+
+// 跨窗口同步
+const _bc = new BroadcastChannel("linai_sync");
+_bc.onmessage = async (e) => {
+  if (e.data === "settings_changed") {
+    await loadSettingsForm();
+  }
+  if (e.data === "memory_changed") {
+    await loadMemories();
+  }
+};
+function bcNotify(type) {
+  try {
+    _bc.postMessage(type);
+  } catch (e) {}
 }
 
 document.addEventListener("DOMContentLoaded", () => {
