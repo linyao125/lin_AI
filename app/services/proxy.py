@@ -14,7 +14,7 @@ def apply_subscription(subscription_url: str) -> dict:
         return {"success": False, "message": "订阅链接为空"}
     try:
         # 下载订阅内容
-        with httpx.Client(timeout=30) as client:
+        with httpx.Client(timeout=30, headers={"User-Agent": "clash-verge/1.6.6"}) as client:
             resp = client.get(subscription_url)
             resp.raise_for_status()
             content = resp.text
