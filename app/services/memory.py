@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from collections import Counter
-from typing import Any
+import math
 import re
+from collections import Counter
+from datetime import datetime, timezone
+from typing import Any
 
 from app.core.config import get_runtime
 from app.services.repository import repo
@@ -36,19 +38,42 @@ class MemoryService:
         all_items = repo.list_memories(cfg.memory.namespace)
         if not all_items:
             return []
+
         query_terms = Counter(_tokens(user_message))
+
+        # pinned记忆永远保底注入
+        pinned = [item for item in all_items if item["pinned"]]
+        dynamic = [item for item in all_items if not item["pinned"]]
+
+        # 动态记忆按关键词+时间衰减评分
+        now = datetime.now(timezone.utc)
         scored = []
-        for item in all_items:
+        for item in dynamic:
             text = f"{item['title']} {item['content']} {' '.join(item['tags'])}"
             terms = Counter(_tokens(text))
             overlap = sum((query_terms & terms).values())
             base = float(item["weight"])
-            pinned_bonus = 1.5 if item["pinned"] else 0.0
             kind_bonus = 1.0 if item["kind"] == "core" else 0.0
-            score = overlap * 2.0 + base + pinned_bonus + kind_bonus
-            scored.append((score, item))
+            # 时间衰减：越新权重越高，30天后衰减到0.5
+            try:
+                updated = datetime.fromisoformat(item["updated_at"].replace("Z", "+00:00"))
+                days_old = (now - updated).days
+                time_decay = math.exp(-days_old / 30)
+            except Exception:
+                time_decay = 1.0
+            score = overlap * 2.0 + base + kind_bonus + time_decay * 0.5
+            if score > 0.3:
+                scored.append((score, item))
         scored.sort(key=lambda x: x[0], reverse=True)
-        chosen = [item for score, item in scored[: cfg.context.max_memories] if score > 0.3]
+
+        # 动态记忆槽位 = max_memories - pinned数量
+        dynamic_slots = max(0, cfg.context.max_memories - len(pinned))
+        chosen_dynamic = [item for _, item in scored[:dynamic_slots]]
+
+        # 合并：pinned在前，动态在后
+        chosen = pinned + chosen_dynamic
+
+        # 字符预算截断
         total_chars = 0
         trimmed = []
         for item in chosen:
