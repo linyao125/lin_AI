@@ -12,8 +12,18 @@ class ContextBuilder:
     def build(self, conversation_id: str, user_message: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         runtime = get_runtime()
         cfg = runtime.yaml
-        recent = repo.list_messages(conversation_id, limit=cfg.context.max_recent_messages)
+        all_recent = repo.list_messages(conversation_id, limit=cfg.context.max_recent_messages)
         system_prompt = anchor_service.build_system_prompt()
+        # 按token预算从最新往前截断（4字符≈1token）
+        budget = cfg.context.context_token_budget
+        used = len(system_prompt) // 4
+        recent = []
+        for msg in reversed(all_recent):
+            cost = len(msg.get("content", "")) // 4
+            if used + cost > budget:
+                break
+            used += cost
+            recent.insert(0, msg)
         memory_block, memory_items = memory_service.build_memory_block(user_message)
         messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
         if memory_block:

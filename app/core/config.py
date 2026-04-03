@@ -54,6 +54,7 @@ class UserProfileCfg(BaseModel):
 
 class ContextCfg(BaseModel):
     max_recent_messages: int = 8
+    context_token_budget: int = 3200
     max_memories: int = 6
     max_memory_chars: int = 1600
     dedupe_window_seconds: int = 180

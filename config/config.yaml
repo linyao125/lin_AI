@@ -31,7 +31,8 @@ user_profile:
     - "希望系统能低成本运行，并支持后续商品化复用。"
 
 context:
-  max_recent_messages: 8
+  max_recent_messages: 20
+  context_token_budget: 3200
   max_memories: 6
   max_memory_chars: 1600
   dedupe_window_seconds: 180
