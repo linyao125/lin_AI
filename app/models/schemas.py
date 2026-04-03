@@ -90,6 +90,7 @@ class FrontendSettingsPayload(BaseModel):
     heartbeat_enabled: bool = True
     proxy_url: str = ""
     server_url: str = ""
+    vpn_subscription: str = ""
 
 
 class FrontendSettingsOut(BaseModel):

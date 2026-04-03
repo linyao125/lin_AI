@@ -38,6 +38,7 @@ class SettingsService:
             "heartbeat_enabled": toggles["heartbeat_enabled"],
             "proxy_url": "",
             "server_url": "",
+            "vpn_subscription": "",
         }
 
     def get_frontend_settings(self) -> dict:
