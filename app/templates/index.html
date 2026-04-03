@@ -1424,7 +1424,33 @@
 
   onProviderChange();
 
+  window.showAddMemoryForm = function() {
+    document.getElementById('add-memory-form').style.display = 'block';
+  };
+  window.hideAddMemoryForm = function() {
+    document.getElementById('add-memory-form').style.display = 'none';
+    document.getElementById('new-memory-title').value = '';
+    document.getElementById('new-memory-content').value = '';
+  };
+  window.saveNewMemory = async function() {
+    var title = document.getElementById('new-memory-title').value.trim();
+    var content = document.getElementById('new-memory-content').value.trim();
+    if (!title || !content) return alert('标题和内容不能为空');
+    try {
+      await fetch('/api/memories', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title: title, content: content, kind: 'user_input', source: 'user_manual'})
+      });
+      hideAddMemoryForm();
+      openMemoryModal();
+    } catch(e) {
+      alert('保存失败：' + e.message);
+    }
+  };
+
   window.openMemoryModal = async function() {
+    hideAddMemoryForm();
     var modal = document.getElementById('modal-memory');
     modal.style.display = 'flex';
     var list = document.getElementById('memory-list-modal');
@@ -1462,6 +1488,7 @@
   };
 
   window.closeMemoryModal = function() {
+    hideAddMemoryForm();
     document.getElementById('modal-memory').style.display = 'none';
   };
 
@@ -1492,7 +1519,18 @@
   <div style="background:#fff;border-radius:16px;width:480px;max-width:90vw;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;">
     <div style="padding:20px 24px 16px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;">
       <div style="font-size:16px;font-weight:500;">记忆</div>
-      <button onclick="closeMemoryModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#999;">×</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="showAddMemoryForm()" style="padding:6px 14px;border:1px solid #e5e5e5;border-radius:8px;background:#f9f9f9;cursor:pointer;font-size:13px;">+ 添加记忆</button>
+        <button onclick="closeMemoryModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#999;">×</button>
+      </div>
+    </div>
+    <div id="add-memory-form" style="display:none;margin-bottom:16px;padding:14px;border:1px solid #f0f0f0;border-radius:10px;background:#fafafa;">
+      <input id="new-memory-title" type="text" placeholder="标题（如：我要减肥）" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;margin-bottom:8px;">
+      <textarea id="new-memory-content" placeholder="内容（如：用户目标是减掉10斤，少吃多运动）" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;height:80px;resize:none;"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button onclick="saveNewMemory()" style="flex:1;padding:8px;border:none;border-radius:6px;background:#222;color:#fff;cursor:pointer;font-size:13px;">保存</button>
+        <button onclick="hideAddMemoryForm()" style="padding:8px 16px;border:1px solid #e5e5e5;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;">取消</button>
+      </div>
     </div>
     <div id="memory-list-modal" style="flex:1;overflow-y:auto;padding:16px 24px;display:flex;flex-direction:column;gap:10px;">
       <div style="color:#999;font-size:13px;text-align:center;padding:20px;">加载中...</div>

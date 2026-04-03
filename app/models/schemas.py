@@ -67,6 +67,13 @@ class MemoryOut(BaseModel):
     updated_at: str
 
 
+class MemoryCreatePayload(BaseModel):
+    title: str
+    content: str
+    kind: str = "user_info"
+    source: str = "user_manual"
+
+
 class FrontendSettingsPayload(BaseModel):
     app_title: str = "Lin System"
     subtitle: str = "memory • anchor • cost • dedicated"

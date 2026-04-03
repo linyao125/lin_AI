@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from app.core.config import get_runtime
 from app.models.schemas import (
@@ -12,6 +12,7 @@ from app.models.schemas import (
     FrontendSettingsOut,
     FrontendSettingsPayload,
     LoginPayload,
+    MemoryCreatePayload,
     MemoryOut,
     MessageCreatePayload,
     RuntimeSettingsOut,
@@ -98,6 +99,27 @@ def send_message(conversation_id: str, payload: MessageCreatePayload):
 def list_memories():
     runtime = get_runtime()
     return repo.list_memories(runtime.yaml.memory.namespace)
+
+
+@api_router.post("/memories")
+def create_memory(payload: MemoryCreatePayload):
+    runtime = get_runtime()
+    cfg = runtime.yaml.memory
+    title = payload.title.strip()
+    content = payload.content.strip()
+    if not title or not content:
+        raise HTTPException(status_code=400, detail="title and content required")
+    repo.upsert_memory(
+        namespace=cfg.namespace,
+        kind=payload.kind.strip() or "user_info",
+        title=title,
+        content=content,
+        weight=cfg.default_weight_dynamic,
+        pinned=False,
+        tags=["manual"],
+        source=payload.source.strip() or "user_manual",
+    )
+    return {"ok": True}
 
 
 @api_router.delete("/memories/{memory_id}")
