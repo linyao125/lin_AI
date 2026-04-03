@@ -1424,7 +1424,7 @@
 
   onProviderChange();
 
-  async function openMemoryModal() {
+  window.openMemoryModal = async function() {
     var modal = document.getElementById('modal-memory');
     modal.style.display = 'flex';
     var list = document.getElementById('memory-list-modal');
@@ -1459,24 +1459,24 @@
     } catch(e) {
       list.innerHTML = '<div style="color:#e33;font-size:13px;text-align:center;padding:20px;">加载失败</div>';
     }
-  }
+  };
 
-  function closeMemoryModal() {
+  window.closeMemoryModal = function() {
     document.getElementById('modal-memory').style.display = 'none';
-  }
+  };
 
-  function toggleMemoryMenu(id, btn) {
+  window.toggleMemoryMenu = function(id, btn) {
     var menu = document.getElementById('mem-menu-' + id);
     menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
-  }
+  };
 
-  async function deleteMemory(id) {
+  window.deleteMemory = async function(id) {
     if (!confirm('确认删除这条记忆？')) return;
     await fetch('/api/memories/' + id, {method: 'DELETE'});
     openMemoryModal();
-  }
+  };
 
-  function editMemory(id, title, content) {
+  window.editMemory = function(id, title, content) {
     var newContent = prompt('编辑记忆内容：', content);
     if (newContent === null) return;
     fetch('/api/memories/' + id, {
@@ -1484,7 +1484,7 @@
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({content: newContent})
     }).then(function() { openMemoryModal(); });
-  }
+  };
 </script>
 
 <!-- 记忆弹窗 -->
