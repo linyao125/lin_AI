@@ -1007,13 +1007,24 @@
       if (apiUrlInput && s.api_key) apiUrlInput.value = s.api_key;
       if (aiNameInput && s.display_name) aiNameInput.value = s.display_name;
       var modelEl = document.getElementById('model-input');
-      if (modelEl) modelEl.value = s.primary_model || '';
       var providerSelect = document.getElementById('provider-select');
-      if (providerSelect) {
-        providerSelect.value = 'custom';
-        var modelSelect = document.getElementById('model-select');
-        if (modelSelect) modelSelect.style.display = 'none';
-        if (modelEl) modelEl.style.display = '';
+      if (providerSelect && s.primary_model) {
+        var modelValue = s.primary_model;
+        var providerFound = 'custom';
+        for (var p in modelMap) {
+          if (modelMap[p].some(function(m) { return m.value === modelValue; })) {
+            providerFound = p;
+            break;
+          }
+        }
+        providerSelect.value = providerFound;
+        onProviderChange();
+        if (providerFound === 'custom') {
+          if (modelEl) modelEl.value = modelValue;
+        } else {
+          var modelSelect = document.getElementById('model-select');
+          if (modelSelect) modelSelect.value = modelValue;
+        }
       }
       if (aiInstructions && s.persona_core) aiInstructions.value = s.persona_core;
       if (userMemory && s.user_summary) userMemory.value = s.user_summary;
