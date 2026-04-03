@@ -32,6 +32,22 @@ class AnchorService:
             sections.append(f"[User Summary]\n{user_summary}")
         if runtime.yaml.user_profile.preferences:
             sections.append("[User Preferences]\n- " + "\n- ".join(runtime.yaml.user_profile.preferences))
+        # L2记忆检索注入
+        try:
+            from app.services.repository import repo
+            memories = repo.list_memories(namespace="default", limit=10)
+            if memories:
+                pinned = [m for m in memories if m.get("pinned")]
+                dynamic = [m for m in memories if not m.get("pinned")][:5]
+                selected = pinned + dynamic
+                if selected:
+                    mem_lines = []
+                    for m in selected:
+                        mem_lines.append(f"- [{m.get('kind','info')}] {m.get('title','')}: {m.get('content','')}")
+                    sections.append("[User Memories]\n" + "\n".join(mem_lines))
+        except Exception:
+            pass
+
         sections.append("[Operational Rules]\n- 保持语境连续\n- 不要擅自重置人格\n- 优先准确、稳定、自然\n- 不要因为省 token 就丢失核心关系和设定")
         return "\n\n".join(sections)
 

@@ -120,7 +120,7 @@ class Repository:
             (namespace, kind, title, content, weight, int(pinned), json.dumps(tags, ensure_ascii=False), source, now, now, now),
         )
 
-    def list_memories(self, namespace: str, kind: str | None = None) -> list[dict[str, Any]]:
+    def list_memories(self, namespace: str, kind: str | None = None, limit: int | None = None) -> list[dict[str, Any]]:
         if kind:
             rows = database.fetch_all(
                 "SELECT * FROM memories WHERE namespace=? AND kind=? ORDER BY pinned DESC, weight DESC, updated_at DESC",
@@ -137,6 +137,8 @@ class Repository:
             item["tags"] = safe_json_loads(item["tags"], [])
             item["pinned"] = bool(item["pinned"])
             items.append(item)
+        if limit is not None:
+            items = items[:limit]
         return items
 
     def mark_memory_accessed(self, memory_id: int) -> None:
