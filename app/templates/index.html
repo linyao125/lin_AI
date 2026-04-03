@@ -813,7 +813,7 @@
     var modelInput = document.getElementById('model-input');
     payload.primary_model = getSelectedModel();
     var serverUrlInput = document.getElementById('server-url-input');
-    if (serverUrlInput && serverUrlInput.value.trim()) payload.api_base_url = serverUrlInput.value.trim();
+    if (serverUrlInput && serverUrlInput.value.trim()) payload.server_url = serverUrlInput.value.trim();
     if (Object.keys(payload).length > 0) {
       try {
         await fetch('/api/settings/form', {
