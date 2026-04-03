@@ -88,6 +88,8 @@ class FrontendSettingsPayload(BaseModel):
     enable_cache: bool = True
     auto_summary_enabled: bool = True
     heartbeat_enabled: bool = True
+    proxy_url: str = ""
+    server_url: str = ""
 
 
 class FrontendSettingsOut(BaseModel):
