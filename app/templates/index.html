@@ -1010,7 +1010,7 @@
         serverList.innerHTML = '';
         var row = document.createElement('div');
         row.style = 'display:flex;gap:6px;';
-        row.innerHTML = '<input type="text" id="server-url-input" value="' + (s.api_base_url || '') + '" placeholder="http://你的服务器IP:8000" style="flex:1;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;">';
+        row.innerHTML = '<input type="text" id="server-url-input" value="' + (s.server_url || '') + '" placeholder="http://你的服务器IP:8000" style="flex:1;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;">';
         serverList.appendChild(row);
       }
     } catch(e) {
