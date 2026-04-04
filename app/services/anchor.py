@@ -111,6 +111,21 @@ class AnchorService:
         except Exception:
             pass
 
+        # 天气感知
+        try:
+            from app.soul.weather import get_weather
+
+            weather = get_weather()
+            if weather:
+                t = weather.get("temp")
+                h = weather.get("humidity")
+                desc = weather.get("description", "未知")
+                t_s = f"{t:.1f}" if t is not None else "-"
+                h_s = f"{h}" if h is not None else "-"
+                time_block += f"当前天气：{desc}，{t_s}°C，湿度{h_s}%。"
+        except Exception:
+            pass
+
         sections.append(f"[Current Time]\n{time_block}")
 
         # 情绪状态注入
