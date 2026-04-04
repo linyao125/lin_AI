@@ -69,10 +69,41 @@ class ChatService:
                     "context_meta": context_meta,
                 }
 
+        # 语义路由：判断情感密度，决定模型级别
+        actual_model = primary_model
+        actual_temperature = primary_temperature
+        try:
+            import random
+            from app.soul.mood_state import mood_state as _ms
+            _state = _ms.get()
+            _warmth = _state.get("warmth", 0.5)
+
+            # 轻量模型判断情感密度（用summary_model省钱）
+            summary_model = (current.get("summary_model") or runtime.settings.llm_summary_model).strip()
+            _route_result = llm_service.chat(
+                messages=[{"role": "user", "content": f"判断这句话的情感密度：高（深情/重要/情绪强烈）或低（日常/废话/简单问答）。只回答'高'或'低'。\n\n用户说：{content}"}],
+                model=summary_model,
+                temperature=0.1,
+                max_tokens=5,
+            )
+            _density = _route_result.get("text", "").strip()
+
+            if _density == "低":
+                # 低密度：降温，减少token，保持轻量
+                actual_temperature = max(0.3, primary_temperature - 0.2)
+            else:
+                # 高密度：提高温度，增加灵魂感
+                actual_temperature = min(1.0, primary_temperature + 0.15)
+                # 亲密度高时额外加点随机性
+                if _warmth > 0.7:
+                    actual_temperature = min(1.0, actual_temperature + random.uniform(0, 0.1))
+        except Exception:
+            pass
+
         result = llm_service.chat(
             messages=messages,
-            model=primary_model,
-            temperature=primary_temperature,
+            model=actual_model,
+            temperature=actual_temperature,
             max_tokens=primary_max_tokens,
         )
 
