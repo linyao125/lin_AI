@@ -108,6 +108,18 @@ class AnchorService:
             curiosity = state.get("curiosity", 0.5)
             pending_thought = mood_state.pop_pending_thought()
             mood_block = f"[Soul State]\nmood: {mood_tag} | loneliness: {loneliness:.2f} | warmth: {warmth:.2f} | energy: {energy:.2f} | curiosity: {curiosity:.2f}"
+            # 念头抛出概率门：不是每次都抛，保持不可预测
+            if pending_thought:
+                import random as _r
+                _state_now = mood_state.get()
+                _energy = _state_now.get("energy", 0.8)
+                _loneliness = _state_now.get("loneliness", 0.0)
+                # 能量低时更容易说出心里话，寂寞值高时更想倾诉
+                _thought_prob = 0.4 + _loneliness * 0.3 + (1 - _energy) * 0.2
+                if _r.random() > _thought_prob:
+                    # 这次不抛，念头留着下次
+                    mood_state.set_pending_thought(pending_thought)
+                    pending_thought = None
             if pending_thought:
                 mood_block += f"\n[Pending Thought]\n{pending_thought}"
             sections.append(mood_block)
