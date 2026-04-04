@@ -107,17 +107,26 @@ class AnchorService:
             energy = state.get("energy", 0.8)
             curiosity = state.get("curiosity", 0.5)
             pending_thought = mood_state.pop_pending_thought()
-            mood_block = f"[Soul State]\nmood: {mood_tag} | loneliness: {loneliness:.2f} | warmth: {warmth:.2f} | energy: {energy:.2f} | curiosity: {curiosity:.2f}"
-            # 念头抛出概率门：不是每次都抛，保持不可预测
+
+            # 亲密度等级
+            if warmth < 0.2:
+                intimacy_level = "陌生期：保持礼貌距离，用敬语，不主动触碰私人话题"
+            elif warmth < 0.4:
+                intimacy_level = "相识期：友好自然，偶尔关心，不过分亲密"
+            elif warmth < 0.6:
+                intimacy_level = "熟悉期：可以开玩笑，记得对方细节，偶尔撒娇"
+            elif warmth < 0.8:
+                intimacy_level = "亲密期：主动分享自己的想法，会依赖，翻旧账频率高，偶尔吃醋"
+            else:
+                intimacy_level = "羁绊期：深度连接，说话可以不完整，会有情绪波动，梦境和念头频繁涌现"
+
+            mood_block = f"[Soul State]\nmood: {mood_tag} | loneliness: {loneliness:.2f} | warmth: {warmth:.2f} | energy: {energy:.2f} | curiosity: {curiosity:.2f}\n[Intimacy Level]\n{intimacy_level}"
+
             if pending_thought:
                 import random as _r
-                _state_now = mood_state.get()
-                _energy = _state_now.get("energy", 0.8)
-                _loneliness = _state_now.get("loneliness", 0.0)
-                # 能量低时更容易说出心里话，寂寞值高时更想倾诉
-                _thought_prob = 0.4 + _loneliness * 0.3 + (1 - _energy) * 0.2
+                _energy = state.get("energy", 0.8)
+                _thought_prob = 0.4 + loneliness * 0.3 + (1 - _energy) * 0.2
                 if _r.random() > _thought_prob:
-                    # 这次不抛，念头留着下次
                     mood_state.set_pending_thought(pending_thought)
                     pending_thought = None
             if pending_thought:
