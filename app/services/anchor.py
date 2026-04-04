@@ -75,6 +75,23 @@ class AnchorService:
         weekday = ["周一","周二","周三","周四","周五","周六","周日"][now.weekday()]
         is_weekend = now.weekday() >= 5
         sections.append(f"[Current Time]\n现在是{weekday} {hour:02d}:{now.minute:02d}，{'周末' if is_weekend else '工作日'}。")
+
+        # 情绪状态注入
+        try:
+            from app.soul.mood_state import mood_state
+            state = mood_state.get()
+            mood_tag = state.get("mood_tag", "calm")
+            loneliness = state.get("loneliness", 0.0)
+            warmth = state.get("warmth", 0.5)
+            energy = state.get("energy", 0.8)
+            curiosity = state.get("curiosity", 0.5)
+            pending_thought = mood_state.pop_pending_thought()
+            mood_block = f"[Soul State]\nmood: {mood_tag} | loneliness: {loneliness:.2f} | warmth: {warmth:.2f} | energy: {energy:.2f} | curiosity: {curiosity:.2f}"
+            if pending_thought:
+                mood_block += f"\n[Pending Thought]\n{pending_thought}"
+            sections.append(mood_block)
+        except Exception:
+            pass
         sections.append("[Operational Rules]\n- 保持语境连续\n- 不要擅自重置人格\n- 优先准确、稳定、自然\n- 不要因为省 token 就丢失核心关系和设定")
         return "\n\n".join(sections)
 
