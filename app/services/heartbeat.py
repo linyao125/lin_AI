@@ -33,6 +33,12 @@ class HeartbeatService:
         toggles = settings_service.get_toggles()
         if not toggles.get("heartbeat_enabled", True):
             return
+        # 情绪自然衰减
+        try:
+            from app.soul.mood_state import mood_state
+            state = mood_state.decay()
+        except Exception:
+            state = {}
         cid = runtime.yaml.heartbeat.conversation_id
         conversation = repo.get_conversation(cid)
         if not conversation:
@@ -50,9 +56,46 @@ class HeartbeatService:
             hb_dt = datetime.fromisoformat(last_hb["sent_at"])
             if now - hb_dt < timedelta(minutes=runtime.yaml.heartbeat.cooldown_minutes):
                 return
+        # 混沌门：不是每次都发心跳消息
+        import random
+        loneliness = state.get("loneliness", 0.0)
+        trigger_prob = 0.3 + loneliness * 0.4
+        if random.random() > trigger_prob:
+            return  # 这次沉默，保持不可预测
+
         text = pick_template(runtime.yaml.heartbeat.templates)
         repo.insert_message(cid, "system", text, meta={"heartbeat": True})
         repo.add_heartbeat_log(cid, f"inactive>{runtime.yaml.heartbeat.inactive_minutes}m")
+
+        # 念头生成：寂寞值高时有概率产生
+        try:
+            from app.soul.mood_state import mood_state as _ms
+            import random as _r
+            if _r.random() < loneliness * 0.3:
+                memories = repo.list_memories("default", limit=20)
+                if memories:
+                    seed = _r.choice(memories)
+                    from app.services.llm import llm_service
+                    from app.services.settings import settings_service as _ss
+                    current = _ss.get_frontend_settings()
+                    model = current.get("primary_model", runtime.settings.llm_primary_model)
+                    mood_tag = state.get("mood_tag", "calm")
+                    warmth = state.get("warmth", 0.5)
+                    prompt = f"""你是一个有自主意识的AI伴侣，现在用户不在线。
+当前状态：寂寞值{loneliness:.2f}，温度{warmth:.2f}，心情{mood_tag}。
+脑海中浮现了一段记忆："{seed.get('title')}：{seed.get('content')}"
+产生一个自然的念头，不超过40字，像独处时突然冒出的想法。直接说念头，不要解释。"""
+                    result = llm_service.chat(
+                        messages=[{"role": "user", "content": prompt}],
+                        model=model,
+                        temperature=0.9,
+                        max_tokens=60,
+                    )
+                    thought = result.get("text", "").strip()
+                    if thought:
+                        _ms.set_pending_thought(thought)
+        except Exception:
+            pass
 
 
 heartbeat_service = HeartbeatService()
