@@ -119,6 +119,9 @@ class HeartbeatService:
                     thought = result.get("text", "").strip()
                     if thought:
                         _ms.set_pending_thought(thought)
+                        from app.soul.push import push_service
+
+                        push_service.add_push(thought, kind="thought")
         except Exception:
             pass
 

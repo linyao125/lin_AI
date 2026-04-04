@@ -75,6 +75,9 @@ async def run_dream_cycle():
         # 混沌门：70%概率存为念头，30%概率写入记忆
         if random.random() < 0.7:
             mood_state.set_pending_thought(dream_text)
+            from app.soul.push import push_service
+
+            push_service.add_push(dream_text, kind="dream")
         else:
             repo.upsert_memory(
                 namespace="default",

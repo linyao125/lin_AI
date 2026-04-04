@@ -23,6 +23,7 @@ from app.services.chat import chat_service
 from app.services.proxy import apply_subscription
 from app.services.repository import repo
 from app.services.settings import settings_service
+from app.soul.push import push_service
 
 api_router = APIRouter()
 
@@ -70,6 +71,12 @@ def update_frontend_settings(payload: FrontendSettingsPayload):
         "ok": True,
         "data": data
     }
+
+
+@api_router.get("/push/pending")
+def get_pending_push():
+    items = push_service.pop_pending()
+    return {"ok": True, "data": items}
 
 
 @api_router.get("/conversations", response_model=list[ConversationOut])

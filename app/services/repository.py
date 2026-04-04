@@ -177,6 +177,16 @@ class Repository:
             (key, json.dumps(value, ensure_ascii=False), utc_now_iso()),
         )
 
+    def delete_setting(self, key: str) -> None:
+        database.execute("DELETE FROM settings WHERE key=?", (key,))
+
+    def list_settings_by_key_like(self, pattern: str) -> list[dict[str, Any]]:
+        rows = database.fetch_all(
+            "SELECT key, value FROM settings WHERE key LIKE ?",
+            (pattern,),
+        )
+        return [dict(r) for r in rows]
+
     def add_heartbeat_log(self, conversation_id: str, reason: str) -> None:
         database.execute(
             "INSERT INTO heartbeat_log (conversation_id, reason, sent_at) VALUES (?, ?, ?)",

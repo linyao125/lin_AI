@@ -445,6 +445,7 @@ async function boot() {
   await loadConversations();
   await loadSettingsForm();
   await loadMemories();
+  await checkPendingPush();
 }
 
 function showContextWarning(pct, used, budget) {
@@ -479,6 +480,32 @@ function bcNotify(type) {
   try {
     _bc.postMessage(type);
   } catch (e) {}
+}
+
+async function checkPendingPush() {
+  try {
+    const res = await api("/api/push/pending");
+    const items = res.data || [];
+    if (!items.length) return;
+    // 延迟3秒再推，让页面先加载完
+    setTimeout(() => {
+      items.forEach((item, idx) => {
+        setTimeout(() => {
+          const cid = state.currentConversationId;
+          if (!cid) return;
+          const nowIso = new Date().toISOString();
+          state.messages.push({
+            role: "assistant",
+            content: item.content,
+            created_at: nowIso,
+          });
+          renderMessages();
+        }, idx * 1500); // 多条消息间隔1.5秒
+      });
+    }, 3000);
+  } catch (e) {
+    console.error("checkPendingPush failed:", e);
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
