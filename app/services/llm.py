@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 from typing import Any
 
 import httpx
@@ -46,10 +47,21 @@ class LLMService:
         _client_kwargs = {"timeout": 120}
         if _proxy:
             _client_kwargs["proxy"] = _proxy
-        with httpx.Client(**_client_kwargs) as client:
-            resp = client.post(self._endpoint(), headers=self._headers(), json=payload)
-            resp.raise_for_status()
-            data = resp.json()
+        last_err = None
+        for attempt in range(3):  # 最多重试3次
+            try:
+                with httpx.Client(**_client_kwargs) as client:
+                    resp = client.post(self._endpoint(), headers=self._headers(), json=payload)
+                    resp.raise_for_status()
+                    data = resp.json()
+                break  # 成功就跳出
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_err = e
+                wait = (attempt + 1) * 2  # 2秒、4秒、6秒
+                time.sleep(wait)
+                continue
+        else:
+            raise last_err
         content = data["choices"][0]["message"]["content"].strip()
         usage = data.get("usage", {})
         prompt_tokens = int(usage.get("prompt_tokens", 0) or 0)
