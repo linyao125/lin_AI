@@ -89,9 +89,10 @@ class ChatService:
             _density = _route_result.get("text", "").strip()
 
             if _density == "低":
-                # 低密度：直接用轻量模型回，省token
-                actual_model = summary_model
-                actual_temperature = max(0.3, primary_temperature - 0.2)
+                actual_model = primary_model
+                actual_temperature = max(0.4, primary_temperature - 0.1)
+                # 回复长度 = 用户消息长度 * 1.5，最低80最高400
+                primary_max_tokens = max(80, min(400, len(content) * 2))
             elif _density == "高":
                 # 高密度：主模型+高temperature
                 actual_temperature = min(1.0, primary_temperature + 0.15)
