@@ -71,7 +71,13 @@ class AnchorService:
         # 旧账钩子：概率性翻出历史细节，增加连续感
         try:
             import random
-            if random.random() < 0.15:  # 15%概率触发
+            from app.soul.mood_state import mood_state as _ms
+            _state = _ms.get()
+            _warmth = _state.get("warmth", 0.5)
+            _loneliness = _state.get("loneliness", 0.0)
+            # 亲密度越高、寂寞值越高，越想翻旧账
+            _hook_prob = 0.05 + _warmth * 0.15 + _loneliness * 0.1
+            if random.random() < _hook_prob:  # 动态概率5%-30%
                 from app.services.repository import repo
                 all_mems = repo.list_memories("default", limit=50)
                 dynamic = [m for m in all_mems if not m.get("pinned") and m.get("kind") != "core"]
