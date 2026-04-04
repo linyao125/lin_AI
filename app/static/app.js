@@ -189,6 +189,7 @@ function fillSettingsForm(data) {
   setFormValue("f-display_name", data.display_name);
   setFormValue("f-user_display_name", data.user_display_name);
   setFormValue("f-user_birthday", data.user_birthday || "");
+  setFormValue("f-user_city", data.user_city || "");
   setFormValue("f-access_token", data.access_token);
   setFormValue("f-api_base_url", data.api_base_url);
   setFormValue("f-api_key", data.api_key);
@@ -217,6 +218,8 @@ function collectSettingsForm() {
     subtitle: getFormValue("f-subtitle"),
     display_name: getFormValue("f-display_name"),
     user_display_name: getFormValue("f-user_display_name"),
+    user_birthday: getFormValue("f-user_birthday"),
+    user_city: getFormValue("f-user_city"),
     access_token: getFormValue("f-access_token"),
     api_base_url: getFormValue("f-api_base_url"),
     api_key: getFormValue("f-api_key"),

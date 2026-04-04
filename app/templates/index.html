@@ -524,6 +524,15 @@
       </div>
       <label style="display:block;font-size:13px;">用户名称<input type="text" id="user-name-input" placeholder="输入用户名称" style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;"></label>
       <label style="display:block;font-size:13px;margin-top:10px;">用户生日<input type="date" id="user-birthday-input" style="width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;"></label>
+      <div style="margin-top:10px;">
+        <div style="font-size:13px;margin-bottom:6px;">所在位置</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="user-location-display" placeholder="点击右侧按钮获取位置" readonly style="flex:1;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:12px;color:#999;background:#fafafa;">
+          <button type="button" onclick="getUserLocation()" style="padding:8px 12px;border:1px solid #e5e5e5;border-radius:6px;background:#f9f9f9;cursor:pointer;font-size:12px;white-space:nowrap;">📍 获取位置</button>
+        </div>
+        <input type="hidden" id="user-lat" >
+        <input type="hidden" id="user-lon" >
+      </div>
     </div>
     <div style="margin-bottom:20px;">
       <div style="font-size:12px;color:#999;margin-bottom:12px;">外观设置</div>
@@ -686,6 +695,7 @@
       <label>AI 显示名称<input id="f-display_name" type="text" /></label>
       <label>用户显示名称<input id="f-user_display_name" type="text" /></label>
       <label>用户生日<input id="f-user_birthday" type="date" /></label>
+      <label>所在城市<input id="f-user_city" type="text" placeholder="如：北京、上海、广州" /></label>
     </div>
     <div class="drawer-section">
       <label>访问令牌<input id="f-access_token" type="password" /></label>
@@ -794,6 +804,39 @@
   });
 
   // 用户头像/名称点击 → 用户设置弹窗
+  window.getUserLocation = function() {
+    if (!navigator.geolocation) {
+      alert('浏览器不支持定位');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async function(pos) {
+        var lat = pos.coords.latitude.toFixed(6);
+        var lon = pos.coords.longitude.toFixed(6);
+        document.getElementById('user-lat').value = lat;
+        document.getElementById('user-lon').value = lon;
+        // 反向地理编码显示城市名
+        try {
+          var res = await fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lon + '&format=json&accept-language=zh', {
+            headers: { 'Accept': 'application/json', 'User-Agent': 'LinAI/1.0' }
+          });
+          var data = await res.json();
+          var addr = data.address || {};
+          var display = addr.city || addr.town || addr.county || addr.state || '已获取';
+          if (addr.suburb) display = addr.suburb + ' · ' + display;
+          document.getElementById('user-location-display').value = display;
+          document.getElementById('user-location-display').style.color = '#333';
+        } catch(e) {
+          document.getElementById('user-location-display').value = lat + ', ' + lon;
+          document.getElementById('user-location-display').style.color = '#333';
+        }
+      },
+      function(err) {
+        alert('获取位置失败，请检查浏览器定位权限');
+      }
+    );
+  };
+
   async function openUserSettings() {
     try {
       var res = await fetch('/api/settings/form');
@@ -803,6 +846,15 @@
       var birthdayInput = document.getElementById('user-birthday-input');
       if (nameInput && s.user_display_name) nameInput.value = s.user_display_name;
       if (birthdayInput) birthdayInput.value = s.user_birthday || '';
+      var latInput = document.getElementById('user-lat');
+      var lonInput = document.getElementById('user-lon');
+      var locDisplay = document.getElementById('user-location-display');
+      if (latInput) latInput.value = s.user_lat || '';
+      if (lonInput) lonInput.value = s.user_lon || '';
+      if (locDisplay && s.user_lat && s.user_lon) {
+        locDisplay.value = s.user_lat + ', ' + s.user_lon;
+        locDisplay.style.color = '#333';
+      }
     } catch(e) { console.error('加载用户设置失败', e); }
     document.getElementById('modal-user-settings').style.display = 'flex';
   }
@@ -855,6 +907,9 @@
     var payload = {};
     if (userName) payload.user_display_name = userName;
     if (userBirthday) payload.user_birthday = userBirthday;
+    var lat = document.getElementById('user-lat') && document.getElementById('user-lat').value;
+    var lon = document.getElementById('user-lon') && document.getElementById('user-lon').value;
+    if (lat && lon) { payload.user_lat = lat; payload.user_lon = lon; }
     if (Object.keys(payload).length > 0) {
       try {
         await fetch('/api/settings/form', {

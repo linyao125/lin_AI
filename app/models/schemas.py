@@ -101,6 +101,9 @@ class FrontendSettingsPayload(BaseModel):
     ollama_mode: bool = False
     ollama_base_url: str = "http://localhost:11434"
     user_birthday: str = ""
+    user_city: str = ""
+    user_lat: str = ""
+    user_lon: str = ""
 
 
 class FrontendSettingsOut(BaseModel):

@@ -42,6 +42,9 @@ class SettingsService:
             "ollama_mode": False,
             "ollama_base_url": "http://localhost:11434",
             "user_birthday": "",
+            "user_city": "",
+            "user_lat": "",
+            "user_lon": "",
         }
 
     def get_frontend_settings(self) -> dict:
