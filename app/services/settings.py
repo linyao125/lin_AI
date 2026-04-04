@@ -41,6 +41,7 @@ class SettingsService:
             "vpn_subscription": "",
             "ollama_mode": False,
             "ollama_base_url": "http://localhost:11434",
+            "user_birthday": "",
         }
 
     def get_frontend_settings(self) -> dict:

@@ -188,6 +188,7 @@ function fillSettingsForm(data) {
   setFormValue("f-subtitle", data.subtitle);
   setFormValue("f-display_name", data.display_name);
   setFormValue("f-user_display_name", data.user_display_name);
+  setFormValue("f-user_birthday", data.user_birthday || "");
   setFormValue("f-access_token", data.access_token);
   setFormValue("f-api_base_url", data.api_base_url);
   setFormValue("f-api_key", data.api_key);
