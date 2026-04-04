@@ -22,11 +22,36 @@ class HeartbeatService:
             return
         self.scheduler = BackgroundScheduler(timezone=runtime.yaml.app.timezone)
         self.scheduler.add_job(self.tick, "interval", seconds=runtime.yaml.heartbeat.interval_seconds, id="heartbeat")
+        # 梦境层：每天凌晨2-4点随机触发（混沌时间）
+        import random
+        slot = random.randint(0, 119)  # 0-119分钟随机，即2:00-3:59
+        if slot < 60:
+            dream_hour = 2
+            dream_minute = slot
+        else:
+            dream_hour = 3
+            dream_minute = slot - 60
+        self.scheduler.add_job(
+            self._run_dream,
+            "cron",
+            hour=dream_hour,
+            minute=dream_minute,
+            id="dream_cycle",
+        )
         self.scheduler.start()
 
     def stop(self) -> None:
         if self.scheduler and self.scheduler.running:
             self.scheduler.shutdown(wait=False)
+
+    def _run_dream(self) -> None:
+        import asyncio
+        from app.soul.dream import run_dream_cycle
+
+        try:
+            asyncio.run(run_dream_cycle())
+        except Exception:
+            pass
 
     def tick(self) -> None:
         runtime = get_runtime()

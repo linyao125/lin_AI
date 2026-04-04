@@ -68,6 +68,21 @@ class AnchorService:
         except Exception:
             pass
 
+        # 旧账钩子：概率性翻出历史细节，增加连续感
+        try:
+            import random
+            if random.random() < 0.15:  # 15%概率触发
+                from app.services.repository import repo
+                all_mems = repo.list_memories("default", limit=50)
+                dynamic = [m for m in all_mems if not m.get("pinned") and m.get("kind") != "core"]
+                if dynamic:
+                    # 偏向最近7天的记忆
+                    seed = random.choice(dynamic[:10] if len(dynamic) >= 10 else dynamic)
+                    hook = f"[Memory Hook]\n你隐约记得：{seed.get('title')}——{seed.get('content', '')[:60]}。不必刻意提起，但如果自然的话可以带出来。"
+                    sections.append(hook)
+        except Exception:
+            pass
+
         # 时间感知注入
         import datetime as _dt
         now = _dt.datetime.now()
