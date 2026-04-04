@@ -95,7 +95,23 @@ class AnchorService:
         hour = now.hour
         weekday = ["周一","周二","周三","周四","周五","周六","周日"][now.weekday()]
         is_weekend = now.weekday() >= 5
-        sections.append(f"[Current Time]\n现在是{weekday} {hour:02d}:{now.minute:02d}，{'周末' if is_weekend else '工作日'}。")
+        time_block = f"现在是{weekday} {hour:02d}:{now.minute:02d}，{'周末' if is_weekend else '工作日'}。"
+
+        # 节假日感知
+        try:
+            from app.soul.calendar import get_today_holiday, get_upcoming_holidays
+
+            today_holiday = get_today_holiday()
+            if today_holiday.get("is_holiday") and today_holiday.get("name"):
+                time_block += f"今天是{today_holiday['name']}。"
+            upcoming = get_upcoming_holidays()
+            if upcoming:
+                next_h = upcoming[0]
+                time_block += f"距离{next_h['name']}还有{next_h['days']}天。"
+        except Exception:
+            pass
+
+        sections.append(f"[Current Time]\n{time_block}")
 
         # 情绪状态注入
         try:
