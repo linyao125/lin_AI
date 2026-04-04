@@ -108,6 +108,57 @@ class ChatService:
         )
 
         assistant_text = result["text"]
+
+        # 错别字机制：让AI自己出错自己更正，不硬编码
+        _typo_correction: str | None = None
+        try:
+            import random as _r
+            from app.soul.mood_state import mood_state as _ms
+            import datetime as _dt
+
+            _state = _ms.get()
+            _hour = _dt.datetime.now().hour
+            _warmth = _state.get("warmth", 0.5)
+            _energy = _state.get("energy", 0.8)
+
+            # 触发概率
+            _typo_prob = 0.0
+            if 22 <= _hour or _hour < 4:
+                _typo_prob += 0.15
+            if _energy < 0.4:
+                _typo_prob += 0.1
+            if _warmth > 0.7:
+                _typo_prob += 0.08
+
+            if _r.random() < _typo_prob and len(assistant_text) > 20:
+                summary_model = (current.get("summary_model") or runtime.settings.llm_summary_model).strip()
+                _typo_result = llm_service.chat(
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": f"""把下面这句话里随机一个词故意打错（只改一个字，要像手滑），然后第二行写一个自然的更正，像真人发现打错字时的反应。
+格式：
+[错误版本]
+[更正]
+
+原句：{assistant_text[:100]}""",
+                        }
+                    ],
+                    model=summary_model,
+                    temperature=0.9,
+                    max_tokens=80,
+                )
+                _typo_raw = _typo_result.get("text", "").strip()
+                _lines = [l.strip() for l in _typo_raw.split("\n") if l.strip()]
+                if len(_lines) >= 2:
+                    _typo_text = _lines[0].replace("[错误版本]", "").strip()
+                    _correction = _lines[1].replace("[更正]", "").strip()
+                    if _typo_text and _correction:
+                        assistant_text = _typo_text
+                        _typo_correction = _correction
+        except Exception:
+            pass
+
         if runtime.yaml.context.attach_cost_hint:
             assistant_text = assistant_text.rstrip() + f"\n\n[estimated_cost=${result['estimated_cost']:.6f}]"
 
@@ -120,6 +171,13 @@ class ChatService:
             cost_estimate=result["estimated_cost"],
             meta={"cached": False, "model": primary_model},
         )
+        if _typo_correction:
+            assistant_msg = repo.insert_message(
+                cid,
+                "assistant",
+                _typo_correction,
+                meta={"typo_correction": True},
+            )
 
         if enable_cache:
             repo.set_cache(
