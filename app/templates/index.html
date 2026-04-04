@@ -484,6 +484,7 @@
           <option value="deepseek">DeepSeek</option>
           <option value="grok">Grok (xAI)</option>
           <option value="custom">自定义</option>
+          <option value="ollama">本地 Ollama（免费）</option>
         </select>
       </div>
       <div style="margin-bottom:8px;">
@@ -1389,7 +1390,12 @@
       {label: 'Grok 3', value: 'x-ai/grok-3'},
       {label: 'Grok 3 Mini', value: 'x-ai/grok-3-mini'},
     ],
-    custom: []
+    custom: [],
+    ollama: [
+      {label: 'Gemma 4 (本地)', value: 'gemma4'},
+      {label: 'DeepSeek R1 (本地)', value: 'deepseek-r1'},
+      {label: 'Llama 3 (本地)', value: 'llama3'},
+    ]
   };
 
   function onProviderChange() {

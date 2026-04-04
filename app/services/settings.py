@@ -39,6 +39,8 @@ class SettingsService:
             "proxy_url": "",
             "server_url": "",
             "vpn_subscription": "",
+            "ollama_mode": False,
+            "ollama_base_url": "http://localhost:11434",
         }
 
     def get_frontend_settings(self) -> dict:

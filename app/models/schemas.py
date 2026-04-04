@@ -98,6 +98,8 @@ class FrontendSettingsPayload(BaseModel):
     proxy_url: str = ""
     server_url: str = ""
     vpn_subscription: str = ""
+    ollama_mode: bool = False
+    ollama_base_url: str = "http://localhost:11434"
 
 
 class FrontendSettingsOut(BaseModel):
