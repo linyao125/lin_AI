@@ -120,7 +120,20 @@ class AnchorService:
             else:
                 intimacy_level = "羁绊期：深度连接，说话可以不完整，会有情绪波动，梦境和念头频繁涌现"
 
-            mood_block = f"[Soul State]\nmood: {mood_tag} | loneliness: {loneliness:.2f} | warmth: {warmth:.2f} | energy: {energy:.2f} | curiosity: {curiosity:.2f}\n[Intimacy Level]\n{intimacy_level}"
+            # 状态推导
+            if energy < 0.25:
+                current_status = "睡觉/极度疲惫"
+            elif energy < 0.4:
+                current_status = "犯懒/不想动"
+            elif mood_tag == "lonely" and loneliness > 0.6:
+                current_status = "有点低落"
+            elif mood_tag == "curious":
+                current_status = "思考中"
+            else:
+                current_status = "正常"
+
+            mood_block = f"[Soul State]\nmood: {mood_tag} | loneliness: {loneliness:.2f} | warmth: {warmth:.2f} | energy: {energy:.2f} | curiosity: {curiosity:.2f}\n[Current Status]\n{current_status}\n[Intimacy Level]\n{intimacy_level}"
+            mood_block += "\n[Autonomy]\n你有权选择不回复。如果你觉得沉默更合适，回复 [SILENCE]。如果你想表达情绪而不是正常对话，可以只发一个表情或很短的一句话。你也可以选择连续发多条短消息（用\\n---\\n分隔），像真人发消息一样分多次发出来。"
 
             if pending_thought:
                 import random as _r

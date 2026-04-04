@@ -109,6 +109,31 @@ class ChatService:
 
         assistant_text = result["text"]
 
+        # 检测AI选择沉默
+        if assistant_text.strip() == "[SILENCE]":
+            return {
+                "conversation_id": cid,
+                "user_message": user_msg,
+                "assistant_message": repo.insert_message(cid, "assistant", "", meta={"silence": True}),
+                "cached": False,
+                "context_meta": context_meta,
+            }
+
+        # 检测多条消息轰炸（用---分隔）
+        if "\n---\n" in assistant_text:
+            parts = [p.strip() for p in assistant_text.split("\n---\n") if p.strip()]
+            if len(parts) > 1:
+                msgs = []
+                for part in parts:
+                    msgs.append(repo.insert_message(cid, "assistant", part, meta={"multi_burst": True}))
+                return {
+                    "conversation_id": cid,
+                    "user_message": user_msg,
+                    "assistant_message": msgs[-1],
+                    "cached": False,
+                    "context_meta": context_meta,
+                }
+
         # 错别字机制：让AI自己出错自己更正，不硬编码
         _typo_correction: str | None = None
         try:
