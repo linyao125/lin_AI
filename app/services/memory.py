@@ -112,6 +112,15 @@ class MemoryService:
 
         for pattern in preference_patterns + emotion_patterns:
             if re.search(pattern, combined):
+                import random
+                from app.soul.mood_state import mood_state as _ms
+                _state = _ms.get()
+                _warmth = _state.get("warmth", 0.5)
+                _curiosity = _state.get("curiosity", 0.5)
+                # 概率门：亲密度越高越倾向于记录，好奇心加权
+                _write_prob = 0.4 + _warmth * 0.3 + _curiosity * 0.2
+                if random.random() > _write_prob:
+                    return False  # 这次不记，保持不可预测
                 runtime = get_runtime()
                 cfg = runtime.yaml.memory
                 title = user_message[:30].strip()
