@@ -523,6 +523,7 @@
         <div style="font-size:11px;color:#999;margin-top:4px;">点击头像更换图片</div>
       </div>
       <label style="display:block;font-size:13px;">用户名称<input type="text" id="user-name-input" placeholder="输入用户名称" style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;"></label>
+      <label style="display:block;font-size:13px;margin-top:10px;">用户生日<input type="date" id="user-birthday-input" style="width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;"></label>
     </div>
     <div style="margin-bottom:20px;">
       <div style="font-size:12px;color:#999;margin-bottom:12px;">外观设置</div>
@@ -793,19 +794,32 @@
   });
 
   // 用户头像/名称点击 → 用户设置弹窗
+  async function openUserSettings() {
+    try {
+      var res = await fetch('/api/settings/form');
+      var data = await res.json();
+      var s = data.data || {};
+      var nameInput = document.getElementById('user-name-input');
+      var birthdayInput = document.getElementById('user-birthday-input');
+      if (nameInput && s.user_display_name) nameInput.value = s.user_display_name;
+      if (birthdayInput) birthdayInput.value = s.user_birthday || '';
+    } catch(e) { console.error('加载用户设置失败', e); }
+    document.getElementById('modal-user-settings').style.display = 'flex';
+  }
+
   document.getElementById('user-avatar-collapsed').addEventListener('click', function(e) {
     e.stopPropagation();
-    document.getElementById('modal-user-settings').style.display = 'flex';
+    openUserSettings();
   });
 
   document.getElementById('user-avatar-expanded').addEventListener('click', function(e) {
     e.stopPropagation();
-    document.getElementById('modal-user-settings').style.display = 'flex';
+    openUserSettings();
   });
 
   document.querySelector('.se-user-name').addEventListener('click', function(e) {
     e.stopPropagation();
-    document.getElementById('modal-user-settings').style.display = 'flex';
+    openUserSettings();
   });
 
   // 保存AI设置 → 发送到后端
@@ -837,8 +851,10 @@
   // 保存用户设置
   document.getElementById('save-user-settings').addEventListener('click', async function() {
     var userName = document.getElementById('user-name-input').value.trim();
+    var userBirthday = document.getElementById('user-birthday-input') && document.getElementById('user-birthday-input').value;
     var payload = {};
     if (userName) payload.user_display_name = userName;
+    if (userBirthday) payload.user_birthday = userBirthday;
     if (Object.keys(payload).length > 0) {
       try {
         await fetch('/api/settings/form', {
