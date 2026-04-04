@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from app.core.config import get_runtime
 from app.services.settings import settings_service
 
@@ -20,6 +22,24 @@ class AnchorService:
         sections.append(f"[Assistant Name]\n{display_name}")
         sections.append(f"[User Name]\n{user_display_name}")
         sections.append(f"[System Goal]\n{system_goal}")
+        # 时间感知
+        now = datetime.now()
+        hour = now.hour
+        if 6 <= hour < 9:
+            time_context = f"现在是早上{hour}点，用户可能刚起床或在准备上班。"
+        elif 9 <= hour < 12:
+            time_context = f"现在是上午{hour}点，用户可能在工作或学习。"
+        elif 12 <= hour < 14:
+            time_context = f"现在是中午{hour}点，用户可能在吃饭或休息。"
+        elif 14 <= hour < 18:
+            time_context = f"现在是下午{hour}点，用户可能在工作。"
+        elif 18 <= hour < 21:
+            time_context = f"现在是傍晚{hour}点，用户可能在下班或吃晚饭。"
+        elif 21 <= hour < 24:
+            time_context = f"现在是晚上{hour}点，用户可能在休息放松。"
+        else:
+            time_context = f"现在是深夜{hour}点，用户还没睡或刚起床。"
+        sections.append(f"[Time Context]\n{time_context}")
         if persona_core:
             sections.append(f"[Persona Core]\n{persona_core}")
         if relationship_context:
@@ -48,6 +68,13 @@ class AnchorService:
         except Exception:
             pass
 
+        # 时间感知注入
+        from datetime import datetime
+        now = datetime.now()
+        hour = now.hour
+        weekday = ["周一","周二","周三","周四","周五","周六","周日"][now.weekday()]
+        is_weekend = now.weekday() >= 5
+        sections.append(f"[Current Time]\n现在是{weekday} {hour:02d}:{now.minute:02d}，{'周末' if is_weekend else '工作日'}。")
         sections.append("[Operational Rules]\n- 保持语境连续\n- 不要擅自重置人格\n- 优先准确、稳定、自然\n- 不要因为省 token 就丢失核心关系和设定")
         return "\n\n".join(sections)
 
