@@ -69,8 +69,8 @@ class AnchorService:
             pass
 
         # 时间感知注入
-        from datetime import datetime
-        now = datetime.now()
+        import datetime as _dt
+        now = _dt.datetime.now()
         hour = now.hour
         weekday = ["周一","周二","周三","周四","周五","周六","周日"][now.weekday()]
         is_weekend = now.weekday() >= 5
