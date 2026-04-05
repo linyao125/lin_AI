@@ -178,6 +178,15 @@ class AnchorService:
             sections.append(mood_block)
         except Exception:
             pass
+        # 表情包模块（功能开关控制）
+        try:
+            from app.services.settings import settings_service as _ss
+            _toggles = _ss.get_toggles()
+            if _toggles.get("emoji_enabled", False):
+                sticker_block = "[Expression]\n你可以自由使用emoji和颜文字表达情绪，根据聊天氛围自主决定用什么、什么时候用、用多少。不需要刻意用，觉得合适就加，不合适就纯文字。"
+                sections.append(sticker_block)
+        except Exception:
+            pass
         sections.append("[Operational Rules]\n- 保持语境连续\n- 不要擅自重置人格\n- 优先准确、稳定、自然\n- 不要因为省 token 就丢失核心关系和设定")
         return "\n\n".join(sections)
 

@@ -8,6 +8,7 @@ DEFAULT_TOGGLES = {
     "enable_cache": True,
     "auto_summary_enabled": True,
     "heartbeat_enabled": True,
+    "emoji_enabled": False,
 }
 
 
