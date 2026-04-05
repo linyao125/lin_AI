@@ -9,6 +9,7 @@ DEFAULT_TOGGLES = {
     "auto_summary_enabled": True,
     "heartbeat_enabled": True,
     "emoji_enabled": False,
+    "proactive_enabled": True,
 }
 
 
@@ -37,12 +38,16 @@ class SettingsService:
             "enable_cache": toggles["enable_cache"],
             "auto_summary_enabled": toggles["auto_summary_enabled"],
             "heartbeat_enabled": toggles["heartbeat_enabled"],
+            "emoji_enabled": toggles.get("emoji_enabled", False),
+            "proactive_enabled": toggles.get("proactive_enabled", True),
             "proxy_url": "",
             "server_url": "",
             "vpn_subscription": "",
             "ollama_mode": False,
             "ollama_base_url": "http://localhost:11434",
             "ollama_local_model": "gemma4",
+            "emoji_enabled": False,
+            "proactive_enabled": True,
             "user_birthday": "",
             "user_city": "",
             "user_lat": "",
@@ -67,6 +72,8 @@ class SettingsService:
             "enable_cache": bool(current.get("enable_cache", True)),
             "auto_summary_enabled": bool(current.get("auto_summary_enabled", True)),
             "heartbeat_enabled": bool(current.get("heartbeat_enabled", True)),
+            "emoji_enabled": bool(current.get("emoji_enabled", False)),
+            "proactive_enabled": bool(current.get("proactive_enabled", True)),
         }
         repo.set_setting("runtime_toggles", toggles)
         repo.set_setting("frontend_settings", current)
@@ -92,6 +99,8 @@ class SettingsService:
         frontend["enable_cache"] = current["enable_cache"]
         frontend["auto_summary_enabled"] = current["auto_summary_enabled"]
         frontend["heartbeat_enabled"] = current["heartbeat_enabled"]
+        frontend["emoji_enabled"] = current.get("emoji_enabled", False)
+        frontend["proactive_enabled"] = current.get("proactive_enabled", True)
         repo.set_setting("frontend_settings", frontend)
 
         return current

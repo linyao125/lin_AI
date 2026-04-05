@@ -101,6 +101,8 @@ class FrontendSettingsPayload(BaseModel):
     ollama_mode: bool = False
     ollama_base_url: str = "http://localhost:11434"
     ollama_local_model: str = "gemma4"
+    emoji_enabled: bool = False
+    proactive_enabled: bool = True
     user_birthday: str = ""
     user_city: str = ""
     user_lat: str = ""

@@ -937,8 +937,10 @@
 
   // 保存功能设置
   document.getElementById('save-features').addEventListener('click', async function() {
-    var ollamaCb = document.getElementById('toggle-ollama');
     var payload = {};
+
+    // Ollama本地模式
+    var ollamaCb = document.getElementById('toggle-ollama');
     if (ollamaCb) {
       payload.ollama_mode = !!ollamaCb.checked;
       payload.ollama_base_url = 'http://localhost:11434';
@@ -947,6 +949,15 @@
         if (om && om.value) payload.ollama_local_model = om.value;
       }
     }
+
+    // 表情包开关
+    var emojiCb = document.getElementById('toggle-emoji');
+    if (emojiCb) payload.emoji_enabled = !!emojiCb.checked;
+
+    // 主动推送开关
+    var pushCb = document.getElementById('toggle-proactive');
+    if (pushCb) payload.proactive_enabled = !!pushCb.checked;
+
     if (Object.keys(payload).length > 0) {
       try {
         await fetch('/api/settings/form', {
