@@ -484,7 +484,6 @@
           <option value="deepseek">DeepSeek</option>
           <option value="grok">Grok (xAI)</option>
           <option value="custom">自定义</option>
-          <option value="ollama">本地 Ollama（免费）</option>
         </select>
       </div>
       <div style="margin-bottom:8px;">
@@ -898,12 +897,6 @@
     payload.primary_model = getSelectedModel();
     var serverUrlInput = document.getElementById('server-url-input');
     if (serverUrlInput && serverUrlInput.value.trim()) payload.server_url = serverUrlInput.value.trim();
-    // Ollama模式自动检测
-    var provider = document.getElementById('provider-select').value;
-    payload.ollama_mode = (provider === 'ollama');
-    if (provider === 'ollama') {
-      payload.ollama_base_url = 'http://localhost:11434';
-    }
     var vpnInput = document.getElementById('f-vpn_subscription');
     if (vpnInput && vpnInput.value.trim()) payload.vpn_subscription = vpnInput.value.trim();
     if (Object.keys(payload).length > 0) {
@@ -1500,12 +1493,7 @@
       {label: 'Grok 3', value: 'x-ai/grok-3'},
       {label: 'Grok 3 Mini', value: 'x-ai/grok-3-mini'},
     ],
-    custom: [],
-    ollama: [
-      {label: 'Gemma 4 (本地)', value: 'gemma4'},
-      {label: 'DeepSeek R1 (本地)', value: 'deepseek-r1'},
-      {label: 'Llama 3 (本地)', value: 'llama3'},
-    ]
+    custom: []
   };
 
   function onProviderChange() {
@@ -1516,17 +1504,6 @@
     if (provider === 'custom') {
       customWrap.style.display = 'block';
       modelSelect.style.display = 'none';
-    } else if (provider === 'ollama') {
-      customWrap.style.display = 'none';
-      modelSelect.style.display = 'block';
-      modelMap['ollama'].forEach(function(m) {
-        var opt = document.createElement('option');
-        opt.value = m.value;
-        opt.textContent = m.label;
-        modelSelect.appendChild(opt);
-      });
-      // 检测Ollama是否在线
-      checkOllamaStatus();
     } else {
       customWrap.style.display = 'none';
       modelSelect.style.display = 'block';
@@ -1537,33 +1514,6 @@
         modelSelect.appendChild(opt);
       });
     }
-  }
-
-  async function checkOllamaStatus() {
-    var ollamaBase = document.getElementById('f-proxy_url') ? 'http://localhost:11434' : 'http://localhost:11434';
-    try {
-      var resp = await fetch(ollamaBase + '/api/tags', { signal: AbortSignal.timeout(3000) });
-      if (!resp.ok) throw new Error('not ok');
-      var data = await resp.json();
-      var models = (data.models || []).map(function(m) { return m.name; });
-      var modelSelect = document.getElementById('model-select');
-      var selectedModel = modelSelect.value;
-      if (models.length === 0 || !models.some(function(m) { return m.includes(selectedModel.replace(':latest','')); })) {
-        showOllamaGuide(selectedModel, models);
-      } else {
-        showOllamaToast('✅ Ollama已连接，模型就绪');
-      }
-    } catch(e) {
-      showOllamaGuide(null, []);
-    }
-  }
-
-  function showOllamaToast(msg) {
-    var t = document.createElement('div');
-    t.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:8px 18px;border-radius:8px;font-size:13px;z-index:9999;';
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(function() { t.remove(); }, 3000);
   }
 
   window.onOllamaToggle = async function(checkbox) {
@@ -1599,24 +1549,6 @@
       if (confirm('未检测到本地Ollama，是否前往下载？')) {
         window.open('https://ollama.com/download', '_blank');
       }
-    }
-  }
-
-  function showOllamaGuide(model, installedModels) {
-    var installed = installedModels.length > 0 ? '已安装模型：' + installedModels.join('、') : '未检测到已安装模型';
-    var pullCmd = model ? 'ollama pull ' + model : 'ollama pull gemma4';
-    var msg = installedModels.length === 0
-      ? 'Ollama未启动或未安装。\n\n请先：\n1. 下载安装 Ollama（ollama.com）\n2. 运行：' + pullCmd + '\n3. 确保Ollama正在运行\n\n是否前往下载Ollama？'
-      : 'Ollama已连接，但未找到所选模型。\n' + installed + '\n\n运行以下命令安装：\n' + pullCmd + '\n\n是否继续使用当前已安装的模型？';
-    if (installedModels.length === 0) {
-      if (confirm(msg)) {
-        window.open('https://ollama.com/download', '_blank');
-      }
-      // 恢复选择器到上一个provider
-      document.getElementById('provider-select').value = 'custom';
-      onProviderChange();
-    } else {
-      alert(msg);
     }
   }
 
