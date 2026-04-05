@@ -885,6 +885,12 @@
     payload.primary_model = getSelectedModel();
     var serverUrlInput = document.getElementById('server-url-input');
     if (serverUrlInput && serverUrlInput.value.trim()) payload.server_url = serverUrlInput.value.trim();
+    // Ollama模式自动检测
+    var provider = document.getElementById('provider-select').value;
+    payload.ollama_mode = (provider === 'ollama');
+    if (provider === 'ollama') {
+      payload.ollama_base_url = 'http://localhost:11434';
+    }
     var vpnInput = document.getElementById('f-vpn_subscription');
     if (vpnInput && vpnInput.value.trim()) payload.vpn_subscription = vpnInput.value.trim();
     if (Object.keys(payload).length > 0) {
