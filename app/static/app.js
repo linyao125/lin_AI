@@ -354,11 +354,21 @@ async function sendMessage() {
 
   try {
     const convId = state.currentConversationId || "new";
-    const res = await api(`/api/conversations/${convId}/messages`, {
-      method: "POST",
-      body: JSON.stringify({ content }),
-    });
+    const settings = state.settings || {};
+    const ollamaMode = settings.ollama_mode;
+    const ollamaBase = settings.ollama_base_url || "http://localhost:11434";
+    const ollamaModel = settings.primary_model || "gemma4";
 
+    let res;
+    if (ollamaMode) {
+      // 浏览器直连本地Ollama
+      res = await sendMessageOllama(convId, content, ollamaBase, ollamaModel);
+    } else {
+      res = await api(`/api/conversations/${convId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      });
+    }
     state.currentConversationId = res.conversation_id;
     await loadConversations();
     await loadMessages(state.currentConversationId);
@@ -509,6 +519,46 @@ async function checkPendingPush() {
   } catch (e) {
     console.error("checkPendingPush failed:", e);
   }
+}
+
+async function sendMessageOllama(convId, content, ollamaBase, model) {
+  // 检测Ollama是否在线
+  try {
+    await fetch(`${ollamaBase}/api/tags`, { signal: AbortSignal.timeout(3000) });
+  } catch (e) {
+    throw new Error("本地Ollama未启动，请先运行Ollama");
+  }
+
+  // 构建消息历史
+  const history = (state.messages || []).slice(-8).map(m => ({
+    role: m.role === "assistant" ? "assistant" : "user",
+    content: m.content,
+  }));
+  history.push({ role: "user", content });
+
+  // 调用本地Ollama
+  const resp = await fetch(`${ollamaBase}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: model,
+      messages: history,
+      stream: false,
+    }),
+  });
+  if (!resp.ok) throw new Error("Ollama请求失败");
+  const data = await resp.json();
+  const replyText = data.choices?.[0]?.message?.content || "";
+
+  // 把消息存到后端
+  const saveRes = await api(`/api/conversations/${convId}/messages/ollama`, {
+    method: "POST",
+    body: JSON.stringify({
+      user_content: content,
+      assistant_content: replyText,
+    }),
+  });
+  return saveRes;
 }
 
 document.addEventListener("DOMContentLoaded", () => {

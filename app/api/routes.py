@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Body, HTTPException, Request
 
 from app.core.config import get_runtime
 from app.models.schemas import (
@@ -100,6 +100,21 @@ def list_messages(conversation_id: str):
 def send_message(conversation_id: str, payload: MessageCreatePayload):
     cid = None if conversation_id == "new" else conversation_id
     return chat_service.send_message(cid, payload.content)
+
+
+@api_router.post("/conversations/{conversation_id}/messages/ollama", response_model=SendMessageResponse)
+def save_ollama_message(conversation_id: str, payload: dict[str, Any] = Body(...)):
+    cid = conversation_id if conversation_id != "new" else None
+    cid = chat_service.ensure_conversation(cid, payload.get("user_content", ""))
+    user_msg = repo.insert_message(cid, "user", payload.get("user_content", ""))
+    assistant_msg = repo.insert_message(cid, "assistant", payload.get("assistant_content", ""), meta={"ollama": True})
+    return {
+        "conversation_id": cid,
+        "user_message": user_msg,
+        "assistant_message": assistant_msg,
+        "cached": False,
+        "context_meta": {},
+    }
 
 
 @api_router.get("/memories", response_model=list[MemoryOut])
