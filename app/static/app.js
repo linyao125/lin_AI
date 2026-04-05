@@ -357,7 +357,8 @@ async function sendMessage() {
     const settings = state.settings || {};
     const ollamaMode = settings.ollama_mode;
     const ollamaBase = settings.ollama_base_url || "http://localhost:11434";
-    const ollamaModel = settings.primary_model || "gemma4";
+    const ollamaModel =
+      settings.ollama_local_model || settings.primary_model || "gemma4";
 
     let res;
     if (ollamaMode) {

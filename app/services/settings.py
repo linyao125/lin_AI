@@ -41,6 +41,7 @@ class SettingsService:
             "vpn_subscription": "",
             "ollama_mode": False,
             "ollama_base_url": "http://localhost:11434",
+            "ollama_local_model": "gemma4",
             "user_birthday": "",
             "user_city": "",
             "user_lat": "",

@@ -677,6 +677,19 @@
         <div style="margin-top:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;"><span>Token限额</span><span class="token-val">不限制</span></div><input type="range" disabled min="0" max="100000" step="1000" value="0" oninput="this.previousElementSibling.querySelector('.token-val').textContent=this.value==0?'不限制':this.value+'k'" style="width:100%;accent-color:#1a1a1a;opacity:0.4;cursor:not-allowed;"></div>
       </div>
 
+      <div style="border:1px solid #f0f0f0;border-radius:8px;padding:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div><div style="font-size:14px;font-weight:500;">本地 Ollama（免费）</div><div style="font-size:12px;color:#999;margin-top:2px;">使用本地模型处理低密度对话，节省API费用</div></div>
+          <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" id="toggle-ollama" style="opacity:0;width:0;height:0;" onchange="onOllamaToggle(this)"><span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;"></span></label>
+        </div>
+        <div id="ollama-model-select" style="display:none;margin-top:10px;">
+          <select id="ollama-model-name" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;">
+            <option value="">检测中...</option>
+          </select>
+          <div id="ollama-status" style="font-size:12px;color:#999;margin-top:6px;"></div>
+        </div>
+      </div>
+
     </div>
     <button id="save-features" style="width:100%;padding:10px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;margin-top:20px;">保存设置</button>
   </div>
@@ -930,7 +943,26 @@
   });
 
   // 保存功能设置
-  document.getElementById('save-features').addEventListener('click', function() {
+  document.getElementById('save-features').addEventListener('click', async function() {
+    var ollamaCb = document.getElementById('toggle-ollama');
+    var payload = {};
+    if (ollamaCb) {
+      payload.ollama_mode = !!ollamaCb.checked;
+      payload.ollama_base_url = 'http://localhost:11434';
+      if (ollamaCb.checked) {
+        var om = document.getElementById('ollama-model-name');
+        if (om && om.value) payload.ollama_local_model = om.value;
+      }
+    }
+    if (Object.keys(payload).length > 0) {
+      try {
+        await fetch('/api/settings/form', {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+      } catch(e) { console.error('保存功能设置失败', e); }
+    }
     document.getElementById('modal-features').style.display = 'none';
     showSaveToast('功能设置已保存');
   });
@@ -1532,6 +1564,42 @@
     t.textContent = msg;
     document.body.appendChild(t);
     setTimeout(function() { t.remove(); }, 3000);
+  }
+
+  window.onOllamaToggle = async function(checkbox) {
+    var wrap = document.getElementById('ollama-model-select');
+    var status = document.getElementById('ollama-status');
+    var modelSel = document.getElementById('ollama-model-name');
+    if (!checkbox.checked) {
+      wrap.style.display = 'none';
+      return;
+    }
+    wrap.style.display = 'block';
+    status.textContent = '正在检测Ollama...';
+    try {
+      var resp = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(3000) });
+      var data = await resp.json();
+      var models = (data.models || []).map(function(m) { return m.name; });
+      if (models.length === 0) {
+        status.textContent = '⚠️ Ollama已连接但没有已安装的模型，请运行 ollama pull gemma4';
+        modelSel.innerHTML = '<option value="">暂无模型</option>';
+      } else {
+        status.textContent = '✅ 已连接，发现 ' + models.length + ' 个本地模型';
+        modelSel.innerHTML = '';
+        models.forEach(function(m) {
+          var opt = document.createElement('option');
+          opt.value = m; opt.textContent = m;
+          modelSel.appendChild(opt);
+        });
+      }
+    } catch(e) {
+      status.textContent = '❌ 未检测到Ollama，请先安装并启动';
+      checkbox.checked = false;
+      wrap.style.display = 'none';
+      if (confirm('未检测到本地Ollama，是否前往下载？')) {
+        window.open('https://ollama.com/download', '_blank');
+      }
+    }
   }
 
   function showOllamaGuide(model, installedModels) {

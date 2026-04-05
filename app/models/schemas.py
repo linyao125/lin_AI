@@ -100,6 +100,7 @@ class FrontendSettingsPayload(BaseModel):
     vpn_subscription: str = ""
     ollama_mode: bool = False
     ollama_base_url: str = "http://localhost:11434"
+    ollama_local_model: str = "gemma4"
     user_birthday: str = ""
     user_city: str = ""
     user_lat: str = ""
