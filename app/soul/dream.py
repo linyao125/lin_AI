@@ -18,13 +18,13 @@ async def run_dream_cycle():
         since = now - timedelta(hours=24)
 
         # 拉取今天所有对话
-        conversations = repo.list_conversations(limit=20)
+        conversations = repo.list_conversations()
         if not conversations:
             return
 
         all_messages = []
         for conv in conversations:
-            msgs = repo.list_messages(conv["id"], limit=30)
+            msgs = repo.list_messages(conv["id"])
             for m in msgs:
                 if m["role"] in {"user", "assistant"}:
                     all_messages.append(m["content"])
