@@ -562,6 +562,75 @@ async function sendMessageOllama(convId, content, ollamaBase, model) {
   return saveRes;
 }
 
+// ── AI头像自动生成 ────────────────────────────────────────
+
+async function triggerGenerateAvatar() {
+  const btn = document.getElementById("btn-generate-avatar");
+  const status = document.getElementById("avatar-generate-status");
+
+  if (!btn || !status) return;
+
+  btn.disabled = true;
+  btn.textContent = "⏳ 生成中，请稍候...";
+  status.textContent = "正在调用 DALL-E，约需 15-30 秒";
+
+  try {
+    const res = await fetch("/api/avatar/generate", { method: "POST" });
+    const data = await res.json();
+
+    if (data.success) {
+      status.textContent = "✅ 生成成功！";
+      // 强制刷新所有头像（加时间戳防缓存）
+      refreshAvatarImages(data.ts || Date.now());
+    } else {
+      status.textContent = `❌ ${data.message || "生成失败"}`;
+    }
+  } catch (e) {
+    status.textContent = "❌ 请求失败，检查网络";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✨ AI自动生成头像（梦境层）";
+  }
+}
+
+function refreshAvatarImages(ts) {
+  const ids = [
+    "ai-avatar-collapsed",
+    "ai-avatar-expanded",
+    "ai-avatar-preview",
+  ];
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.src = `/static/ai-avatar.png?t=${ts}`;
+    }
+  });
+}
+
+// 梦境层后台轮询：检测头像是否被自动更新
+(function startAvatarPolling() {
+  let lastTs = 0;
+
+  async function checkAvatarUpdate() {
+    try {
+      const res = await fetch("/api/avatar/current-ts");
+      const data = await res.json();
+      if (data.ts && data.ts !== lastTs && lastTs !== 0) {
+        // 头像被后台更新了
+        refreshAvatarImages(data.ts);
+        console.log("[叮咚] 梦境层触发：AI头像已自动更新");
+      }
+      lastTs = data.ts || lastTs;
+    } catch (_) {}
+  }
+
+  // 每2分钟检查一次（梦境触发概率低，不需要频繁轮询）
+  setInterval(checkAvatarUpdate, 120_000);
+  checkAvatarUpdate(); // 启动时先查一次
+})();
+
+// ── AI头像自动生成结束 ────────────────────────────────────
+
 document.addEventListener("DOMContentLoaded", () => {
   const loginOverlay = qs("login-overlay");
   if (loginOverlay) loginOverlay.remove();

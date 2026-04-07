@@ -223,6 +223,35 @@ class ChatService:
 
         memory_service.maybe_soft_write(user_message=content, ai_reply=assistant_text)
 
+        # ── 梦境层：情绪峰值触发AI头像自动生成 ────────────────────
+        try:
+            from app.services.avatar import avatar_service as _av
+            from app.services.settings import settings_service as _ss
+
+            _s = _ss.get_frontend_settings()
+            _img_key = _s.get("image_api_key") or ""
+
+            if _img_key:
+                _soul = {}
+                try:
+                    from app.soul.mood_state import mood_state as _ms
+
+                    _soul = _ms.get()
+                except Exception:
+                    pass
+
+                if _av.should_trigger_dream(_soul, _s):
+                    _av.generate_avatar_async(
+                        api_key=_img_key,
+                        api_base=_s.get("image_api_base", "https://api.openai.com"),
+                        persona_hint=_s.get("persona_core", ""),
+                        display_name=_s.get("display_name", "叮咚"),
+                        state=_soul,
+                    )
+        except Exception:
+            pass
+        # ── 梦境层结束 ────────────────────────────────────────────
+
         return {
             "conversation_id": cid,
             "user_message": user_msg,

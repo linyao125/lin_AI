@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException, Request
@@ -19,6 +21,7 @@ from app.models.schemas import (
     RuntimeTogglePayload,
     SendMessageResponse,
 )
+from app.services.avatar import avatar_service as _avatar_service
 from app.services.chat import chat_service
 from app.services.proxy import apply_subscription
 from app.services.repository import repo
@@ -169,3 +172,35 @@ def update_toggles(payload: RuntimeTogglePayload):
 @api_router.get("/usage")
 def usage():
     return repo.get_usage_totals()
+
+
+@api_router.post("/avatar/generate")
+def manual_generate_avatar():
+    """手动触发头像生成（用户在设置里点按钮）"""
+    s = settings_service.get_frontend_settings()
+
+    api_key = s.get("image_api_key") or s.get("api_key", "")
+    api_base = s.get("image_api_base", "https://api.openai.com")
+    persona_hint = s.get("persona_core", "")
+    display_name = s.get("display_name", "叮咚")
+
+    if not api_key:
+        return {"success": False, "message": "未配置图片API Key"}
+
+    path = _avatar_service.generate_avatar(
+        api_key=api_key,
+        api_base=api_base,
+        persona_hint=persona_hint,
+        display_name=display_name,
+    )
+    if path:
+        return {"success": True, "path": path, "ts": int(time.time())}
+    return {"success": False, "message": "生成失败，请检查API Key"}
+
+
+@api_router.get("/avatar/current-ts")
+def get_avatar_ts():
+    """返回当前头像的时间戳，前端轮询用"""
+    p = Path(__file__).resolve().parents[1] / "static" / "ai-avatar.png"
+    ts = int(p.stat().st_mtime) if p.exists() else 0
+    return {"ts": ts}
