@@ -25,6 +25,8 @@ class SettingsService:
             "access_token": runtime.settings.access_token,
             "api_base_url": runtime.settings.llm_base_url,
             "api_key": runtime.settings.llm_api_key,
+            "image_provider": "dalle",
+            "image_api_key": "",
             "primary_model": runtime.settings.llm_primary_model,
             "summary_model": runtime.settings.llm_summary_model,
             "system_goal": runtime.yaml.assistant.system_goal,

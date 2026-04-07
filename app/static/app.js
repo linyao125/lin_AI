@@ -193,6 +193,10 @@ function fillSettingsForm(data) {
   setFormValue("f-access_token", data.access_token);
   setFormValue("f-api_base_url", data.api_base_url);
   setFormValue("f-api_key", data.api_key);
+  const imageProviderEl = document.getElementById("imageProvider");
+  if (imageProviderEl) imageProviderEl.value = data.image_provider || "dalle";
+  const imageApiKeyEl = document.getElementById("imageApiKey");
+  if (imageApiKeyEl) imageApiKeyEl.value = data.image_api_key || "";
   setFormValue("f-proxy_url", data.proxy_url || "");
   setFormValue("f-primary_model", data.primary_model);
   setFormValue("f-summary_model", data.summary_model);
@@ -223,6 +227,14 @@ function collectSettingsForm() {
     access_token: getFormValue("f-access_token"),
     api_base_url: getFormValue("f-api_base_url"),
     api_key: getFormValue("f-api_key"),
+    image_provider: (() => {
+      const el = document.getElementById("imageProvider");
+      return el ? el.value : "";
+    })(),
+    image_api_key: (() => {
+      const el = document.getElementById("imageApiKey");
+      return el ? el.value : "";
+    })(),
     primary_model: getFormValue("f-primary_model"),
     summary_model: getFormValue("f-summary_model"),
     system_goal: getFormValue("f-system_goal"),

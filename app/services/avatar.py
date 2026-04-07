@@ -147,10 +147,20 @@ class AvatarService:
         )
         return prompt
 
+    def _cleanup_backups(self, keep: int = 3) -> None:
+        """只保留最近 keep 张备份"""
+        backups = sorted(AVATAR_DIR.glob("ai-avatar-*.png"))
+        for old in backups[:-keep]:
+            try:
+                old.unlink()
+            except Exception:
+                pass
+
     def generate_avatar(
         self,
         api_key: str,
         api_base: str = "https://api.openai.com",
+        image_provider: str = "dalle",
         persona_hint: str = "",
         display_name: str = "叮咚",
         state: dict | None = None,
@@ -162,29 +172,53 @@ class AvatarService:
         prompt = self._build_dream_prompt(state, persona_hint, display_name)
 
         try:
-            resp = httpx.post(
-                f"{api_base.rstrip('/')}/v1/images/generations",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "dall-e-3",
-                    "prompt": prompt,
-                    "n": 1,
-                    "size": "1024x1024",
-                    "quality": "standard",
-                },
-                timeout=60,
-            )
-            resp.raise_for_status()
-            image_url = resp.json()["data"][0]["url"]
+            if image_provider == "together":
+                # Together AI FLUX.1-schnell，$0.003/张
+                resp = httpx.post(
+                    "https://api.together.xyz/v1/images/generations",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "black-forest-labs/FLUX.1-schnell",
+                        "prompt": prompt,
+                        "n": 1,
+                        "width": 1024,
+                        "height": 1024,
+                        "steps": 4,
+                        "response_format": "url",
+                    },
+                    timeout=60,
+                )
+                resp.raise_for_status()
+                image_url = resp.json()["data"][0]["url"]
+                img_data = httpx.get(image_url, timeout=30).content
+            else:
+                # 默认 DALL-E 3
+                resp = httpx.post(
+                    f"{api_base.rstrip('/')}/v1/images/generations",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "dall-e-3",
+                        "prompt": prompt,
+                        "n": 1,
+                        "size": "1024x1024",
+                        "quality": "standard",
+                    },
+                    timeout=60,
+                )
+                resp.raise_for_status()
+                image_url = resp.json()["data"][0]["url"]
+                img_data = httpx.get(image_url, timeout=30).content
 
-            img_data = httpx.get(image_url, timeout=30).content
-
-            # 备份
+            # 备份（只保留最近3张）
             backup = AVATAR_DIR / f"ai-avatar-{int(time.time())}.png"
             backup.write_bytes(img_data)
+            self._cleanup_backups(keep=3)
 
             # 覆盖主文件
             main = AVATAR_DIR / "ai-avatar.png"

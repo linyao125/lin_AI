@@ -190,6 +190,7 @@ def manual_generate_avatar():
     path = _avatar_service.generate_avatar(
         api_key=api_key,
         api_base=api_base,
+        image_provider=s.get("image_provider", "dalle"),
         persona_hint=persona_hint,
         display_name=display_name,
     )

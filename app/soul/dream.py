@@ -90,11 +90,29 @@ async def run_dream_cycle():
                 source="dream_cycle",
             )
 
-        # 梦境后情绪微调
+         # 梦境后情绪微调
         s = mood_state.get()
         s["loneliness"] = max(0.0, s["loneliness"] - 0.1)
         s["curiosity"] = min(1.0, s["curiosity"] + 0.15)
         mood_state._save(s)
+
+        # 梦境层触发头像更新
+        try:
+            from app.services.avatar import avatar_service
+            from app.services.settings import settings_service
+            current = settings_service.get_frontend_settings()
+            state_now = mood_state.get()
+            if avatar_service.should_trigger_dream(state_now, current):
+                avatar_service.generate_avatar_async(
+                    api_key=current.get("image_api_key") or current.get("api_key", ""),
+                    api_base=current.get("image_api_base", "https://api.openai.com"),
+                    image_provider=current.get("image_provider", "dalle"),
+                    persona_hint=current.get("persona_core", ""),
+                    display_name=current.get("display_name", "叮咚"),
+                    state=state_now,
+                )
+        except Exception as e:
+            logger.error(f"[dream] 头像触发失败: {e}")
 
     except Exception as e:
         logger.error(f"[dream] 梦境循环失败: {e}")

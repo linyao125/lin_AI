@@ -82,6 +82,8 @@ class FrontendSettingsPayload(BaseModel):
     access_token: str = "123456"
     api_base_url: str = "https://openrouter.ai/api/v1"
     api_key: str = ""
+    image_provider: str = "dalle"
+    image_api_key: str = ""
     primary_model: str = "openai/gpt-4o"
     summary_model: str = "openai/gpt-4o-mini"
     system_goal: str = "Be warm, steady, memory-aware, and context-anchored for one dedicated user."

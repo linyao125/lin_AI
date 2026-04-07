@@ -244,6 +244,7 @@ class ChatService:
                     _av.generate_avatar_async(
                         api_key=_img_key,
                         api_base=_s.get("image_api_base", "https://api.openai.com"),
+                        image_provider=_s.get("image_provider", "dalle"),
                         persona_hint=_s.get("persona_core", ""),
                         display_name=_s.get("display_name", "叮咚"),
                         state=_soul,
