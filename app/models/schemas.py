@@ -84,6 +84,9 @@ class FrontendSettingsPayload(BaseModel):
     api_key: str = ""
     image_provider: str = "dalle"
     image_api_key: str = ""
+    tts_voice: str = ""
+    tts_api_key: str = ""
+    tts_speed: float = 1.0
     primary_model: str = "openai/gpt-4o"
     summary_model: str = "openai/gpt-4o-mini"
     system_goal: str = "Be warm, steady, memory-aware, and context-anchored for one dedicated user."
