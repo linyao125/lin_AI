@@ -72,7 +72,12 @@ class SettingsService:
 
     def update_frontend_settings(self, payload: dict) -> dict:
         current = self.get_frontend_settings()
-        current.update(payload)
+        # 敏感字段：空字符串不覆盖已有值
+        protected = {"api_key", "image_api_key", "tts_api_key", "vpn_subscription", "access_token"}
+        for key, val in payload.items():
+            if key in protected and (val is None or str(val).strip() == ""):
+                continue
+            current[key] = val
 
         toggles = {
             "enable_cache": bool(current.get("enable_cache", True)),
