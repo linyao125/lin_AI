@@ -107,11 +107,65 @@ function renderMessages() {
 
     const aiName = (state.runtime && state.runtime.display_name) || "AI";
     const senderName = msg.role === "assistant" ? aiName : "我";
-    div.innerHTML = `
-      <div class="msg-sender">${escapeHtml(senderName)}</div>
-      <div class="msg-content">${escapeHtml(msg.content).replaceAll("\n", "<br>")}</div>
-      <div class="msg-meta">${formatTime(msg.created_at)}${cost}</div>
-    `;
+
+    const senderEl = document.createElement("div");
+    senderEl.className = "msg-sender";
+    senderEl.textContent = senderName;
+    div.appendChild(senderEl);
+
+    if (msg.role === "assistant") {
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "flex-start";
+      row.style.gap = "6px";
+      row.style.maxWidth = "100%";
+      const contentEl = document.createElement("div");
+      contentEl.className = "msg-content";
+      contentEl.style.flex = "1";
+      contentEl.style.minWidth = "0";
+      contentEl.innerHTML = escapeHtml(msg.content).replaceAll("\n", "<br>");
+      row.appendChild(contentEl);
+      const speakBtn = document.createElement("button");
+      speakBtn.type = "button";
+      speakBtn.className = "speak-btn";
+      speakBtn.title = "朗读";
+      speakBtn.innerHTML = "🔊";
+      speakBtn.style.cssText =
+        "flex-shrink:0;background:transparent;border:none;cursor:pointer;font-size:16px;line-height:1;padding:4px 2px;opacity:0.85;";
+      speakBtn.onclick = async () => {
+        speakBtn.innerHTML = "⏳";
+        try {
+          const res = await fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: msg.content }),
+          });
+          if (!res.ok) throw new Error("tts failed");
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+          audio.play();
+          speakBtn.innerHTML = "🔊";
+          audio.onended = () => URL.revokeObjectURL(url);
+        } catch (e) {
+          speakBtn.innerHTML = "🔊";
+          console.error("TTS error:", e);
+        }
+      };
+      row.appendChild(speakBtn);
+      div.appendChild(row);
+    } else {
+      const contentEl = document.createElement("div");
+      contentEl.className = "msg-content";
+      contentEl.innerHTML = escapeHtml(msg.content).replaceAll("\n", "<br>");
+      div.appendChild(contentEl);
+    }
+
+    const metaEl = document.createElement("div");
+    metaEl.className = "msg-meta";
+    metaEl.textContent = `${formatTime(msg.created_at)}${cost}`;
+    div.appendChild(metaEl);
+
     el.appendChild(div);
   });
 
@@ -197,6 +251,14 @@ function fillSettingsForm(data) {
   if (imageProviderEl) imageProviderEl.value = data.image_provider || "dalle";
   const imageApiKeyEl = document.getElementById("imageApiKey");
   if (imageApiKeyEl) imageApiKeyEl.value = data.image_api_key || "";
+  const ttsVoiceEl = document.getElementById("ttsVoice");
+  if (ttsVoiceEl) ttsVoiceEl.value = data.tts_voice || "";
+  const ttsApiKeyEl = document.getElementById("ttsApiKey");
+  if (ttsApiKeyEl) ttsApiKeyEl.value = data.tts_api_key || "";
+  const ttsSpeedEl = document.getElementById("ttsSpeed");
+  if (ttsSpeedEl)
+    ttsSpeedEl.value =
+      data.tts_speed != null && data.tts_speed !== "" ? String(data.tts_speed) : "1.0";
   setFormValue("f-proxy_url", data.proxy_url || "");
   setFormValue("f-primary_model", data.primary_model);
   setFormValue("f-summary_model", data.summary_model);
@@ -234,6 +296,18 @@ function collectSettingsForm() {
     image_api_key: (() => {
       const el = document.getElementById("imageApiKey");
       return el ? el.value : "";
+    })(),
+    tts_voice: (() => {
+      const el = document.getElementById("ttsVoice");
+      return el ? el.value : "";
+    })(),
+    tts_api_key: (() => {
+      const el = document.getElementById("ttsApiKey");
+      return el ? el.value : "";
+    })(),
+    tts_speed: (() => {
+      const el = document.getElementById("ttsSpeed");
+      return el ? parseFloat(el.value) || 1.0 : 1.0;
     })(),
     primary_model: getFormValue("f-primary_model"),
     summary_model: getFormValue("f-summary_model"),

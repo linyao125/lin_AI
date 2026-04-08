@@ -54,6 +54,33 @@ async def proxy_apply(request: Request):
     return result
 
 
+@api_router.post("/tts")
+async def text_to_speech(request: Request):
+    from app.services.tts import tts_service
+    from app.services.settings import settings_service
+    from fastapi.responses import Response
+
+    body = await request.json()
+    text = body.get("text", "").strip()
+    if not text:
+        return {"error": "text is empty"}
+
+    s = settings_service.get_frontend_settings()
+    audio_bytes = tts_service.synthesize(
+        text=text,
+        api_key=s.get("api_key", ""),
+        api_base=(s.get("api_base_url") or "").strip() or "https://api.openai.com",
+        voice=s.get("tts_voice", ""),
+        tts_api_key=s.get("tts_api_key", ""),
+        speed=float(s.get("tts_speed", 1.0)),
+    )
+
+    if not audio_bytes:
+        return {"error": "TTS failed"}
+
+    return Response(content=audio_bytes, media_type="audio/mpeg")
+
+
 @api_router.get("/runtime", response_model=RuntimeSettingsOut)
 def runtime_info():
     return settings_service.get_public_runtime()

@@ -505,6 +505,24 @@
         <label style="display:block;font-size:13px;margin-bottom:4px;">图片 API Key</label>
         <input type="password" id="imageApiKey" placeholder="留空则复用上方 API Key" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;">
       </div>
+      <div class="setting-row" style="margin-bottom:10px;">
+        <label style="display:block;font-size:13px;margin-bottom:4px;">语音服务</label>
+        <select id="ttsProvider" disabled style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;color:var(--text-muted,#999);">
+          <option value="auto">自动（官方OpenAI/Fish Audio）</option>
+        </select>
+      </div>
+      <div class="setting-row" style="margin-bottom:10px;">
+        <label style="display:block;font-size:13px;margin-bottom:4px;">TTS 音色</label>
+        <input type="text" id="ttsVoice" placeholder="OpenAI: nova | Fish Audio: voice id（留空用默认）" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;">
+      </div>
+      <div class="setting-row" style="margin-bottom:10px;">
+        <label style="display:block;font-size:13px;margin-bottom:4px;">Fish Audio Key</label>
+        <input type="password" id="ttsApiKey" placeholder="留空则复用上方 API Key" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;">
+      </div>
+      <div class="setting-row" style="margin-bottom:10px;">
+        <label style="display:block;font-size:13px;margin-bottom:4px;">语速</label>
+        <input type="number" id="ttsSpeed" value="1.0" min="0.5" max="2.0" step="0.1" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;">
+      </div>
       <div style="margin-bottom:8px;">
         <div style="font-size:13px;margin-bottom:6px;">AI厂商</div>
         <select id="provider-select" onchange="onProviderChange()" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;">
@@ -927,6 +945,12 @@
     var imageApiKeyEl = document.getElementById('imageApiKey');
     if (imageProviderEl) payload.image_provider = imageProviderEl.value;
     if (imageApiKeyEl) payload.image_api_key = imageApiKeyEl.value.trim();
+    var ttsVoiceEl = document.getElementById('ttsVoice');
+    var ttsApiKeyEl = document.getElementById('ttsApiKey');
+    var ttsSpeedEl = document.getElementById('ttsSpeed');
+    if (ttsVoiceEl) payload.tts_voice = ttsVoiceEl.value.trim();
+    if (ttsApiKeyEl) payload.tts_api_key = ttsApiKeyEl.value.trim();
+    if (ttsSpeedEl) payload.tts_speed = parseFloat(ttsSpeedEl.value) || 1.0;
     var modelInput = document.getElementById('model-input');
     payload.primary_model = getSelectedModel();
     var serverUrlInput = document.getElementById('server-url-input');
@@ -1159,6 +1183,12 @@
       var imageApiKeyEl = document.getElementById('imageApiKey');
       if (imageProviderEl) imageProviderEl.value = s.image_provider || 'dalle';
       if (imageApiKeyEl) imageApiKeyEl.value = s.image_api_key || '';
+      var ttsVoiceEl = document.getElementById('ttsVoice');
+      var ttsApiKeyEl = document.getElementById('ttsApiKey');
+      var ttsSpeedEl = document.getElementById('ttsSpeed');
+      if (ttsVoiceEl) ttsVoiceEl.value = s.tts_voice || '';
+      if (ttsApiKeyEl) ttsApiKeyEl.value = s.tts_api_key || '';
+      if (ttsSpeedEl) ttsSpeedEl.value = (s.tts_speed != null && s.tts_speed !== '') ? String(s.tts_speed) : '1.0';
       var modelEl = document.getElementById('model-input');
       var providerSelect = document.getElementById('provider-select');
       if (providerSelect && s.primary_model) {
