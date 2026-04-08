@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from app.core.config import get_runtime
@@ -20,7 +21,7 @@ class ChatService:
         title = short_title(first_message or "新对话", runtime.yaml.context.title_max_chars)
         return repo.create_conversation(title=title)
 
-    def send_message(self, conversation_id: str | None, content: str) -> dict[str, Any]:
+    async def send_message(self, conversation_id: str | None, content: str) -> dict[str, Any]:
         runtime = get_runtime()
         current = settings_service.get_frontend_settings()
 
@@ -222,6 +223,26 @@ class ChatService:
             memory_service.maybe_make_summary(cid, raw_text)
 
         memory_service.maybe_soft_write(user_message=content, ai_reply=assistant_text)
+
+        # 日程意图提取（异步不阻塞：await 放在后台协程里，避免阻塞 HTTP 返回）
+        async def _schedule_extract() -> None:
+            try:
+                from app.soul.schedule import extract_schedule_from_chat, add_schedule
+
+                schedule_result = await extract_schedule_from_chat(content, actual_model)
+                if schedule_result and schedule_result.get("title") and schedule_result.get("remind_at"):
+                    add_schedule(
+                        title=schedule_result["title"],
+                        remind_at=schedule_result["remind_at"],
+                        note=schedule_result.get("note", ""),
+                    )
+            except Exception:
+                pass
+
+        try:
+            asyncio.create_task(_schedule_extract())
+        except Exception:
+            pass
 
         # ── 梦境层：情绪峰值触发AI头像自动生成 ────────────────────
         try:

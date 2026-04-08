@@ -53,9 +53,36 @@ class HeartbeatService:
         except Exception:
             pass
 
+    def _run_news(self) -> None:
+        """tick 内同步上下文无法 await，与 _run_dream 相同用 asyncio.run。"""
+        import asyncio
+        from app.soul.news import run_news_cycle
+
+        try:
+            asyncio.run(run_news_cycle())
+        except Exception:
+            pass
+
     def tick(self) -> None:
         runtime = get_runtime()
         toggles = settings_service.get_toggles()
+        # 新闻推送：每6小时一次
+        from app.services.settings import settings_service as _ss
+
+        _s = _ss.get_frontend_settings()
+        if _s.get("news_enabled"):
+            last_news = repo.get_setting("news_last_run")
+            should_run_news = True
+            if last_news:
+                try:
+                    last_dt = datetime.fromisoformat(last_news)
+                    if (datetime.now(timezone.utc) - last_dt).total_seconds() < 21600:
+                        should_run_news = False
+                except Exception:
+                    pass
+            if should_run_news:
+                self._run_news()
+
         if not toggles.get("heartbeat_enabled", True):
             return
         # 情绪自然衰减

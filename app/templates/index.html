@@ -525,6 +525,14 @@
         <label style="display:block;font-size:13px;margin-bottom:4px;">语速</label>
         <input type="number" id="ttsSpeed" value="1.0" min="0.5" max="2.0" step="0.1" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;">
       </div>
+      <div class="setting-row" style="margin-bottom:10px;">
+        <label style="display:block;font-size:13px;margin-bottom:4px;">NewsAPI Key</label>
+        <input type="password" id="newsApiKey" placeholder="newsapi.org 申请" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;">
+      </div>
+      <div class="setting-row" style="margin-bottom:10px;">
+        <label style="display:block;font-size:13px;margin-bottom:4px;">新闻关键词</label>
+        <input type="text" id="newsKeywords" placeholder="AI,科技,体育（逗号分隔，留空自动提取）" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;">
+      </div>
       <div style="margin-bottom:8px;">
         <div style="font-size:13px;margin-bottom:6px;">AI厂商</div>
         <select id="provider-select" onchange="onProviderChange()" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;">
@@ -739,6 +747,11 @@
         </div>
       </div>
 
+      <div class="toggle-row" style="display:flex;align-items:center;justify-content:space-between;padding:14px;border:1px solid #f0f0f0;border-radius:8px;">
+        <span>新闻推送</span>
+        <input type="checkbox" id="toggle-news_enabled">
+      </div>
+
     </div>
     <button id="save-features" style="width:100%;padding:10px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;margin-top:20px;">保存设置</button>
   </div>
@@ -860,8 +873,15 @@
   });
 
   // 功能开关按钮（爱心）→ 功能弹窗
-  document.getElementById('features-btn').addEventListener('click', function(e) {
+  document.getElementById('features-btn').addEventListener('click', async function(e) {
     e.stopPropagation();
+    try {
+      var res = await fetch('/api/settings/form');
+      var data = await res.json();
+      var s = data.data || {};
+      var newsEn = document.getElementById('toggle-news_enabled');
+      if (newsEn) newsEn.checked = !!s.news_enabled;
+    } catch (err) { console.error('加载功能开关失败', err); }
     document.getElementById('modal-features').style.display = 'flex';
   });
 
@@ -954,6 +974,10 @@
     if (ttsApiKeyEl) payload.tts_api_key = ttsApiKeyEl.value.trim();
     if (ttsSpeedEl) payload.tts_speed = parseFloat(ttsSpeedEl.value) || 1.0;
     payload.tts_provider = (document.getElementById('ttsProvider') || {}).value || 'auto';
+    var newsApiKeyEl = document.getElementById('newsApiKey');
+    var newsKeywordsEl = document.getElementById('newsKeywords');
+    if (newsKeywordsEl) payload.news_keywords = newsKeywordsEl.value.trim();
+    if (newsApiKeyEl && newsApiKeyEl.value.trim()) payload.news_api_key = newsApiKeyEl.value.trim();
     var modelInput = document.getElementById('model-input');
     payload.primary_model = getSelectedModel();
     var serverUrlInput = document.getElementById('server-url-input');
@@ -1018,6 +1042,9 @@
     // 主动推送开关
     var pushCb = document.getElementById('toggle-proactive');
     if (pushCb) payload.proactive_enabled = !!pushCb.checked;
+
+    var newsEnCb = document.getElementById('toggle-news_enabled');
+    if (newsEnCb) payload.news_enabled = !!newsEnCb.checked;
 
     if (Object.keys(payload).length > 0) {
       try {
@@ -1194,6 +1221,10 @@
       if (ttsSpeedEl) ttsSpeedEl.value = (s.tts_speed != null && s.tts_speed !== '') ? String(s.tts_speed) : '1.0';
       var ttsProviderEl = document.getElementById('ttsProvider');
       if (ttsProviderEl) ttsProviderEl.value = s.tts_provider || 'auto';
+      var newsApiKeyEl = document.getElementById('newsApiKey');
+      var newsKeywordsEl = document.getElementById('newsKeywords');
+      if (newsApiKeyEl) newsApiKeyEl.value = s.news_api_key || '';
+      if (newsKeywordsEl) newsKeywordsEl.value = s.news_keywords || '';
       var modelEl = document.getElementById('model-input');
       var providerSelect = document.getElementById('provider-select');
       if (providerSelect && s.primary_model) {

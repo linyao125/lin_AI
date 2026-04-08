@@ -259,6 +259,12 @@ function fillSettingsForm(data) {
   if (ttsSpeedEl)
     ttsSpeedEl.value =
       data.tts_speed != null && data.tts_speed !== "" ? String(data.tts_speed) : "1.0";
+  const ttsProviderEl = document.getElementById("ttsProvider");
+  if (ttsProviderEl) ttsProviderEl.value = data.tts_provider || "auto";
+  const newsApiKeyEl = document.getElementById("newsApiKey");
+  if (newsApiKeyEl) newsApiKeyEl.value = data.news_api_key || "";
+  const newsKeywordsEl = document.getElementById("newsKeywords");
+  if (newsKeywordsEl) newsKeywordsEl.value = data.news_keywords || "";
   setFormValue("f-proxy_url", data.proxy_url || "");
   setFormValue("f-primary_model", data.primary_model);
   setFormValue("f-summary_model", data.summary_model);
@@ -309,6 +315,12 @@ function collectSettingsForm() {
       const el = document.getElementById("ttsSpeed");
       return el ? parseFloat(el.value) || 1.0 : 1.0;
     })(),
+    tts_provider: (() => {
+      const el = document.getElementById("ttsProvider");
+      return el ? el.value || "auto" : "auto";
+    })(),
+    news_api_key: (document.getElementById("newsApiKey") || {}).value || "",
+    news_keywords: (document.getElementById("newsKeywords") || {}).value || "",
     primary_model: getFormValue("f-primary_model"),
     summary_model: getFormValue("f-summary_model"),
     system_goal: getFormValue("f-system_goal"),
@@ -608,6 +620,61 @@ async function checkPendingPush() {
   }
 }
 
+// 日程提醒轮询 + Web Notification
+async function checkDueSchedules() {
+  try {
+    const res = await fetch("/api/schedules/due");
+    const data = await res.json();
+    for (const item of data.due || []) {
+      showScheduleNotification(item);
+      await fetch(`/api/schedules/${item.id}/done`, { method: "POST" });
+    }
+  } catch (e) {}
+}
+
+function showScheduleNotification(item) {
+  const safeTitle = escapeHtml(item.title || "");
+  const safeNote = item.note ? escapeHtml(item.note) : "";
+
+  const el = document.createElement("div");
+  el.style.cssText = `
+    position:fixed;top:20px;right:20px;z-index:9999;
+    background:#fff;border:1px solid #e5e5e5;border-radius:12px;
+    padding:16px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.12);
+    max-width:300px;font-size:14px;line-height:1.5;
+  `;
+  el.innerHTML = `
+    <div style="font-weight:600;margin-bottom:6px;">⏰ 日程提醒</div>
+    <div>${safeTitle}</div>
+    ${
+      safeNote
+        ? `<div style="color:#999;font-size:12px;margin-top:4px;">${safeNote}</div>`
+        : ""
+    }
+    <button type="button" class="schedule-toast-dismiss" style="
+      margin-top:10px;padding:4px 12px;border:none;
+      background:#f0f0f0;border-radius:6px;cursor:pointer;font-size:12px;
+    ">知道了</button>
+  `;
+  const btn = el.querySelector(".schedule-toast-dismiss");
+  if (btn) {
+    btn.addEventListener("click", () => el.remove());
+  }
+  document.body.appendChild(el);
+  setTimeout(() => {
+    if (el.parentNode) el.remove();
+  }, 30000);
+
+  if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    try {
+      new Notification("⏰ " + String(item.title || ""), {
+        body: item.note ? String(item.note) : "",
+        icon: "/static/ai-avatar.png",
+      });
+    } catch (_) {}
+  }
+}
+
 async function sendMessageOllama(convId, content, ollamaBase, model) {
   // 检测Ollama是否在线
   try {
@@ -722,6 +789,13 @@ document.addEventListener("DOMContentLoaded", () => {
   if (loginOverlay) loginOverlay.remove();
 
   bindEvents();
+
+  if (typeof Notification !== "undefined" && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
+
+  setInterval(checkDueSchedules, 60000);
+  checkDueSchedules();
 
   boot().catch((err) => {
     console.error("boot failed:", err);

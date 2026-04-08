@@ -58,6 +58,9 @@ class SettingsService:
             "user_city": "",
             "user_lat": "",
             "user_lon": "",
+            "news_api_key": "",
+            "news_keywords": "",
+            "news_enabled": False,
         }
 
     def get_frontend_settings(self) -> dict:
@@ -73,7 +76,7 @@ class SettingsService:
     def update_frontend_settings(self, payload: dict) -> dict:
         current = self.get_frontend_settings()
         # 敏感字段：空字符串不覆盖已有值
-        protected = {"api_key", "image_api_key", "tts_api_key", "vpn_subscription", "access_token"}
+        protected = {"api_key", "image_api_key", "tts_api_key", "news_api_key", "vpn_subscription", "access_token"}
         for key, val in payload.items():
             if key in protected and (val is None or str(val).strip() == ""):
                 continue

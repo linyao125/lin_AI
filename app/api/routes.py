@@ -110,6 +110,61 @@ def get_pending_push():
     return {"ok": True, "data": items}
 
 
+@api_router.get("/schedules/due")
+async def due_schedules():
+    from app.soul.schedule import get_due_schedules
+
+    return {"due": get_due_schedules()}
+
+
+@api_router.get("/schedules")
+async def list_schedules():
+    from app.soul.schedule import get_schedules
+
+    return {"schedules": get_schedules()}
+
+
+@api_router.post("/schedules")
+async def create_schedule(request: Request):
+    body = await request.json()
+    from app.soul.schedule import add_schedule
+
+    item = add_schedule(
+        title=body.get("title", ""),
+        remind_at=body.get("remind_at", ""),
+        note=body.get("note", ""),
+    )
+    return {"schedule": item}
+
+
+@api_router.delete("/schedules/{schedule_id}")
+async def delete_schedule(schedule_id: int):
+    from app.soul.schedule import delete_schedule
+
+    delete_schedule(schedule_id)
+    return {"ok": True}
+
+
+@api_router.post("/schedules/{schedule_id}/done")
+async def done_schedule(schedule_id: int):
+    from app.soul.schedule import mark_done
+
+    mark_done(schedule_id)
+    return {"ok": True}
+
+
+@api_router.get("/news/status")
+async def news_status():
+    """新闻：上次拉取时间与自动关键词（供前端展示）"""
+    auto_kw = repo.get_setting("news_auto_keywords")
+    if not isinstance(auto_kw, list):
+        auto_kw = []
+    return {
+        "news_last_run": repo.get_setting("news_last_run"),
+        "news_auto_keywords": auto_kw,
+    }
+
+
 @api_router.get("/conversations", response_model=list[ConversationOut])
 def list_conversations():
     return repo.list_conversations()
@@ -128,9 +183,9 @@ def list_messages(conversation_id: str):
 
 
 @api_router.post("/conversations/{conversation_id}/messages", response_model=SendMessageResponse)
-def send_message(conversation_id: str, payload: MessageCreatePayload):
+async def send_message(conversation_id: str, payload: MessageCreatePayload):
     cid = None if conversation_id == "new" else conversation_id
-    return chat_service.send_message(cid, payload.content)
+    return await chat_service.send_message(cid, payload.content)
 
 
 @api_router.post("/conversations/{conversation_id}/messages/ollama", response_model=SendMessageResponse)
