@@ -25,21 +25,27 @@ class TTSService:
         api_key: str,
         api_base: str = "",
         voice: str = "",
-        tts_api_key: str = "",          # Fish Audio 单独key，留空则复用api_key
+        tts_api_key: str = "",
+        tts_provider: str = "auto",
         speed: float = 1.0,
     ) -> bytes | None:
-        """
-        返回 mp3 bytes，失败返回 None
-        """
         if not text or not text.strip():
             return None
 
         try:
-            if _is_official_openai(api_base):
+            # 手动指定优先，auto才做判断
+            if tts_provider == "openai":
                 return self._openai_tts(text, api_key, api_base, voice, speed)
-            else:
+            elif tts_provider == "fish":
                 fish_key = tts_api_key or api_key
                 return self._fish_audio_tts(text, fish_key, voice, speed)
+            else:
+                # auto：看api_base判断
+                if _is_official_openai(api_base):
+                    return self._openai_tts(text, api_key, api_base, voice, speed)
+                else:
+                    fish_key = tts_api_key or api_key
+                    return self._fish_audio_tts(text, fish_key, voice, speed)
         except Exception as e:
             logger.error(f"[tts] 合成失败: {e}")
             return None

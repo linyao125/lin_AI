@@ -69,9 +69,10 @@ async def text_to_speech(request: Request):
     audio_bytes = tts_service.synthesize(
         text=text,
         api_key=s.get("api_key", ""),
-        api_base=(s.get("api_base_url") or "").strip() or "https://api.openai.com",
+        api_base=((s.get("api_base_url") or s.get("api_base") or "").strip() or "https://api.openai.com"),
         voice=s.get("tts_voice", ""),
         tts_api_key=s.get("tts_api_key", ""),
+        tts_provider=s.get("tts_provider", "auto"),
         speed=float(s.get("tts_speed", 1.0)),
     )
 
