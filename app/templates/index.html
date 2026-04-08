@@ -507,8 +507,10 @@
       </div>
       <div class="setting-row" style="margin-bottom:10px;">
         <label style="display:block;font-size:13px;margin-bottom:4px;">语音服务</label>
-        <select id="ttsProvider" disabled style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;color:var(--text-muted,#999);">
-          <option value="auto">自动（官方OpenAI/Fish Audio）</option>
+        <select id="ttsProvider" style="width:100%;padding:8px;border:1px solid #e5e5e5;border-radius:6px;font-size:13px;box-sizing:border-box;">
+          <option value="auto">自动判断</option>
+          <option value="openai">OpenAI TTS（官方/第三方转发）</option>
+          <option value="fish">Fish Audio</option>
         </select>
       </div>
       <div class="setting-row" style="margin-bottom:10px;">
@@ -951,6 +953,7 @@
     if (ttsVoiceEl) payload.tts_voice = ttsVoiceEl.value.trim();
     if (ttsApiKeyEl) payload.tts_api_key = ttsApiKeyEl.value.trim();
     if (ttsSpeedEl) payload.tts_speed = parseFloat(ttsSpeedEl.value) || 1.0;
+    payload.tts_provider = (document.getElementById('ttsProvider') || {}).value || 'auto';
     var modelInput = document.getElementById('model-input');
     payload.primary_model = getSelectedModel();
     var serverUrlInput = document.getElementById('server-url-input');
@@ -1189,6 +1192,8 @@
       if (ttsVoiceEl) ttsVoiceEl.value = s.tts_voice || '';
       if (ttsApiKeyEl) ttsApiKeyEl.value = s.tts_api_key || '';
       if (ttsSpeedEl) ttsSpeedEl.value = (s.tts_speed != null && s.tts_speed !== '') ? String(s.tts_speed) : '1.0';
+      var ttsProviderEl = document.getElementById('ttsProvider');
+      if (ttsProviderEl) ttsProviderEl.value = s.tts_provider || 'auto';
       var modelEl = document.getElementById('model-input');
       var providerSelect = document.getElementById('provider-select');
       if (providerSelect && s.primary_model) {
