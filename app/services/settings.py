@@ -30,6 +30,7 @@ class SettingsService:
             "tts_voice": "",
             "tts_api_key": "",
             "tts_speed": 1.0,
+            "tts_provider": "auto",
             "primary_model": runtime.settings.llm_primary_model,
             "summary_model": runtime.settings.llm_summary_model,
             "system_goal": runtime.yaml.assistant.system_goal,
