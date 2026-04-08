@@ -181,8 +181,8 @@ class AnchorService:
         # 表情包模块（功能开关控制）
         try:
             from app.services.settings import settings_service as _ss
-            _toggles = _ss.get_toggles()
-            if _toggles.get("emoji_enabled", False):
+            _fsettings = _ss.get_frontend_settings()
+            if _fsettings.get("emoji_enabled", False):
                 sticker_block = "[Expression]\n你可以自由使用emoji和颜文字表达情绪，根据聊天氛围自主决定用什么、什么时候用、用多少。不需要刻意用，觉得合适就加，不合适就纯文字。"
                 sections.append(sticker_block)
         except Exception:
