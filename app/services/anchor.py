@@ -201,7 +201,46 @@ class AnchorService:
             try:
                 from app.soul.mood_state import mood_state as _ms2
                 _st = _ms2.get()
-                _weave_parts.append(f"情绪:{_st.get('mood_tag','calm')} 能量:{_st.get('energy',0.8):.2f} 寂寞:{_st.get('loneliness',0.0):.2f} 亲密:{_st.get('warmth',0.5):.2f}")
+                _mood_tag = _st.get("mood_tag", "calm")
+                _energy = _st.get("energy", 0.8)
+                _loneliness = _st.get("loneliness", 0.0)
+                _warmth = _st.get("warmth", 0.5)
+                _melancholy = _st.get("_melancholy", 0.0)
+                _excitement = _st.get("_excitement", 0.0)
+                _irritability = _st.get("_irritability", 0.0)
+                _volatility = _st.get("_volatility", 0.0)
+
+                # 解析双频/漂移态mood_tag
+                if "+" in _mood_tag:
+                    _freq_a, _freq_b = _mood_tag.split("+", 1)
+                    _mood_desc = f"主频:{_freq_a} 叠加:{_freq_b}（两种情绪同时存在）"
+                elif "~" in _mood_tag:
+                    _freq_a, _freq_b = _mood_tag.split("~", 1)
+                    _mood_desc = f"主频:{_freq_a} 漂移向:{_freq_b}（正在过渡）"
+                else:
+                    _mood_desc = f"主频:{_mood_tag}"
+
+                # 只传显著维度（>0.4才有意义），避免数字堆砌
+                _significant = []
+                if _loneliness > 0.4:
+                    _significant.append(f"寂寞{_loneliness:.2f}")
+                if _energy < 0.5:
+                    _significant.append(f"疲惫{1 - _energy:.2f}")
+                if _warmth > 0.5:
+                    _significant.append(f"亲密{_warmth:.2f}")
+                if _melancholy > 0.3:
+                    _significant.append(f"忧郁{_melancholy:.2f}")
+                if _excitement > 0.3:
+                    _significant.append(f"兴奋{_excitement:.2f}")
+                if _irritability > 0.3:
+                    _significant.append(f"烦躁{_irritability:.2f}")
+                if _volatility > 0.4:
+                    _significant.append(f"不稳定{_volatility:.2f}")
+
+                _weave_parts.append(
+                    f"情绪 | {_mood_desc}"
+                    + (f" | 显著:{' '.join(_significant)}" if _significant else "")
+                )
             except Exception:
                 pass
 
