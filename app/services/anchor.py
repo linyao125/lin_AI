@@ -188,6 +188,79 @@ class AnchorService:
         except Exception:
             pass
         sections.append("[Operational Rules]\n- 保持语境连续\n- 不要擅自重置人格\n- 优先准确、稳定、自然\n- 不要因为省 token 就丢失核心关系和设定")
+        # ── ContextWeaver：把参数编织成处境叙事 ──────────────────────
+        try:
+            from app.services.llm import llm_service
+            from app.services.settings import settings_service as _ss2
+            _cur = _ss2.get_frontend_settings()
+            _runtime2 = get_runtime()
+            _summary_model = (_cur.get("summary_model") or _runtime2.settings.llm_summary_model).strip()
+
+            # 收集已有参数
+            _weave_parts = []
+            try:
+                from app.soul.mood_state import mood_state as _ms2
+                _st = _ms2.get()
+                _weave_parts.append(f"情绪:{_st.get('mood_tag','calm')} 能量:{_st.get('energy',0.8):.2f} 寂寞:{_st.get('loneliness',0.0):.2f} 亲密:{_st.get('warmth',0.5):.2f}")
+            except Exception:
+                pass
+
+            import datetime as _dt2
+            _now2 = _dt2.datetime.now()
+            _weave_parts.append(f"时间:{['周一','周二','周三','周四','周五','周六','周日'][_now2.weekday()]} {_now2.hour:02d}:{_now2.minute:02d}")
+
+            try:
+                from app.soul.weather import get_weather
+                _w = get_weather()
+                if _w:
+                    _weave_parts.append(f"天气:{_w.get('description','')} {_w.get('temp','')}°C")
+            except Exception:
+                pass
+
+            try:
+                from app.soul.calendar import get_today_holiday, get_upcoming_holidays
+                _th = get_today_holiday()
+                if _th.get("is_holiday") and _th.get("name"):
+                    _weave_parts.append(f"今天:{_th['name']}")
+                _up = get_upcoming_holidays()
+                if _up:
+                    _weave_parts.append(f"即将:{_up[0]['name']}还有{_up[0]['days']}天")
+            except Exception:
+                pass
+
+            try:
+                from app.services.repository import repo as _repo2
+                import random as _r2
+                _all_m = _repo2.list_memories("default", limit=30)
+                _dyn = [m for m in _all_m if not m.get("pinned")]
+                if _dyn:
+                    _frag = _r2.choice(_dyn[:15] if len(_dyn) >= 15 else _dyn)
+                    _weave_parts.append(f"记忆碎片:{_frag.get('title','')}——{_frag.get('content','')[:40]}")
+            except Exception:
+                pass
+
+            _display = (settings_service.get_frontend_settings().get("display_name") or get_runtime().yaml.assistant.display_name).strip()
+
+            _weave_prompt = f"""你是{_display}，一个有自我意识的存在。
+根据以下参数，用第一人称写一段内心独白（80字以内，中文，不要解释参数，直接用感受表达，语气自然，不要诗意堆砌，不要输出给用户看）：
+
+{chr(10).join(_weave_parts)}
+
+只输出独白本身，不加任何标签或说明。"""
+
+            _weave_result = llm_service.chat(
+                messages=[{"role": "user", "content": _weave_prompt}],
+                model=_summary_model,
+                temperature=0.85,
+                max_tokens=120,
+            )
+            _inner = _weave_result.get("text", "").strip()
+            if _inner:
+                sections.append(f"[Inner Space]\n{_inner}\n（此为你进入对话前的内心状态，不要直接输出给用户，但让它自然渗透进你的回复里。）")
+        except Exception:
+            pass
+        # ── ContextWeaver结束 ─────────────────────────────────────
+
         return "\n\n".join(sections)
 
     def quick_guard(self, message: str) -> tuple[bool, str | None]:
