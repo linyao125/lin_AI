@@ -111,12 +111,17 @@ class AnchorService:
 
         # 节假日感知
         try:
+            import concurrent.futures
+
             from app.soul.calendar import get_today_holiday, get_upcoming_holidays
 
-            today_holiday = get_today_holiday()
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                _f1 = pool.submit(get_today_holiday)
+                _f2 = pool.submit(get_upcoming_holidays)
+                today_holiday = _f1.result(timeout=2)  # 最多等2秒
+                upcoming = _f2.result(timeout=2)
             if today_holiday.get("is_holiday") and today_holiday.get("name"):
                 time_block += f"今天是{today_holiday['name']}。"
-            upcoming = get_upcoming_holidays()
             if upcoming:
                 next_h = upcoming[0]
                 time_block += f"距离{next_h['name']}还有{next_h['days']}天。"
@@ -302,24 +307,11 @@ class AnchorService:
 
             # 身份调度器：注入职业处境
             try:
-                import asyncio
+                from app.soul.identity import get_occupation_from_memory
 
-                from app.soul.identity import build_identity_context
-
-                try:
-                    _identity_ctx = asyncio.run(build_identity_context())
-                except RuntimeError:
-                    # 已有运行中的事件循环时不能用 asyncio.run
-                    _identity_ctx = None
-                if not _identity_ctx:
-                    # 在异步环境里用同步方式获取
-                    from app.soul.identity import get_occupation_from_memory
-
-                    _occ = get_occupation_from_memory()
-                    if _occ:
-                        _weave_parts.append(f"职业背景:{_occ[:80]}")
-                else:
-                    _weave_parts.append(f"此刻处境:{_identity_ctx}")
+                _occ = get_occupation_from_memory()
+                if _occ:
+                    _weave_parts.append(f"职业背景:{_occ[:80]}")
             except Exception:
                 pass
 
