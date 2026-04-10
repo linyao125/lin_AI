@@ -558,6 +558,7 @@ async function boot() {
   await loadSettingsForm();
   await loadMemories();
   await checkPendingPush();
+  startInitiativeHeartbeat();
 }
 
 function showContextWarning(pct, used, budget) {
@@ -592,6 +593,23 @@ function bcNotify(type) {
   try {
     _bc.postMessage(type);
   } catch (e) {}
+}
+
+function startInitiativeHeartbeat() {
+  // 每5分钟触发一次主动发言检测，同时捞pending push
+  const heartbeat = async () => {
+    try {
+      await api("/api/initiative/check");
+      await checkPendingPush();
+    } catch (e) {
+      console.error("initiative heartbeat failed:", e);
+    }
+  };
+  // 启动后2分钟首次触发，之后每5分钟一次
+  setTimeout(() => {
+    heartbeat();
+    setInterval(heartbeat, 5 * 60 * 1000);
+  }, 2 * 60 * 1000);
 }
 
 async function checkPendingPush() {

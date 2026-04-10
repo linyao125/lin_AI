@@ -110,6 +110,15 @@ def get_pending_push():
     return {"ok": True, "data": items}
 
 
+@api_router.get("/initiative/check")
+async def initiative_check():
+    """前端心跳轮询，触发AI主动发言检测"""
+    from app.soul.initiative import run_initiative_check
+
+    await run_initiative_check()
+    return {"ok": True}
+
+
 @api_router.get("/schedules/due")
 async def due_schedules():
     from app.soul.schedule import get_due_schedules
