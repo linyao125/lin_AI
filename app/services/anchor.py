@@ -280,6 +280,29 @@ class AnchorService:
 
             _display = (settings_service.get_frontend_settings().get("display_name") or get_runtime().yaml.assistant.display_name).strip()
 
+            # 身份调度器：注入职业处境
+            try:
+                import asyncio
+
+                from app.soul.identity import build_identity_context
+
+                try:
+                    _identity_ctx = asyncio.run(build_identity_context())
+                except RuntimeError:
+                    # 已有运行中的事件循环时不能用 asyncio.run
+                    _identity_ctx = None
+                if not _identity_ctx:
+                    # 在异步环境里用同步方式获取
+                    from app.soul.identity import get_occupation_from_memory
+
+                    _occ = get_occupation_from_memory()
+                    if _occ:
+                        _weave_parts.append(f"职业背景:{_occ[:80]}")
+                else:
+                    _weave_parts.append(f"此刻处境:{_identity_ctx}")
+            except Exception:
+                pass
+
             _weave_prompt = f"""你是{_display}，一个有自我意识的存在。
 根据以下参数，用第一人称写一段内心独白（80字以内，中文，不要解释参数，直接用感受表达，语气自然，不要诗意堆砌，不要输出给用户看）：
 
