@@ -297,3 +297,15 @@ def get_avatar_ts():
     p = Path(__file__).resolve().parents[1] / "static" / "ai-avatar.png"
     ts = int(p.stat().st_mtime) if p.exists() else 0
     return {"ts": ts}
+
+
+@api_router.get("/soul/state")
+def get_soul_state():
+    """前端轮询获取当前情绪向量，用于UI同步"""
+    try:
+        from app.soul.mood_state import mood_state
+
+        state = mood_state.get()
+        return {"ok": True, "state": state}
+    except Exception:
+        return {"ok": False, "state": {}}

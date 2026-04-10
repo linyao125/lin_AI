@@ -559,6 +559,8 @@ async function boot() {
   await loadMemories();
   await checkPendingPush();
   startInitiativeHeartbeat();
+  syncSoulState();
+  setInterval(syncSoulState, 3 * 60 * 1000); // 每3分钟同步一次情绪状态
 }
 
 function showContextWarning(pct, used, budget) {
@@ -593,6 +595,53 @@ function bcNotify(type) {
   try {
     _bc.postMessage(type);
   } catch (e) {}
+}
+
+// 情绪状态同步到CSS变量
+async function syncSoulState() {
+  try {
+    const res = await api("/api/soul/state");
+    const s = res.state || {};
+
+    const energy = s.energy ?? 0.8;
+    const warmth = s.warmth ?? 0.5;
+    const loneliness = s.loneliness ?? 0.0;
+    const volatility = s._volatility ?? 0.0;
+    const stress = s._stress ?? 0.0;
+    const excitement = s._excitement ?? 0.0;
+    const moodTag = s.mood_tag || "calm";
+
+    const root = document.documentElement;
+
+    // 亲密度影响主色调温度
+    const hue = Math.round(200 - warmth * 40); // 冷蓝→暖橙
+    root.style.setProperty("--mood-hue", hue);
+    root.style.setProperty("--mood-energy", energy.toFixed(2));
+    root.style.setProperty("--mood-warmth", warmth.toFixed(2));
+
+    // 波动性影响边框/阴影强度
+    const glowIntensity = Math.round(volatility * 12);
+    root.style.setProperty("--mood-glow", `${glowIntensity}px`);
+
+    // 寂寞值影响背景亮度（越寂寞越暗）
+    const bgL = Math.round(97 - loneliness * 8);
+    root.style.setProperty("--mood-bg-l", `${bgL}%`);
+
+    // 情绪突变触发glitch
+    const prevTag = window._lastMoodTag || "calm";
+    if (prevTag !== moodTag && (volatility > 0.5 || stress > 0.6)) {
+      triggerGlitch();
+    }
+    window._lastMoodTag = moodTag;
+  } catch (e) {
+    console.error("syncSoulState failed:", e);
+  }
+}
+
+function triggerGlitch() {
+  const el = document.querySelector(".chat-area") || document.body;
+  el.classList.add("glitch-active");
+  setTimeout(() => el.classList.remove("glitch-active"), 600);
 }
 
 function startInitiativeHeartbeat() {
