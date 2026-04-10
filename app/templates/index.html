@@ -770,7 +770,20 @@
         <input type="checkbox" id="toggle-news_enabled">
       </div>
 
+      <!-- 备考知识库开关 -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border:1px solid #f0f0f0;border-radius:8px;">
+        <div>
+          <div style="font-size:14px;font-weight:500;">📚 备考知识库</div>
+          <div style="font-size:12px;color:#999;margin-top:2px;">上传文档/网址，AI辅助问答与出题</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:40px;height:22px;">
+          <input type="checkbox" id="toggle-study" style="opacity:0;width:0;height:0;">
+          <span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:22px;transition:.3s;" onclick="this.style.background=this.previousElementSibling.checked?'#ccc':'#1a1a1a'"></span>
+        </label>
+      </div>
+
     </div>
+    <button onclick="openStudyModal()" style="width:100%;padding:10px;margin-bottom:10px;background:#f9f9f9;border:1px solid #e5e5e5;border-radius:8px;font-size:13px;cursor:pointer;">📚 管理知识库内容</button>
     <button id="save-features" style="width:100%;padding:10px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;margin-top:20px;">保存设置</button>
   </div>
 </div>
@@ -899,6 +912,8 @@
       var s = data.data || {};
       var newsEn = document.getElementById('toggle-news_enabled');
       if (newsEn) newsEn.checked = !!s.news_enabled;
+      if (document.getElementById('toggle-study'))
+        document.getElementById('toggle-study').checked = !!s.study_enabled;
     } catch (err) { console.error('加载功能开关失败', err); }
     document.getElementById('modal-features').style.display = 'flex';
   });
@@ -1063,6 +1078,8 @@
 
     var newsEnCb = document.getElementById('toggle-news_enabled');
     if (newsEnCb) payload.news_enabled = !!newsEnCb.checked;
+
+    payload.study_enabled = document.getElementById('toggle-study')?.checked || false;
 
     if (Object.keys(payload).length > 0) {
       try {
@@ -1807,6 +1824,162 @@
     </div>
     <div id="memory-list-modal" style="flex:1;overflow-y:auto;padding:16px 24px;display:flex;flex-direction:column;gap:10px;">
       <div style="color:#999;font-size:13px;text-align:center;padding:20px;">加载中...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.openStudyModal = function() {
+    var m = document.getElementById('modal-study');
+    if (!m) return;
+    m.style.display = 'flex';
+    var st = document.getElementById('study-import-status');
+    if (st) st.textContent = '';
+    if (typeof studyRefreshList === 'function') studyRefreshList();
+  };
+
+  window.studyRefreshList = async function() {
+    var list = document.getElementById('study-list');
+    if (!list) return;
+    list.innerHTML = '<div style="color:#999;font-size:12px;">加载中…</div>';
+    try {
+      var res = await fetch('/api/study/list');
+      var j = await res.json();
+      var items = (j && j.data) || [];
+      if (!items.length) {
+        list.innerHTML = '<div style="color:#999;font-size:12px;">暂无内容</div>';
+        return;
+      }
+      list.innerHTML = '';
+      items.forEach(function(it) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border:1px solid #f0f0f0;border-radius:8px;font-size:13px;';
+        var title = (it.title || '');
+        var meta = (it.chunks || 1) + ' 段 · ' + String(it.updated_at || '').slice(0, 10);
+        row.innerHTML = '<div style="flex:1;min-width:0;overflow:hidden;"><div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(title) + '</div><div style="font-size:11px;color:#999;">' + escapeHtml(meta) + '</div></div><button type="button" class="study-del-btn" style="padding:4px 10px;border:1px solid #e5e5e5;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;">删除</button>';
+        row.querySelector('.study-del-btn').onclick = function() { studyDeleteItem(title); };
+        list.appendChild(row);
+      });
+    } catch (e) {
+      list.innerHTML = '<div style="color:#e33;font-size:12px;">加载失败</div>';
+    }
+  };
+
+  window.studyDeleteItem = async function(titleBase) {
+    if (!confirm('确认删除「' + titleBase + '」？')) return;
+    try {
+      await fetch('/api/study/' + encodeURIComponent(titleBase), { method: 'DELETE' });
+      studyRefreshList();
+    } catch (e) {}
+  };
+
+  window.studyImportUrl = async function() {
+    var el = document.getElementById('study-import-status');
+    var input = document.getElementById('study-url-input');
+    var url = (input && input.value || '').trim();
+    if (!url) { if (el) el.textContent = '请输入 URL'; return; }
+    if (el) el.textContent = '导入中…';
+    try {
+      var res = await fetch('/api/study/url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: url }) });
+      var data = await res.json();
+      if (el) el.textContent = data.message || (data.ok ? '完成' : '失败');
+      if (data.ok) { input.value = ''; studyRefreshList(); }
+    } catch (e) {
+      if (el) el.textContent = '请求失败';
+    }
+  };
+
+  window.studyUploadFile = async function(input) {
+    var el = document.getElementById('study-import-status');
+    if (!input || !input.files || !input.files[0]) return;
+    var fd = new FormData();
+    fd.append('file', input.files[0]);
+    if (el) el.textContent = '上传中…';
+    try {
+      var res = await fetch('/api/study/upload', { method: 'POST', body: fd });
+      var data = await res.json();
+      if (el) el.textContent = data.message || '';
+      if (data.ok) { input.value = ''; studyRefreshList(); }
+    } catch (e) {
+      if (el) el.textContent = '上传失败';
+    }
+  };
+
+  window.studyGenerateQuiz = async function() {
+    var area = document.getElementById('study-quiz-area');
+    var topicEl = document.getElementById('study-quiz-topic');
+    var countEl = document.getElementById('study-quiz-count');
+    if (!area) return;
+    area.innerHTML = '<div style="color:#999;font-size:13px;">生成中…</div>';
+    try {
+      var res = await fetch('/api/study/quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: (topicEl && topicEl.value) || '', count: parseInt(countEl && countEl.value, 10) || 5 })
+      });
+      var data = await res.json();
+      if (!data.ok) {
+        area.innerHTML = '<div style="color:#e33;font-size:13px;">' + escapeHtml(data.message || '失败') + '</div>';
+        return;
+      }
+      var qs = data.data || [];
+      if (!qs.length) {
+        area.innerHTML = '<div style="color:#999;font-size:13px;">暂无足够内容出题，请先导入知识</div>';
+        return;
+      }
+      area.innerHTML = '';
+      qs.forEach(function(q, i) {
+        var div = document.createElement('div');
+        div.style.cssText = 'padding:12px;border:1px solid #f0f0f0;border-radius:8px;';
+        var opts = (q.options || []).map(function(o) { return '<div style="font-size:13px;margin:4px 0;">' + escapeHtml(o) + '</div>'; }).join('');
+        div.innerHTML = '<div style="font-weight:500;margin-bottom:8px;">' + (i + 1) + '. ' + escapeHtml(q.q || '') + '</div>' + opts + '<div style="font-size:12px;color:#666;margin-top:8px;">答案：' + escapeHtml(String(q.answer || '')) + '</div>' + (q.explain ? '<div style="font-size:12px;color:#999;margin-top:4px;">' + escapeHtml(q.explain) + '</div>' : '');
+        area.appendChild(div);
+      });
+    } catch (e) {
+      area.innerHTML = '<div style="color:#e33;font-size:13px;">生成失败</div>';
+    }
+  };
+</script>
+
+<!-- 弹窗D：备考知识库 -->
+<div id="modal-study" style="display:none;position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,0.4);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;width:520px;max-height:85vh;overflow-y:auto;padding:24px;position:relative;">
+    <button onclick="document.getElementById('modal-study').style.display='none'" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;">×</button>
+    <h3 style="margin:0 0 20px;font-size:16px;">📚 备考知识库</h3>
+
+    <!-- 导入区 -->
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:500;color:#333;">导入内容</div>
+      <div style="display:flex;gap:8px;">
+        <input id="study-url-input" type="text" placeholder="粘贴网址 URL" style="flex:1;padding:8px 12px;border:1px solid #e5e5e5;border-radius:8px;font-size:13px;outline:none;">
+        <button onclick="studyImportUrl()" style="padding:8px 16px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;">导入</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <label style="flex:1;padding:10px;border:1px dashed #ccc;border-radius:8px;text-align:center;font-size:13px;color:#999;cursor:pointer;">
+          📄 点击上传 txt / md 文件
+          <input id="study-file-input" type="file" accept=".txt,.md" style="display:none;" onchange="studyUploadFile(this)">
+        </label>
+      </div>
+      <div id="study-import-status" style="font-size:12px;color:#999;min-height:16px;"></div>
+    </div>
+
+    <!-- 知识库列表 -->
+    <div style="font-size:13px;font-weight:500;color:#333;margin-bottom:10px;">已导入内容</div>
+    <div id="study-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;max-height:200px;overflow-y:auto;"></div>
+
+    <!-- 问答/出题区 -->
+    <div style="border-top:1px solid #f0f0f0;padding-top:16px;">
+      <div style="font-size:13px;font-weight:500;color:#333;margin-bottom:10px;">出题测试</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input id="study-quiz-topic" type="text" placeholder="主题（选填，留空则综合出题）" style="flex:1;padding:8px 12px;border:1px solid #e5e5e5;border-radius:8px;font-size:13px;outline:none;">
+        <select id="study-quiz-count" style="padding:8px;border:1px solid #e5e5e5;border-radius:8px;font-size:13px;">
+          <option value="3">3题</option>
+          <option value="5" selected>5题</option>
+          <option value="10">10题</option>
+        </select>
+        <button onclick="studyGenerateQuiz()" style="padding:8px 16px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;">出题</button>
+      </div>
+      <div id="study-quiz-area" style="display:flex;flex-direction:column;gap:12px;"></div>
     </div>
   </div>
 </div>

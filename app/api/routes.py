@@ -309,3 +309,72 @@ def get_soul_state():
         return {"ok": True, "state": state}
     except Exception:
         return {"ok": False, "state": {}}
+
+
+# ── 备考知识库 ────────────────────────────────────────────
+@api_router.post("/study/upload")
+async def study_upload(request: Request):
+    from app.soul.study import import_text
+    from app.services.settings import settings_service
+
+    s = settings_service.get_frontend_settings()
+    if not s.get("study_enabled", False):
+        return {"ok": False, "message": "知识库未开启"}
+    form = await request.form()
+    file = form.get("file")
+    if not file:
+        return {"ok": False, "message": "未收到文件"}
+    content = await file.read()
+    try:
+        text = content.decode("utf-8")
+    except Exception:
+        text = content.decode("gbk", errors="ignore")
+    count = import_text(title=file.filename, text=text, source="upload")
+    return {"ok": True, "message": f"导入成功，共{count}段", "chunks": count}
+
+
+@api_router.post("/study/url")
+async def study_import_url(request: Request):
+    from app.soul.study import import_url
+    from app.services.settings import settings_service
+
+    s = settings_service.get_frontend_settings()
+    if not s.get("study_enabled", False):
+        return {"ok": False, "message": "知识库未开启"}
+    body = await request.json()
+    url = body.get("url", "").strip()
+    if not url:
+        return {"ok": False, "message": "URL不能为空"}
+    ok, msg = await import_url(url)
+    return {"ok": ok, "message": msg}
+
+
+@api_router.get("/study/list")
+def study_list():
+    from app.soul.study import list_study_items
+
+    return {"ok": True, "data": list_study_items()}
+
+
+@api_router.delete("/study/{title_base}")
+def study_delete(title_base: str):
+    from app.soul.study import delete_study_item
+
+    delete_study_item(title_base)
+    return {"ok": True}
+
+
+@api_router.post("/study/quiz")
+async def study_quiz(request: Request):
+    from app.soul.study import generate_quiz
+    from app.services.settings import settings_service
+
+    s = settings_service.get_frontend_settings()
+    if not s.get("study_enabled", False):
+        return {"ok": False, "message": "知识库未开启"}
+    body = await request.json()
+    questions = await generate_quiz(
+        topic=body.get("topic", ""),
+        count=int(body.get("count", 5)),
+    )
+    return {"ok": True, "data": questions}

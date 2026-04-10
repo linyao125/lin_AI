@@ -870,3 +870,103 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+// ── 备考知识库 ────────────────────────────────────────────
+async function openStudyModal() {
+  document.getElementById("modal-study").style.display = "flex";
+  await studyLoadList();
+}
+
+async function studyLoadList() {
+  const listEl = document.getElementById("study-list");
+  try {
+    const res = await api("/api/study/list");
+    const items = res.data || [];
+    if (!items.length) {
+      listEl.innerHTML = '<div style="font-size:12px;color:#ccc;text-align:center;padding:12px;">暂无内容</div>';
+      return;
+    }
+    listEl.innerHTML = items.map(item => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid #f0f0f0;border-radius:8px;">
+        <div>
+          <div style="font-size:13px;color:#333;">${item.title}</div>
+          <div style="font-size:11px;color:#bbb;margin-top:2px;">${item.chunks}段 · ${item.source || ''}</div>
+        </div>
+        <button onclick="studyDelete('${item.title}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:16px;">×</button>
+      </div>
+    `).join("");
+  } catch (e) {
+    listEl.innerHTML = '<div style="font-size:12px;color:#f00;">加载失败</div>';
+  }
+}
+
+async function studyImportUrl() {
+  const input = document.getElementById("study-url-input");
+  const status = document.getElementById("study-import-status");
+  const url = input.value.trim();
+  if (!url) return;
+  status.textContent = "导入中...";
+  try {
+    const res = await api("/api/study/url", { method: "POST", body: JSON.stringify({ url }) });
+    status.textContent = res.message || "完成";
+    input.value = "";
+    await studyLoadList();
+  } catch (e) {
+    status.textContent = "导入失败";
+  }
+}
+
+async function studyUploadFile(input) {
+  const status = document.getElementById("study-import-status");
+  const file = input.files[0];
+  if (!file) return;
+  status.textContent = "上传中...";
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    const res = await fetch("/api/study/upload", { method: "POST", body: form });
+    const data = await res.json();
+    status.textContent = data.message || "完成";
+    await studyLoadList();
+  } catch (e) {
+    status.textContent = "上传失败";
+  }
+  input.value = "";
+}
+
+async function studyDelete(titleBase) {
+  await api(`/api/study/${encodeURIComponent(titleBase)}`, { method: "DELETE" });
+  await studyLoadList();
+}
+
+async function studyGenerateQuiz() {
+  const topic = document.getElementById("study-quiz-topic").value.trim();
+  const count = parseInt(document.getElementById("study-quiz-count").value);
+  const area = document.getElementById("study-quiz-area");
+  area.innerHTML = '<div style="font-size:12px;color:#999;">出题中...</div>';
+  try {
+    const res = await api("/api/study/quiz", { method: "POST", body: JSON.stringify({ topic, count }) });
+    const questions = res.data || [];
+    if (!questions.length) {
+      area.innerHTML = '<div style="font-size:12px;color:#999;">知识库内容不足，请先导入内容</div>';
+      return;
+    }
+    area.innerHTML = questions.map((q, i) => `
+      <div style="padding:12px;border:1px solid #f0f0f0;border-radius:8px;">
+        <div style="font-size:13px;font-weight:500;margin-bottom:8px;">${i+1}. ${q.q}</div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;">
+          ${q.options.map(o => `
+            <label style="font-size:12px;color:#555;cursor:pointer;display:flex;align-items:center;gap:6px;">
+              <input type="radio" name="quiz_${i}" value="${o[0]}"> ${o}
+            </label>
+          `).join("")}
+        </div>
+        <div class="quiz-answer" style="display:none;font-size:12px;color:#1a1a1a;padding:6px 10px;background:#f9f9f9;border-radius:6px;">
+          ✓ ${q.answer} · ${q.explain}
+        </div>
+        <button onclick="this.previousElementSibling.style.display='block';this.style.display='none'" style="font-size:11px;color:#999;background:none;border:none;cursor:pointer;padding:0;">查看答案</button>
+      </div>
+    `).join("");
+  } catch (e) {
+    area.innerHTML = '<div style="font-size:12px;color:#f00;">出题失败</div>';
+  }
+}

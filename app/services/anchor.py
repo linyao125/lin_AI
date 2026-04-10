@@ -68,6 +68,18 @@ class AnchorService:
         except Exception:
             pass
 
+        # 备考知识库检索注入（开关控制）
+        try:
+            from app.services.settings import settings_service as _ss3
+            if _ss3.get_frontend_settings().get("study_enabled", False):
+                from app.soul.study import retrieve_study
+                _study_chunks = retrieve_study(user_summary or system_goal, top_k=3)
+                if _study_chunks:
+                    _study_lines = [f"- {c['title']}: {c['content'][:100]}" for c in _study_chunks]
+                    sections.append("[Study Context]\n" + "\n".join(_study_lines))
+        except Exception:
+            pass
+
         # 旧账钩子：概率性翻出历史细节，增加连续感
         try:
             import random
