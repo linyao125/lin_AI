@@ -199,6 +199,14 @@ class AnchorService:
                 sections.append(sticker_block)
         except Exception:
             pass
+        # MCP工具说明注入（开关控制）
+        try:
+            from app.services.settings import settings_service as _ss4
+            if _ss4.get_frontend_settings().get("mcp_enabled", False):
+                from app.soul.mcp_tools import get_tools_prompt
+                sections.append(get_tools_prompt())
+        except Exception:
+            pass
         sections.append("[Operational Rules]\n- 保持语境连续\n- 不要擅自重置人格\n- 优先准确、稳定、自然\n- 不要因为省 token 就丢失核心关系和设定")
         # ── ContextWeaver：把参数编织成处境叙事 ──────────────────────
         try:

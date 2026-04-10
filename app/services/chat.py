@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re as _re
 from typing import Any
 
 from app.core.config import get_runtime
@@ -111,6 +112,42 @@ class ChatService:
         )
 
         assistant_text = result["text"]
+
+        # ── MCP工具调用处理 ───────────────────────────────────
+        try:
+            from app.soul.mcp_tools import execute_tool
+            from app.services.settings import settings_service as _ss_mcp
+
+            if _ss_mcp.get_frontend_settings().get("mcp_enabled", False):
+                _tool_pattern = _re.compile(r"<tool>([^|]+)\|([^<]*)</tool>")
+                _tool_matches = _tool_pattern.findall(assistant_text)
+
+                if _tool_matches:
+                    _tool_results = []
+                    for _tool_name, _tool_params_raw in _tool_matches:
+                        _tool_name = _tool_name.strip()
+                        _tool_params = [p.strip() for p in _tool_params_raw.split("|")]
+                        _tool_result = await execute_tool(_tool_name, _tool_params)
+                        _tool_results.append(f"[{_tool_name}结果]\n{_tool_result}")
+
+                    if _tool_results:
+                        # 把工具结果注入，让AI二次生成最终回复
+                        _tool_context = "\n\n".join(_tool_results)
+                        _clean_text = _tool_pattern.sub("", assistant_text).strip()
+                        _followup_messages = messages + [
+                            {"role": "assistant", "content": assistant_text},
+                            {"role": "user", "content": f"[工具调用结果]\n{_tool_context}\n\n请基于以上结果继续回复。"},
+                        ]
+                        _followup = llm_service.chat(
+                            messages=_followup_messages,
+                            model=actual_model,
+                            temperature=actual_temperature,
+                            max_tokens=primary_max_tokens,
+                        )
+                        assistant_text = _followup.get("text", assistant_text)
+        except Exception:
+            pass
+        # ── MCP工具处理结束 ───────────────────────────────────
 
         # 检测AI选择沉默
         if assistant_text.strip() == "[SILENCE]":
