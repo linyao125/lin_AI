@@ -378,3 +378,35 @@ async def study_quiz(request: Request):
         count=int(body.get("count", 5)),
     )
     return {"ok": True, "data": questions}
+
+
+# ── 数据导出导入 ──────────────────────────────────────────
+@api_router.get("/data/export")
+def data_export(fmt: str = "json"):
+    from app.soul.data_transfer import export_data
+    from fastapi.responses import Response
+
+    filename, content = export_data(fmt)
+    media = "application/json" if fmt == "json" else "text/plain"
+    return Response(
+        content=content.encode("utf-8"),
+        media_type=media,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@api_router.post("/data/import")
+async def data_import(request: Request):
+    from app.soul.data_transfer import import_data
+
+    form = await request.form()
+    file = form.get("file")
+    if not file:
+        return {"ok": False, "message": "未收到文件"}
+    content = await file.read()
+    try:
+        raw = content.decode("utf-8")
+    except Exception:
+        raw = content.decode("gbk", errors="ignore")
+    ok, msg = import_data(raw)
+    return {"ok": ok, "message": msg}

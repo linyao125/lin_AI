@@ -676,14 +676,18 @@
         <div style="font-size:11px;color:#999;">选渐变色或点🖼上传图片</div>
       </div>
     </div>
-    <div style="margin-bottom:24px;">
-      <div style="font-size:12px;color:#999;margin-bottom:8px;">数据导入</div>
-      <div onclick="document.getElementById('import-data').click()"
-        style="width:100%;padding:16px;border:2px dashed #e5e5e5;border-radius:8px;text-align:center;cursor:pointer;color:#999;font-size:13px;">
-        点击上传AI数据文件<br>
-        <span style="font-size:11px;">支持 JSON / TXT 格式</span>
+    <!-- 数据导出导入 -->
+    <div style="margin-top:16px;margin-bottom:24px;">
+      <div style="font-size:13px;font-weight:500;color:#333;margin-bottom:10px;">数据迁移</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button onclick="exportData('json')" style="flex:1;padding:9px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;">⬇ 导出 JSON</button>
+        <button onclick="exportData('txt')" style="flex:1;padding:9px;background:#f9f9f9;border:1px solid #e5e5e5;border-radius:8px;font-size:13px;cursor:pointer;">⬇ 导出 TXT</button>
       </div>
-      <input type="file" id="import-data" accept=".json,.txt" style="display:none;">
+      <label style="display:block;width:100%;padding:10px;border:1px dashed #ccc;border-radius:8px;text-align:center;font-size:13px;color:#999;cursor:pointer;box-sizing:border-box;">
+        ⬆ 点击导入数据（JSON）
+        <input id="import-data" type="file" accept=".json" style="display:none;" onchange="importData(this)">
+      </label>
+      <div id="import-status" style="font-size:12px;color:#999;margin-top:6px;min-height:16px;"></div>
     </div>
     <button id="save-user-settings" style="width:100%;padding:10px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;">保存</button>
   </div>

@@ -970,3 +970,27 @@ async function studyGenerateQuiz() {
     area.innerHTML = '<div style="font-size:12px;color:#f00;">出题失败</div>';
   }
 }
+
+// ── 数据导出导入 ──────────────────────────────────────────
+function exportData(fmt) {
+  window.open(`/api/data/export?fmt=${fmt}`, "_blank");
+}
+
+async function importData(input) {
+  const status = document.getElementById("import-status");
+  const file = input.files[0];
+  if (!file) return;
+  status.textContent = "导入中...";
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    const res = await fetch("/api/data/import", { method: "POST", body: form });
+    const data = await res.json();
+    status.textContent = data.message || (data.ok ? "完成" : "失败");
+    status.style.color = data.ok ? "#1a1a1a" : "#f00";
+  } catch (e) {
+    status.textContent = "导入失败";
+    status.style.color = "#f00";
+  }
+  input.value = "";
+}
