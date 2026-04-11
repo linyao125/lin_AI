@@ -416,128 +416,64 @@ async function sendMessage() {
   if (sendBtn) sendBtn.disabled = true;
   input.value = "";
 
-  const convId = state.currentConversationId || "new";
-  const settings = state.settings || {};
-  const ollamaMode = settings.ollama_mode;
-  const ollamaBase = settings.ollama_base_url || "http://localhost:11434";
-  const ollamaModel =
-    settings.ollama_local_model || settings.primary_model || "gemma4";
-
+  // 立刻显示用户消息
   const chatScroll = qs("chat-scroll");
-  let userDiv = null;
+  const userDiv = document.createElement("div");
+  userDiv.className = "msg user";
+  userDiv.innerHTML = `
+    <div class="msg-sender">我</div>
+    <div class="msg-content">${escapeHtml(content).replaceAll("\n", "<br>")}</div>
+  `;
+  if (chatScroll) {
+    chatScroll.appendChild(userDiv);
+    chatScroll.scrollTop = chatScroll.scrollHeight;
+  }
 
-  if (ollamaMode) {
-    // 立刻显示用户消息
-    userDiv = document.createElement("div");
-    userDiv.className = "msg user";
-    userDiv.innerHTML = `
-      <div class="msg-sender">我</div>
-      <div class="msg-content">${escapeHtml(content).replaceAll("\n", "<br>")}</div>
-    `;
-    if (chatScroll) {
-      chatScroll.appendChild(userDiv);
-      chatScroll.scrollTop = chatScroll.scrollHeight;
-    }
+  // 显示AI加载动画
+  const aiName = (state.runtime && state.runtime.display_name) || "AI";
+  const loadingDiv = document.createElement("div");
+  loadingDiv.className = "msg assistant";
+  loadingDiv.id = "msg-loading";
 
-    // 显示AI加载动画
-    const aiName = (state.runtime && state.runtime.display_name) || "AI";
-    const loadingDiv = document.createElement("div");
-    loadingDiv.className = "msg assistant";
-    loadingDiv.id = "msg-loading";
+  const senderEl = document.createElement("div");
+  senderEl.className = "msg-sender";
+  senderEl.textContent = aiName;
+  loadingDiv.appendChild(senderEl);
 
-    const senderEl = document.createElement("div");
-    senderEl.className = "msg-sender";
-    senderEl.textContent = aiName;
-    loadingDiv.appendChild(senderEl);
+  const ecgLoader = typeof createEcgLoader === "function" ? createEcgLoader() : null;
+  if (ecgLoader) {
+    loadingDiv.appendChild(ecgLoader);
+  }
 
-    const ecgLoader = typeof createEcgLoader === "function" ? createEcgLoader() : null;
-    if (ecgLoader) {
-      loadingDiv.appendChild(ecgLoader);
-    }
-
-    if (chatScroll) {
-      chatScroll.appendChild(loadingDiv);
-      chatScroll.scrollTop = chatScroll.scrollHeight;
-    }
+  if (chatScroll) {
+    chatScroll.appendChild(loadingDiv);
+    chatScroll.scrollTop = chatScroll.scrollHeight;
   }
 
   try {
-    let res;
+    const convId = state.currentConversationId || "new";
+    const settings = state.settings || {};
+    const ollamaMode = settings.ollama_mode;
+    const ollamaBase = settings.ollama_base_url || "http://localhost:11434";
+    const ollamaModel =
+      settings.ollama_local_model || settings.primary_model || "gemma4";
 
+    let res;
     if (ollamaMode) {
+      // 浏览器直连本地Ollama
       res = await sendMessageOllama(convId, content, ollamaBase, ollamaModel);
     } else {
-      const nowIso = new Date().toISOString();
-      state.messages.push({ role: "user", content, created_at: nowIso });
-      const aiMsgIndex =
-        state.messages.push({
-          role: "assistant",
-          content: "",
-          created_at: nowIso,
-          streaming: true,
-        }) - 1;
-      renderMessages();
-
-      const scrollEl = qs("chat-scroll");
-      if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
-
-      const streamUrl = `/api/conversations/${convId}/messages/stream`;
-      const streamRes = await fetch(streamUrl, {
+      res = await api(`/api/conversations/${convId}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
       });
-
-      if (!streamRes.ok) throw new Error("stream failed");
-
-      const reader = streamRes.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      parseLoop: while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const raw = line.slice(6).trim();
-          if (raw === "[DONE]") break parseLoop;
-          try {
-            const evt = JSON.parse(raw);
-            if (evt.type === "meta") {
-              state.currentConversationId = evt.conversation_id;
-            } else if (evt.type === "text") {
-              state.messages[aiMsgIndex].content += evt.text;
-              renderMessages();
-              const el = qs("chat-scroll");
-              if (el) el.scrollTop = el.scrollHeight;
-            } else if (evt.type === "done") {
-              state.messages[aiMsgIndex].streaming = false;
-              state.messages[aiMsgIndex].id = evt.assistant_message_id;
-              renderMessages();
-            } else if (evt.type === "error") {
-              throw new Error(evt.text || "stream error");
-            }
-          } catch (e) {
-            if (e instanceof SyntaxError) continue;
-            throw e;
-          }
-        }
-      }
-
-      res = {
-        conversation_id: state.currentConversationId,
-        context_meta: {},
-      };
     }
-
     state.currentConversationId = res.conversation_id;
     await loadConversations();
     await loadMessages(state.currentConversationId);
     await loadMemories();
     bcNotify("memory_changed");
+    // 上下文余量提示
     const meta = res.context_meta || {};
     if (meta.token_pct >= 90) {
       showContextWarning(meta.token_pct, meta.token_used, meta.token_budget);
@@ -546,17 +482,9 @@ async function sendMessage() {
     }
   } catch (err) {
     input.value = content;
-    if (ollamaMode) {
-      const loading = qs("msg-loading");
-      if (loading) loading.remove();
-      if (userDiv) userDiv.remove();
-    } else {
-      if (state.messages.length >= 2) {
-        state.messages.pop();
-        state.messages.pop();
-      }
-      renderMessages();
-    }
+    const loading = qs("msg-loading");
+    if (loading) loading.remove();
+    userDiv.remove();
     alert(`发送失败：${err.message || err}`);
     console.error("sendMessage failed:", err);
   } finally {
@@ -630,7 +558,6 @@ async function boot() {
   await loadSettingsForm();
   await loadMemories();
   await checkPendingPush();
-  startInitiativeHeartbeat();
   syncSoulState();
   setInterval(syncSoulState, 3 * 60 * 1000); // 每3分钟同步一次情绪状态
 }
@@ -714,23 +641,6 @@ function triggerGlitch() {
   const el = document.querySelector(".chat-area") || document.body;
   el.classList.add("glitch-active");
   setTimeout(() => el.classList.remove("glitch-active"), 600);
-}
-
-function startInitiativeHeartbeat() {
-  // 每5分钟触发一次主动发言检测，同时捞pending push
-  const heartbeat = async () => {
-    try {
-      await api("/api/initiative/check");
-      await checkPendingPush();
-    } catch (e) {
-      console.error("initiative heartbeat failed:", e);
-    }
-  };
-  // 启动后2分钟首次触发，之后每5分钟一次
-  setTimeout(() => {
-    heartbeat();
-    setInterval(heartbeat, 5 * 60 * 1000);
-  }, 2 * 60 * 1000);
 }
 
 async function checkPendingPush() {
@@ -836,7 +746,6 @@ async function sendMessageOllama(convId, content, ollamaBase, model) {
     body: JSON.stringify({
       model: model,
       messages: history,
-      stream: false,
     }),
   });
   if (!resp.ok) throw new Error("Ollama请求失败");
