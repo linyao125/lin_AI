@@ -7,11 +7,11 @@ from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import StreamingResponse
-
 from app.core.config import get_runtime
 from app.models.schemas import (
     ChatCreatePayload,
     ChatMessageOut,
+    ChatRequest,
     ConversationOut,
     FrontendSettingsOut,
     FrontendSettingsPayload,
@@ -25,6 +25,7 @@ from app.models.schemas import (
 )
 from app.services.avatar import avatar_service as _avatar_service
 from app.services.chat import chat_service
+from app.services.llm import llm_service
 from app.services.proxy import apply_subscription
 from app.services.repository import repo
 from app.services.settings import settings_service
@@ -199,6 +200,37 @@ async def send_message(conversation_id: str, payload: MessageCreatePayload):
     return await chat_service.send_message(cid, payload.content)
 
 
+@api_router.post("/conversations/{conversation_id}/messages/stream")
+def conversation_messages_stream(conversation_id: str, payload: MessageCreatePayload):
+    from app.services.context_builder import context_builder
+
+    cid = None if conversation_id == "new" else conversation_id
+    cid = chat_service.ensure_conversation(cid, payload.content)
+    messages, _ctx = context_builder.build(cid, payload.content)
+    current = settings_service.get_frontend_settings()
+    runtime = get_runtime()
+    model = (current.get("primary_model") or runtime.settings.llm_primary_model).strip()
+    temperature = float(
+        current.get("primary_temperature", runtime.yaml.cost_control.primary_temperature)
+    )
+    max_tokens = int(
+        current.get("primary_max_tokens", runtime.yaml.cost_control.primary_max_tokens)
+    )
+    return StreamingResponse(
+        llm_service.chat_stream(
+            messages=messages,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @api_router.post("/conversations/{conversation_id}/messages/ollama", response_model=SendMessageResponse)
 def save_ollama_message(conversation_id: str, payload: dict[str, Any] = Body(...)):
     cid = conversation_id if conversation_id != "new" else None
@@ -212,6 +244,23 @@ def save_ollama_message(conversation_id: str, payload: dict[str, Any] = Body(...
         "cached": False,
         "context_meta": {},
     }
+
+
+@api_router.post("/chat/stream")
+def chat_stream(body: ChatRequest):
+    return StreamingResponse(
+        llm_service.chat_stream(
+            messages=body.messages,
+            model=body.model,
+            temperature=body.temperature,
+            max_tokens=body.max_tokens,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @api_router.get("/memories", response_model=list[MemoryOut])
@@ -412,69 +461,3 @@ async def data_import(request: Request):
         raw = content.decode("gbk", errors="ignore")
     ok, msg = import_data(raw)
     return {"ok": ok, "message": msg}
-
-
-@api_router.post("/conversations/{conversation_id}/messages/stream")
-async def send_message_stream(conversation_id: str, payload: MessageCreatePayload):
-    """流式响应接口，前端SSE接收"""
-    from app.services.context_builder import context_builder
-    from app.services.anchor import anchor_service
-    from app.services.llm import llm_service
-    from app.services.utils import compact_text
-
-    cid = None if conversation_id == "new" else conversation_id
-    content = compact_text(payload.content)
-
-    ok, guard_message = anchor_service.quick_guard(content)
-    if not ok:
-        cid = chat_service.ensure_conversation(cid, content)
-        user_msg = repo.insert_message(cid, "user", content)
-
-        async def guard_stream():
-            data = {"type": "meta", "conversation_id": cid, "user_message_id": user_msg["id"]}
-            yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-            yield f"data: {json.dumps({'type':'text','text': guard_message or '消息已拦截'}, ensure_ascii=False)}\n\n"
-            yield "data: [DONE]\n\n"
-
-        return StreamingResponse(guard_stream(), media_type="text/event-stream")
-
-    cid = chat_service.ensure_conversation(cid, content)
-    user_msg = repo.insert_message(cid, "user", content)
-    messages, context_meta = context_builder.build(cid, content)
-
-    current = settings_service.get_frontend_settings()
-    runtime = get_runtime()
-    primary_model = (current.get("primary_model") or runtime.settings.llm_primary_model).strip()
-    primary_temperature = float(current.get("primary_temperature", runtime.yaml.cost_control.primary_temperature))
-    primary_max_tokens = int(current.get("primary_max_tokens", runtime.yaml.cost_control.primary_max_tokens))
-
-    async def event_stream():
-        # 先推meta信息
-        meta = {"type": "meta", "conversation_id": cid, "user_message_id": user_msg["id"]}
-        yield f"data: {json.dumps(meta, ensure_ascii=False)}\n\n"
-
-        full_text = ""
-        try:
-            async for chunk in llm_service.chat_stream(
-                messages=messages,
-                model=primary_model,
-                temperature=primary_temperature,
-                max_tokens=primary_max_tokens,
-            ):
-                full_text += chunk
-                yield f"data: {json.dumps({'type':'text','text':chunk}, ensure_ascii=False)}\n\n"
-        except Exception as e:
-            yield f"data: {json.dumps({'type':'error','text':str(e)}, ensure_ascii=False)}\n\n"
-            return
-
-        # 流结束后存库
-        assistant_msg = repo.insert_message(cid, "assistant", full_text, meta={"streamed": True})
-        from app.services.memory import memory_service
-
-        memory_service.maybe_soft_write(user_message=content, ai_reply=full_text)
-
-        done = {"type": "done", "assistant_message_id": assistant_msg["id"]}
-        yield f"data: {json.dumps(done, ensure_ascii=False)}\n\n"
-        yield "data: [DONE]\n\n"
-
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
