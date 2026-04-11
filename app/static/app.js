@@ -478,8 +478,8 @@ function attachSpeakButton(speakBtn, fullText) {
   };
 }
 
-async function sendMessageStream(messages, { model, temperature, max_tokens, signal, conversationId }) {
-  const options = { model, temperature, max_tokens, signal, conversationId };
+async function sendMessageStream(messages, options) {
+  const { model, temperature, max_tokens, signal, conversationId } = options;
   const { root: bubbleRoot, contentEl, speakBtn } = createAssistantBubble();
 
   const resp = await fetch(`/api/conversations/${options.conversationId || "new"}/messages/stream`, {
@@ -616,15 +616,16 @@ async function sendMessage() {
         content: m.content,
       }));
       history.push({ role: "user", content });
-      const { options } = await sendMessageStream(history, {
+      const streamOptions = {
         model,
         temperature,
         max_tokens,
         signal,
         conversationId: convId,
-      });
+      };
+      await sendMessageStream(history, streamOptions);
       clearTimeout(timeoutId);
-      const meta = options._meta || {};
+      const meta = streamOptions._meta || {};
       res = {
         conversation_id: meta.conversation_id || convId,
         context_meta: {},
