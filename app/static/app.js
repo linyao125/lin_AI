@@ -485,7 +485,7 @@ async function sendMessageStream(messages, options) {
   const resp = await fetch(`/api/conversations/${options.conversationId || "new"}/messages/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, model, temperature, max_tokens }),
+    body: JSON.stringify({ content: messages[messages.length - 1].content }),
     signal,
   });
 
