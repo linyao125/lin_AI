@@ -529,7 +529,7 @@ async function sendMessageStream(messages, options) {
           bubbleRoot.remove();
           throw new Error(String(obj.error));
         }
-        const text = obj.type === "text" ? obj.text : null;
+        const text = obj.text || null;
         if (text) appendToBubble(contentEl, text);
         if (obj.type === "meta") options._meta = obj;
       } catch (e) {
