@@ -13,6 +13,15 @@ class MessageCreatePayload(BaseModel):
     content: str = Field(min_length=1)
 
 
+class ChatRequest(BaseModel):
+    """OpenRouter 兼容的 chat 请求体（用于 /api/chat/stream 等）。"""
+
+    messages: list[dict[str, str]]
+    model: str
+    temperature: float = 0.65
+    max_tokens: int = 700
+
+
 class ChatMessageOut(BaseModel):
     id: int
     role: str
@@ -87,6 +96,7 @@ class FrontendSettingsPayload(BaseModel):
     tts_voice: str = ""
     tts_api_key: str = ""
     tts_speed: float = 1.0
+    tts_provider: str = "auto"
     primary_model: str = "openai/gpt-4o"
     summary_model: str = "openai/gpt-4o-mini"
     system_goal: str = "Be warm, steady, memory-aware, and context-anchored for one dedicated user."
@@ -112,6 +122,9 @@ class FrontendSettingsPayload(BaseModel):
     user_city: str = ""
     user_lat: str = ""
     user_lon: str = ""
+    news_api_key: str = ""
+    news_keywords: str = ""
+    news_enabled: bool = False
 
 
 class FrontendSettingsOut(BaseModel):
