@@ -450,8 +450,12 @@ async function sendMessage() {
     chatScroll.scrollTop = chatScroll.scrollHeight;
   }
 
+  let timeoutId;
   try {
     const convId = state.currentConversationId || "new";
+    const controller = new AbortController();
+    timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时
+    const signal = controller.signal;
     const settings = state.settings || {};
     const ollamaMode = settings.ollama_mode;
     const ollamaBase = settings.ollama_base_url || "http://localhost:11434";
@@ -461,12 +465,14 @@ async function sendMessage() {
     let res;
     if (ollamaMode) {
       // 浏览器直连本地Ollama
-      res = await sendMessageOllama(convId, content, ollamaBase, ollamaModel);
+      res = await sendMessageOllama(convId, content, ollamaBase, ollamaModel, signal);
     } else {
       res = await api(`/api/conversations/${convId}/messages`, {
         method: "POST",
         body: JSON.stringify({ content }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
     }
     state.currentConversationId = res.conversation_id;
     await loadConversations();
@@ -485,9 +491,17 @@ async function sendMessage() {
     const loading = qs("msg-loading");
     if (loading) loading.remove();
     userDiv.remove();
-    alert(`发送失败：${err.message || err}`);
+    // 不用alert，用非阻塞提示
+    const errDiv = document.createElement("div");
+    errDiv.style.cssText =
+      "position:fixed;top:20px;right:20px;background:#ff4444;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:9999;";
+    errDiv.textContent =
+      err.name === "AbortError" ? "响应超时，请重试" : `发送失败：${err.message || err}`;
+    document.body.appendChild(errDiv);
+    setTimeout(() => errDiv.remove(), 4000);
     console.error("sendMessage failed:", err);
   } finally {
+    if (timeoutId != null) clearTimeout(timeoutId);
     if (sendBtn) sendBtn.disabled = false;
     input.focus();
   }
@@ -724,10 +738,13 @@ function showScheduleNotification(item) {
   }
 }
 
-async function sendMessageOllama(convId, content, ollamaBase, model) {
+async function sendMessageOllama(convId, content, ollamaBase, model, signal) {
   // 检测Ollama是否在线
   try {
-    await fetch(`${ollamaBase}/api/tags`, { signal: AbortSignal.timeout(3000) });
+    const tagsSignal = signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(3000)])
+      : AbortSignal.timeout(3000);
+    await fetch(`${ollamaBase}/api/tags`, { signal: tagsSignal });
   } catch (e) {
     throw new Error("本地Ollama未启动，请先运行Ollama");
   }
@@ -747,6 +764,7 @@ async function sendMessageOllama(convId, content, ollamaBase, model) {
       model: model,
       messages: history,
     }),
+    signal,
   });
   if (!resp.ok) throw new Error("Ollama请求失败");
   const data = await resp.json();
@@ -759,6 +777,7 @@ async function sendMessageOllama(convId, content, ollamaBase, model) {
       user_content: content,
       assistant_content: replyText,
     }),
+    signal,
   });
   return saveRes;
 }

@@ -45,7 +45,7 @@ class LLMService:
         }
         _settings = settings_service.get_frontend_settings()
         _proxy = _settings.get("proxy_url") or os.environ.get("HTTP_PROXY") or ""
-        _client_kwargs = {"timeout": 120}
+        _client_kwargs = {"timeout": httpx.Timeout(60.0, connect=10.0)}
         if _proxy:
             _client_kwargs["proxy"] = _proxy
         last_err = None
@@ -75,36 +75,6 @@ class LLMService:
             "estimated_cost": estimated_cost,
             "raw": data,
         }
-
-    async def chat_stream(self, messages: list[dict[str, str]], model: str, temperature: float, max_tokens: int):
-        """流式生成，yield文本片段"""
-        api_key = self._api_key()
-        if not api_key:
-            raise RuntimeError("API Key 为空，请先在设置页填写")
-        payload = {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": True,
-        }
-        async with httpx.AsyncClient(timeout=120) as client:
-            async with client.stream("POST", self._endpoint(), headers=self._headers(), json=payload) as resp:
-                resp.raise_for_status()
-                async for line in resp.aiter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    data_str = line[6:].strip()
-                    if data_str == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(data_str)
-                        delta = chunk["choices"][0].get("delta", {})
-                        text = delta.get("content", "")
-                        if text:
-                            yield text
-                    except Exception:
-                        continue
 
 
 llm_service = LLMService()
