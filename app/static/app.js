@@ -405,6 +405,143 @@ async function createConversation() {
   renderMessages();
 }
 
+function createAssistantBubble() {
+  const chatScroll = qs("chat-scroll");
+  const aiName = (state.runtime && state.runtime.display_name) || "AI";
+  const div = document.createElement("div");
+  div.className = "msg assistant";
+  div.id = "msg-streaming";
+
+  const senderEl = document.createElement("div");
+  senderEl.className = "msg-sender";
+  senderEl.textContent = aiName;
+  div.appendChild(senderEl);
+
+  const row = document.createElement("div");
+  row.style.display = "flex";
+  row.style.alignItems = "flex-start";
+  row.style.gap = "6px";
+  row.style.maxWidth = "100%";
+
+  const contentEl = document.createElement("div");
+  contentEl.className = "msg-content";
+  contentEl.style.flex = "1";
+  contentEl.style.minWidth = "0";
+  row.appendChild(contentEl);
+
+  const speakBtn = document.createElement("button");
+  speakBtn.type = "button";
+  speakBtn.className = "speak-btn";
+  speakBtn.title = "朗读";
+  speakBtn.innerHTML = "🔊";
+  speakBtn.style.cssText =
+    "flex-shrink:0;background:transparent;border:none;cursor:pointer;font-size:16px;line-height:1;padding:4px 2px;opacity:0.85;";
+  row.appendChild(speakBtn);
+  div.appendChild(row);
+
+  if (chatScroll) {
+    chatScroll.appendChild(div);
+    chatScroll.scrollTop = chatScroll.scrollHeight;
+  }
+
+  return { root: div, contentEl, speakBtn };
+}
+
+function appendToBubble(contentEl, text) {
+  if (!contentEl._acc) contentEl._acc = "";
+  contentEl._acc += text;
+  contentEl.innerHTML = escapeHtml(contentEl._acc).replaceAll("\n", "<br>");
+  const chatScroll = qs("chat-scroll");
+  if (chatScroll) chatScroll.scrollTop = chatScroll.scrollHeight;
+}
+
+function attachSpeakButton(speakBtn, fullText) {
+  speakBtn.onclick = async () => {
+    speakBtn.innerHTML = "⏳";
+    try {
+      const r = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: fullText }),
+      });
+      if (!r.ok) throw new Error("tts failed");
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.play();
+      speakBtn.innerHTML = "🔊";
+      audio.onended = () => URL.revokeObjectURL(url);
+    } catch (e) {
+      speakBtn.innerHTML = "🔊";
+      console.error("TTS error:", e);
+    }
+  };
+}
+
+async function sendMessageStream(messages, { model, temperature, max_tokens, signal }) {
+  const { root: bubbleRoot, contentEl, speakBtn } = createAssistantBubble();
+
+  const resp = await fetch("/api/chat/stream", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages, model, temperature, max_tokens }),
+    signal,
+  });
+
+  if (!resp.ok) {
+    bubbleRoot.remove();
+    const t = await resp.text();
+    let detail = "";
+    try {
+      const j = JSON.parse(t);
+      detail = j.detail || j.message || t;
+    } catch {
+      detail = t || `HTTP ${resp.status}`;
+    }
+    throw new Error(detail || `HTTP ${resp.status}`);
+  }
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmed = line.replace(/\r$/, "");
+      if (!trimmed.startsWith("data: ")) continue;
+      const raw = trimmed.slice(6).trim();
+      if (raw === "[DONE]") {
+        const fullText = contentEl._acc || "";
+        attachSpeakButton(speakBtn, fullText);
+        return fullText;
+      }
+      try {
+        const obj = JSON.parse(raw);
+        if (obj.error != null) {
+          bubbleRoot.remove();
+          throw new Error(String(obj.error));
+        }
+        const { text } = obj;
+        if (text) appendToBubble(contentEl, text);
+      } catch (e) {
+        if (e instanceof SyntaxError) continue;
+        throw e;
+      }
+    }
+  }
+
+  const fullText = contentEl._acc || "";
+  attachSpeakButton(speakBtn, fullText);
+  return fullText;
+}
+
 async function sendMessage() {
   const input = qs("composer-input");
   if (!input) return;
@@ -467,12 +604,30 @@ async function sendMessage() {
       // 浏览器直连本地Ollama
       res = await sendMessageOllama(convId, content, ollamaBase, ollamaModel, signal);
     } else {
-      res = await api(`/api/conversations/${convId}/messages`, {
-        method: "POST",
-        body: JSON.stringify({ content }),
-        signal: controller.signal,
+      const loading = qs("msg-loading");
+      if (loading) loading.remove();
+      const model = settings.primary_model || "openai/gpt-4o";
+      const temperature = Number(settings.primary_temperature ?? 0.65);
+      const max_tokens = Number(settings.primary_max_tokens ?? 700);
+      const history = (state.messages || []).slice(-8).map((m) => ({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: m.content,
+      }));
+      history.push({ role: "user", content });
+      const fullText = await sendMessageStream(history, {
+        model,
+        temperature,
+        max_tokens,
+        signal,
       });
       clearTimeout(timeoutId);
+      res = await api(`/api/conversations/${convId}/messages/ollama`, {
+        method: "POST",
+        body: JSON.stringify({
+          user_content: content,
+          assistant_content: fullText,
+        }),
+      });
     }
     state.currentConversationId = res.conversation_id;
     await loadConversations();
@@ -490,6 +645,8 @@ async function sendMessage() {
     input.value = content;
     const loading = qs("msg-loading");
     if (loading) loading.remove();
+    const streaming = qs("msg-streaming");
+    if (streaming) streaming.remove();
     userDiv.remove();
     // 不用alert，用非阻塞提示
     const errDiv = document.createElement("div");

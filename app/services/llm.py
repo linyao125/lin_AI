@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Any
+from typing import Any, Generator
 
 import httpx
 
@@ -43,15 +43,10 @@ class LLMService:
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
-        _settings = settings_service.get_frontend_settings()
-        _proxy = _settings.get("proxy_url") or os.environ.get("HTTP_PROXY") or ""
-        _client_kwargs = {"timeout": httpx.Timeout(60.0, connect=10.0)}
-        if _proxy:
-            _client_kwargs["proxy"] = _proxy
         last_err = None
         for attempt in range(3):  # 最多重试3次
             try:
-                with httpx.Client(**_client_kwargs) as client:
+                with httpx.Client(**self._client_kwargs()) as client:
                     resp = client.post(self._endpoint(), headers=self._headers(), json=payload)
                     resp.raise_for_status()
                     data = resp.json()
@@ -75,6 +70,64 @@ class LLMService:
             "estimated_cost": estimated_cost,
             "raw": data,
         }
+
+    def _client_kwargs(self) -> dict:
+        _settings = settings_service.get_frontend_settings()
+        _proxy = _settings.get("proxy_url") or os.environ.get("HTTP_PROXY") or ""
+        kwargs = {"timeout": httpx.Timeout(120.0, connect=10.0)}
+        if _proxy:
+            kwargs["proxy"] = _proxy
+        return kwargs
+
+    def chat_stream(
+        self,
+        messages: list[dict[str, str]],
+        model: str,
+        temperature: float,
+        max_tokens: int,
+    ) -> Generator[str, None, None]:
+        """
+        流式调用 OpenRouter，逐 token yield SSE 格式字符串。
+        调用方用 FastAPI StreamingResponse 包裹即可。
+        """
+        api_key = self._api_key()
+        if not api_key:
+            yield 'data: {"error": "API Key 为空，请先在设置页填写"}\n\n'
+            return
+
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+
+        try:
+            with httpx.Client(**self._client_kwargs()) as client:
+                with client.stream(
+                    "POST",
+                    self._endpoint(),
+                    headers=self._headers(),
+                    json=payload,
+                ) as resp:
+                    resp.raise_for_status()
+                    for line in resp.iter_lines():
+                        if not line or line == "data: [DONE]":
+                            continue
+                        if line.startswith("data: "):
+                            raw = line[6:]
+                            try:
+                                chunk = json.loads(raw)
+                                delta = chunk["choices"][0]["delta"].get("content", "")
+                                if delta:
+                                    yield f"data: {json.dumps({'text': delta}, ensure_ascii=False)}\n\n"
+                            except (KeyError, json.JSONDecodeError):
+                                continue
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
+            yield f'data: {{"error": "连接失败: {e}"}}\n\n'
+        finally:
+            yield "data: [DONE]\n\n"
 
 
 llm_service = LLMService()
