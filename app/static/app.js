@@ -606,68 +606,12 @@ async function sendMessage() {
       // 浏览器直连本地Ollama
       res = await sendMessageOllama(convId, content, ollamaBase, ollamaModel, signal);
     } else {
-      const loading = qs("msg-loading");
-      if (loading) loading.remove();
-      const streamRes = await fetch(`/api/conversations/${convId}/messages/stream`, {
+      res = await api(`/api/conversations/${convId}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
         signal,
       });
       clearTimeout(timeoutId);
-
-      if (!streamRes.ok) throw new Error("stream failed");
-
-      // 插入流式气泡
-      const streamDiv = document.createElement("div");
-      streamDiv.className = "msg assistant";
-      streamDiv.id = "msg-streaming";
-      const streamSender = document.createElement("div");
-      streamSender.className = "msg-sender";
-      streamSender.textContent = aiName;
-      streamDiv.appendChild(streamSender);
-      const streamContent = document.createElement("div");
-      streamContent.className = "msg-content";
-      streamContent.id = "msg-streaming-content";
-      streamDiv.appendChild(streamContent);
-      if (chatScroll) chatScroll.appendChild(streamDiv);
-
-      const reader = streamRes.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let conversationId = convId;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const raw = line.slice(6).trim();
-          if (raw === "[DONE]") break;
-          try {
-            const evt = JSON.parse(raw);
-            if (evt.type === "meta") {
-              conversationId = evt.conversation_id;
-            } else if (evt.type === "text") {
-              streamContent.innerHTML += escapeHtml(evt.text).replaceAll("\n", "<br>");
-              if (chatScroll) chatScroll.scrollTop = chatScroll.scrollHeight;
-            } else if (evt.type === "done") {
-              conversationId = evt.conversation_id;
-            }
-          } catch (e) {
-            continue;
-          }
-        }
-      }
-
-      // 移除流式气泡，让loadMessages重新渲染
-      const streamingEl = qs("msg-streaming");
-      if (streamingEl) streamingEl.remove();
-
-      res = { conversation_id: conversationId, context_meta: {} };
     }
     state.currentConversationId = res.conversation_id;
     await loadConversations();
