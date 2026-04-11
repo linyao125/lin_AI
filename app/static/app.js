@@ -478,10 +478,11 @@ function attachSpeakButton(speakBtn, fullText) {
   };
 }
 
-async function sendMessageStream(messages, { model, temperature, max_tokens, signal }) {
+async function sendMessageStream(messages, { model, temperature, max_tokens, signal, conversationId }) {
+  const options = { model, temperature, max_tokens, signal, conversationId };
   const { root: bubbleRoot, contentEl, speakBtn } = createAssistantBubble();
 
-  const resp = await fetch("/api/chat/stream", {
+  const resp = await fetch(`/api/conversations/${options.conversationId || "new"}/messages/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages, model, temperature, max_tokens }),
@@ -520,7 +521,7 @@ async function sendMessageStream(messages, { model, temperature, max_tokens, sig
       if (raw === "[DONE]") {
         const fullText = contentEl._acc || "";
         attachSpeakButton(speakBtn, fullText);
-        return fullText;
+        return { fullText, options };
       }
       try {
         const obj = JSON.parse(raw);
@@ -528,8 +529,9 @@ async function sendMessageStream(messages, { model, temperature, max_tokens, sig
           bubbleRoot.remove();
           throw new Error(String(obj.error));
         }
-        const { text } = obj;
+        const text = obj.type === "text" ? obj.text : null;
         if (text) appendToBubble(contentEl, text);
+        if (obj.type === "meta") options._meta = obj;
       } catch (e) {
         if (e instanceof SyntaxError) continue;
         throw e;
@@ -539,7 +541,7 @@ async function sendMessageStream(messages, { model, temperature, max_tokens, sig
 
   const fullText = contentEl._acc || "";
   attachSpeakButton(speakBtn, fullText);
-  return fullText;
+  return { fullText, options };
 }
 
 async function sendMessage() {
@@ -614,20 +616,19 @@ async function sendMessage() {
         content: m.content,
       }));
       history.push({ role: "user", content });
-      const fullText = await sendMessageStream(history, {
+      const { options } = await sendMessageStream(history, {
         model,
         temperature,
         max_tokens,
         signal,
+        conversationId: convId,
       });
       clearTimeout(timeoutId);
-      res = await api(`/api/conversations/${convId}/messages/ollama`, {
-        method: "POST",
-        body: JSON.stringify({
-          user_content: content,
-          assistant_content: fullText,
-        }),
-      });
+      const meta = options._meta || {};
+      res = {
+        conversation_id: meta.conversation_id || convId,
+        context_meta: {},
+      };
     }
     state.currentConversationId = res.conversation_id;
     await loadConversations();
@@ -635,9 +636,9 @@ async function sendMessage() {
     await loadMemories();
     bcNotify("memory_changed");
     // 上下文余量提示
-    const meta = res.context_meta || {};
-    if (meta.token_pct >= 90) {
-      showContextWarning(meta.token_pct, meta.token_used, meta.token_budget);
+    const ctxMeta = res.context_meta || {};
+    if (ctxMeta.token_pct >= 90) {
+      showContextWarning(ctxMeta.token_pct, ctxMeta.token_used, ctxMeta.token_budget);
     } else {
       hideContextWarning();
     }
