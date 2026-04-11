@@ -201,33 +201,71 @@ async def send_message(conversation_id: str, payload: MessageCreatePayload):
 
 
 @api_router.post("/conversations/{conversation_id}/messages/stream")
-def conversation_messages_stream(conversation_id: str, payload: MessageCreatePayload):
+async def conversation_messages_stream(conversation_id: str, payload: MessageCreatePayload):
     from app.services.context_builder import context_builder
+    from app.services.utils import compact_text
+    from app.services.anchor import anchor_service
+    import json as _json
+
+    content = compact_text(payload.content)
+    ok, guard_message = anchor_service.quick_guard(content)
 
     cid = None if conversation_id == "new" else conversation_id
-    cid = chat_service.ensure_conversation(cid, payload.content)
-    messages, _ctx = context_builder.build(cid, payload.content)
+    cid = chat_service.ensure_conversation(cid, content)
+    user_msg = repo.insert_message(cid, "user", content)
+
+    if not ok:
+
+        async def _guard():
+            meta = {"type": "meta", "conversation_id": cid, "user_message_id": user_msg["id"]}
+            yield f"data: {_json.dumps(meta, ensure_ascii=False)}\n\n"
+            yield f"data: {_json.dumps({'type':'text','text': guard_message or '消息已拦截'}, ensure_ascii=False)}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(_guard(), media_type="text/event-stream")
+
+    messages, _ctx = context_builder.build(cid, content)
     current = settings_service.get_frontend_settings()
     runtime = get_runtime()
     model = (current.get("primary_model") or runtime.settings.llm_primary_model).strip()
-    temperature = float(
-        current.get("primary_temperature", runtime.yaml.cost_control.primary_temperature)
-    )
-    max_tokens = int(
-        current.get("primary_max_tokens", runtime.yaml.cost_control.primary_max_tokens)
-    )
+    temperature = float(current.get("primary_temperature", runtime.yaml.cost_control.primary_temperature))
+    max_tokens = int(current.get("primary_max_tokens", runtime.yaml.cost_control.primary_max_tokens))
+
+    async def _stream():
+        import json as _j
+
+        # 先推meta
+        meta = {"type": "meta", "conversation_id": cid, "user_message_id": user_msg["id"]}
+        yield f"data: {_j.dumps(meta, ensure_ascii=False)}\n\n"
+
+        full_text = ""
+        for chunk in llm_service.chat_stream(messages=messages, model=model, temperature=temperature, max_tokens=max_tokens):
+            if chunk.startswith("data: [DONE]"):
+                break
+            if chunk.startswith("data: "):
+                try:
+                    evt = _j.loads(chunk[6:])
+                    if evt.get("type") == "text":
+                        full_text += evt["text"]
+                        yield chunk
+                except Exception:
+                    continue
+
+        # 存库
+        if full_text:
+            assistant_msg = repo.insert_message(cid, "assistant", full_text, meta={"streamed": True})
+            from app.services.memory import memory_service
+
+            memory_service.maybe_soft_write(user_message=content, ai_reply=full_text)
+            done = {"type": "done", "conversation_id": cid, "assistant_message_id": assistant_msg["id"]}
+            yield f"data: {_j.dumps(done, ensure_ascii=False)}\n\n"
+
+        yield "data: [DONE]\n\n"
+
     return StreamingResponse(
-        llm_service.chat_stream(
-            messages=messages,
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        ),
+        _stream(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 

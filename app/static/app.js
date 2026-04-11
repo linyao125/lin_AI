@@ -608,28 +608,66 @@ async function sendMessage() {
     } else {
       const loading = qs("msg-loading");
       if (loading) loading.remove();
-      const model = settings.primary_model || "openai/gpt-4o";
-      const temperature = Number(settings.primary_temperature ?? 0.65);
-      const max_tokens = Number(settings.primary_max_tokens ?? 700);
-      const history = (state.messages || []).slice(-8).map((m) => ({
-        role: m.role === "assistant" ? "assistant" : "user",
-        content: m.content,
-      }));
-      history.push({ role: "user", content });
-      const streamOptions = {
-        model,
-        temperature,
-        max_tokens,
+      const streamRes = await fetch(`/api/conversations/${convId}/messages/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
         signal,
-        conversationId: convId,
-      };
-      await sendMessageStream(history, streamOptions);
+      });
       clearTimeout(timeoutId);
-      const meta = streamOptions._meta || {};
-      res = {
-        conversation_id: meta.conversation_id || convId,
-        context_meta: {},
-      };
+
+      if (!streamRes.ok) throw new Error("stream failed");
+
+      // 插入流式气泡
+      const streamDiv = document.createElement("div");
+      streamDiv.className = "msg assistant";
+      streamDiv.id = "msg-streaming";
+      const streamSender = document.createElement("div");
+      streamSender.className = "msg-sender";
+      streamSender.textContent = aiName;
+      streamDiv.appendChild(streamSender);
+      const streamContent = document.createElement("div");
+      streamContent.className = "msg-content";
+      streamContent.id = "msg-streaming-content";
+      streamDiv.appendChild(streamContent);
+      if (chatScroll) chatScroll.appendChild(streamDiv);
+
+      const reader = streamRes.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let conversationId = convId;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6).trim();
+          if (raw === "[DONE]") break;
+          try {
+            const evt = JSON.parse(raw);
+            if (evt.type === "meta") {
+              conversationId = evt.conversation_id;
+            } else if (evt.type === "text") {
+              streamContent.innerHTML += escapeHtml(evt.text).replaceAll("\n", "<br>");
+              if (chatScroll) chatScroll.scrollTop = chatScroll.scrollHeight;
+            } else if (evt.type === "done") {
+              conversationId = evt.conversation_id;
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+      }
+
+      // 移除流式气泡，让loadMessages重新渲染
+      const streamingEl = qs("msg-streaming");
+      if (streamingEl) streamingEl.remove();
+
+      res = { conversation_id: conversationId, context_meta: {} };
     }
     state.currentConversationId = res.conversation_id;
     await loadConversations();
