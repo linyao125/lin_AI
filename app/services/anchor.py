@@ -215,6 +215,7 @@ class AnchorService:
         sections.append("[Operational Rules]\n- 保持语境连续\n- 不要擅自重置人格\n- 优先准确、稳定、自然\n- 不要因为省 token 就丢失核心关系和设定")
         # ── ContextWeaver：把参数编织成处境叙事 ──────────────────────
         try:
+            raise Exception("disabled")  # 临时禁用
             from app.services.llm import llm_service
             from app.services.settings import settings_service as _ss2
             _cur = _ss2.get_frontend_settings()
