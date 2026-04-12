@@ -405,145 +405,6 @@ async function createConversation() {
   renderMessages();
 }
 
-function createAssistantBubble() {
-  const chatScroll = qs("chat-scroll");
-  const aiName = (state.runtime && state.runtime.display_name) || "AI";
-  const div = document.createElement("div");
-  div.className = "msg assistant";
-  div.id = "msg-streaming";
-
-  const senderEl = document.createElement("div");
-  senderEl.className = "msg-sender";
-  senderEl.textContent = aiName;
-  div.appendChild(senderEl);
-
-  const row = document.createElement("div");
-  row.style.display = "flex";
-  row.style.alignItems = "flex-start";
-  row.style.gap = "6px";
-  row.style.maxWidth = "100%";
-
-  const contentEl = document.createElement("div");
-  contentEl.className = "msg-content";
-  contentEl.style.flex = "1";
-  contentEl.style.minWidth = "0";
-  row.appendChild(contentEl);
-
-  const speakBtn = document.createElement("button");
-  speakBtn.type = "button";
-  speakBtn.className = "speak-btn";
-  speakBtn.title = "朗读";
-  speakBtn.innerHTML = "🔊";
-  speakBtn.style.cssText =
-    "flex-shrink:0;background:transparent;border:none;cursor:pointer;font-size:16px;line-height:1;padding:4px 2px;opacity:0.85;";
-  row.appendChild(speakBtn);
-  div.appendChild(row);
-
-  if (chatScroll) {
-    chatScroll.appendChild(div);
-    chatScroll.scrollTop = chatScroll.scrollHeight;
-  }
-
-  return { root: div, contentEl, speakBtn };
-}
-
-function appendToBubble(contentEl, text) {
-  if (!contentEl._acc) contentEl._acc = "";
-  contentEl._acc += text;
-  contentEl.innerHTML = escapeHtml(contentEl._acc).replaceAll("\n", "<br>");
-  const chatScroll = qs("chat-scroll");
-  if (chatScroll) chatScroll.scrollTop = chatScroll.scrollHeight;
-}
-
-function attachSpeakButton(speakBtn, fullText) {
-  speakBtn.onclick = async () => {
-    speakBtn.innerHTML = "⏳";
-    try {
-      const r = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: fullText }),
-      });
-      if (!r.ok) throw new Error("tts failed");
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audio.play();
-      speakBtn.innerHTML = "🔊";
-      audio.onended = () => URL.revokeObjectURL(url);
-    } catch (e) {
-      speakBtn.innerHTML = "🔊";
-      console.error("TTS error:", e);
-    }
-  };
-}
-
-async function sendMessageStream(messages, options) {
-  const { model, temperature, max_tokens, signal, conversationId } = options;
-  const { root: bubbleRoot, contentEl, speakBtn } = createAssistantBubble();
-
-  const resp = await fetch(`/api/conversations/${options.conversationId || "new"}/messages/stream`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content: messages[messages.length - 1].content }),
-    signal,
-  });
-
-  if (!resp.ok) {
-    bubbleRoot.remove();
-    const t = await resp.text();
-    let detail = "";
-    try {
-      const j = JSON.parse(t);
-      detail = j.detail || j.message || t;
-    } catch {
-      detail = t || `HTTP ${resp.status}`;
-    }
-    throw new Error(detail || `HTTP ${resp.status}`);
-  }
-
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-
-    for (const line of lines) {
-      const trimmed = line.replace(/\r$/, "");
-      if (!trimmed.startsWith("data: ")) continue;
-      const raw = trimmed.slice(6).trim();
-      if (raw === "[DONE]") {
-        const fullText = contentEl._acc || "";
-        attachSpeakButton(speakBtn, fullText);
-        return { fullText, options };
-      }
-      try {
-        const obj = JSON.parse(raw);
-        if (obj.error != null) {
-          bubbleRoot.remove();
-          throw new Error(String(obj.error));
-        }
-        const text = obj.text || null;
-        if (text) appendToBubble(contentEl, text);
-        if (obj.type === "meta") options._meta = obj;
-      } catch (e) {
-        if (e instanceof SyntaxError) continue;
-        throw e;
-      }
-    }
-  }
-
-  const fullText = contentEl._acc || "";
-  attachSpeakButton(speakBtn, fullText);
-  return { fullText, options };
-}
-
 async function sendMessage() {
   const input = qs("composer-input");
   if (!input) return;
@@ -589,12 +450,8 @@ async function sendMessage() {
     chatScroll.scrollTop = chatScroll.scrollHeight;
   }
 
-  let timeoutId;
   try {
     const convId = state.currentConversationId || "new";
-    const controller = new AbortController();
-    timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时
-    const signal = controller.signal;
     const settings = state.settings || {};
     const ollamaMode = settings.ollama_mode;
     const ollamaBase = settings.ollama_base_url || "http://localhost:11434";
@@ -604,14 +461,12 @@ async function sendMessage() {
     let res;
     if (ollamaMode) {
       // 浏览器直连本地Ollama
-      res = await sendMessageOllama(convId, content, ollamaBase, ollamaModel, signal);
+      res = await sendMessageOllama(convId, content, ollamaBase, ollamaModel);
     } else {
       res = await api(`/api/conversations/${convId}/messages`, {
         method: "POST",
         body: JSON.stringify({ content }),
-        signal,
       });
-      clearTimeout(timeoutId);
     }
     state.currentConversationId = res.conversation_id;
     await loadConversations();
@@ -619,9 +474,9 @@ async function sendMessage() {
     await loadMemories();
     bcNotify("memory_changed");
     // 上下文余量提示
-    const ctxMeta = res.context_meta || {};
-    if (ctxMeta.token_pct >= 90) {
-      showContextWarning(ctxMeta.token_pct, ctxMeta.token_used, ctxMeta.token_budget);
+    const meta = res.context_meta || {};
+    if (meta.token_pct >= 90) {
+      showContextWarning(meta.token_pct, meta.token_used, meta.token_budget);
     } else {
       hideContextWarning();
     }
@@ -629,20 +484,10 @@ async function sendMessage() {
     input.value = content;
     const loading = qs("msg-loading");
     if (loading) loading.remove();
-    const streaming = qs("msg-streaming");
-    if (streaming) streaming.remove();
     userDiv.remove();
-    // 不用alert，用非阻塞提示
-    const errDiv = document.createElement("div");
-    errDiv.style.cssText =
-      "position:fixed;top:20px;right:20px;background:#ff4444;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:9999;";
-    errDiv.textContent =
-      err.name === "AbortError" ? "响应超时，请重试" : `发送失败：${err.message || err}`;
-    document.body.appendChild(errDiv);
-    setTimeout(() => errDiv.remove(), 4000);
+    alert(`发送失败：${err.message || err}`);
     console.error("sendMessage failed:", err);
   } finally {
-    if (timeoutId != null) clearTimeout(timeoutId);
     if (sendBtn) sendBtn.disabled = false;
     input.focus();
   }
@@ -713,6 +558,7 @@ async function boot() {
   await loadSettingsForm();
   await loadMemories();
   await checkPendingPush();
+  startInitiativeHeartbeat();
   syncSoulState();
   setInterval(syncSoulState, 3 * 60 * 1000); // 每3分钟同步一次情绪状态
 }
@@ -798,6 +644,23 @@ function triggerGlitch() {
   setTimeout(() => el.classList.remove("glitch-active"), 600);
 }
 
+function startInitiativeHeartbeat() {
+  // 每5分钟触发一次主动发言检测，同时捞pending push
+  const heartbeat = async () => {
+    try {
+      await api("/api/initiative/check");
+      await checkPendingPush();
+    } catch (e) {
+      console.error("initiative heartbeat failed:", e);
+    }
+  };
+  // 启动后2分钟首次触发，之后每5分钟一次
+  setTimeout(() => {
+    heartbeat();
+    setInterval(heartbeat, 5 * 60 * 1000);
+  }, 2 * 60 * 1000);
+}
+
 async function checkPendingPush() {
   try {
     const res = await api("/api/push/pending");
@@ -879,13 +742,10 @@ function showScheduleNotification(item) {
   }
 }
 
-async function sendMessageOllama(convId, content, ollamaBase, model, signal) {
+async function sendMessageOllama(convId, content, ollamaBase, model) {
   // 检测Ollama是否在线
   try {
-    const tagsSignal = signal
-      ? AbortSignal.any([signal, AbortSignal.timeout(3000)])
-      : AbortSignal.timeout(3000);
-    await fetch(`${ollamaBase}/api/tags`, { signal: tagsSignal });
+    await fetch(`${ollamaBase}/api/tags`, { signal: AbortSignal.timeout(3000) });
   } catch (e) {
     throw new Error("本地Ollama未启动，请先运行Ollama");
   }
@@ -904,8 +764,8 @@ async function sendMessageOllama(convId, content, ollamaBase, model, signal) {
     body: JSON.stringify({
       model: model,
       messages: history,
+      stream: false,
     }),
-    signal,
   });
   if (!resp.ok) throw new Error("Ollama请求失败");
   const data = await resp.json();
@@ -918,7 +778,6 @@ async function sendMessageOllama(convId, content, ollamaBase, model, signal) {
       user_content: content,
       assistant_content: replyText,
     }),
-    signal,
   });
   return saveRes;
 }
@@ -1112,39 +971,13 @@ async function studyGenerateQuiz() {
   }
 }
 
-// ── 数据导出导入 ──────────────────────────────────────────
-function exportData(fmt) {
-  window.open(`/api/data/export?fmt=${fmt}`, "_blank");
-}
-
-async function importData(input) {
-  const status = document.getElementById("import-status");
-  const file = input.files[0];
-  if (!file) return;
-  status.textContent = "导入中...";
-  const form = new FormData();
-  form.append("file", file);
-  try {
-    const res = await fetch("/api/data/import", { method: "POST", body: form });
-    const data = await res.json();
-    status.textContent = data.message || (data.ok ? "完成" : "失败");
-    status.style.color = data.ok ? "#1a1a1a" : "#f00";
-  } catch (e) {
-    status.textContent = "导入失败";
-    status.style.color = "#f00";
-  }
-  input.value = "";
-}
-
 // ── Debug面板 ────────────────────────────────────────────
 async function showDebugPanel() {
-  // 拉取所有调试数据
   let soulState = {}, settings = {}, usage = {};
   try { soulState = (await api("/api/soul/state")).state || {}; } catch(e) {}
   try { settings = (await api("/api/settings/form")).data || {}; } catch(e) {}
   try { usage = await api("/api/usage"); } catch(e) {}
 
-  // 脱敏敏感字段
   const sensitive = ["api_key","tts_api_key","image_api_key","smtp_pass","newsapi_key","vpn_subscription"];
   const safeSettings = Object.fromEntries(
     Object.entries(settings).map(([k,v]) => [k, sensitive.includes(k) ? "***" : v])
@@ -1162,9 +995,9 @@ async function showDebugPanel() {
   `;
 
   const sections = [
-    { title: "🧠 Soul State（情绪向量）", data: soulState },
-    { title: "⚙️ Settings（设置，敏感已脱敏）", data: safeSettings },
-    { title: "📊 Usage（用量统计）", data: usage },
+    { title: "🧠 Soul State", data: soulState },
+    { title: "⚙️ Settings", data: safeSettings },
+    { title: "📊 Usage", data: usage },
     { title: "🖥️ Frontend State", data: {
       currentConversationId: state.currentConversationId,
       messageCount: state.messages?.length || 0,
@@ -1174,8 +1007,8 @@ async function showDebugPanel() {
 
   let html = `<div style="display:flex;justify-content:space-between;align-items:center;">
     <span style="font-size:16px;font-weight:bold;">🔍 SoulEngine Debug Console</span>
-    <button onclick="document.getElementById('debug-panel').remove()" 
-      style="background:#333;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">关闭</button>
+    <button onclick="document.getElementById('debug-panel').remove()"
+      style="background:#333;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;">关闭</button>
   </div>`;
 
   for (const s of sections) {
@@ -1187,5 +1020,14 @@ async function showDebugPanel() {
 
   panel.innerHTML = html;
   document.body.appendChild(panel);
+}
+
+/** AI 设置弹窗 #save-ai-settings 保存成功后由 index.html 调用 */
+function maybeAdmin139DebugAfterAiSave() {
+  // admin139触发debug面板
+  const inputName = document.getElementById("ai-name-input")?.value?.trim();
+  if (inputName === "admin139") {
+    showDebugPanel();
+  }
 }
 // ── Debug面板结束 ─────────────────────────────────────────
