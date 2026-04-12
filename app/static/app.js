@@ -1135,3 +1135,57 @@ async function importData(input) {
   }
   input.value = "";
 }
+
+// ── Debug面板 ────────────────────────────────────────────
+async function showDebugPanel() {
+  // 拉取所有调试数据
+  let soulState = {}, settings = {}, usage = {};
+  try { soulState = (await api("/api/soul/state")).state || {}; } catch(e) {}
+  try { settings = (await api("/api/settings/form")).data || {}; } catch(e) {}
+  try { usage = await api("/api/usage"); } catch(e) {}
+
+  // 脱敏敏感字段
+  const sensitive = ["api_key","tts_api_key","image_api_key","smtp_pass","newsapi_key","vpn_subscription"];
+  const safeSettings = Object.fromEntries(
+    Object.entries(settings).map(([k,v]) => [k, sensitive.includes(k) ? "***" : v])
+  );
+
+  const existing = document.getElementById("debug-panel");
+  if (existing) { existing.remove(); return; }
+
+  const panel = document.createElement("div");
+  panel.id = "debug-panel";
+  panel.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;
+    padding:24px;font-family:monospace;font-size:12px;color:#00ff88;
+    overflow:auto;display:flex;flex-direction:column;gap:16px;
+  `;
+
+  const sections = [
+    { title: "🧠 Soul State（情绪向量）", data: soulState },
+    { title: "⚙️ Settings（设置，敏感已脱敏）", data: safeSettings },
+    { title: "📊 Usage（用量统计）", data: usage },
+    { title: "🖥️ Frontend State", data: {
+      currentConversationId: state.currentConversationId,
+      messageCount: state.messages?.length || 0,
+      runtime: state.runtime,
+    }},
+  ];
+
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;">
+    <span style="font-size:16px;font-weight:bold;">🔍 SoulEngine Debug Console</span>
+    <button onclick="document.getElementById('debug-panel').remove()" 
+      style="background:#333;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">关闭</button>
+  </div>`;
+
+  for (const s of sections) {
+    html += `<div>
+      <div style="color:#7c9cff;font-weight:bold;margin-bottom:6px;">${s.title}</div>
+      <pre style="background:#0d1320;padding:12px;border-radius:8px;overflow:auto;margin:0;color:#00ff88;border:1px solid #1a2a4a;">${JSON.stringify(s.data, null, 2)}</pre>
+    </div>`;
+  }
+
+  panel.innerHTML = html;
+  document.body.appendChild(panel);
+}
+// ── Debug面板结束 ─────────────────────────────────────────
