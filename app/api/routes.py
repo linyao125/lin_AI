@@ -532,3 +532,12 @@ async def moments_check():
 
     await run_moments_check()
     return {"ok": True}
+
+
+@api_router.post("/moments/generate")
+async def force_generate_moment():
+    """强制生成一条动态，用于测试"""
+    from app.soul.moments import generate_moment
+
+    m = await generate_moment()
+    return {"ok": bool(m), "data": m}
