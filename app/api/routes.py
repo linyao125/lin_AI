@@ -499,3 +499,36 @@ async def data_import(request: Request):
         raw = content.decode("gbk", errors="ignore")
     ok, msg = import_data(raw)
     return {"ok": ok, "message": msg}
+
+
+# ── 朋友圈 ────────────────────────────────────────────────
+@api_router.get("/moments")
+def list_moments():
+    from app.soul.moments import get_moments
+
+    moments = get_moments()
+    return {"ok": True, "data": list(reversed(moments))}
+
+
+@api_router.post("/moments/like/{moment_id}")
+def like_moment(moment_id: int):
+    from app.soul.moments import like_moment
+
+    m = like_moment(moment_id)
+    return {"ok": bool(m), "data": m}
+
+
+@api_router.post("/moments/collect/{moment_id}")
+def collect_moment(moment_id: int):
+    from app.soul.moments import collect_moment
+
+    m = collect_moment(moment_id)
+    return {"ok": bool(m), "data": m}
+
+
+@api_router.get("/moments/check")
+async def moments_check():
+    from app.soul.moments import run_moments_check
+
+    await run_moments_check()
+    return {"ok": True}

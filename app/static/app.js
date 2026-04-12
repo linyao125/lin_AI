@@ -1053,3 +1053,88 @@ async function showDebugPanel() {
   document.body.appendChild(panel);
 }
 // ── Debug面板结束 ─────────────────────────────────────────
+
+// ── 朋友圈 ────────────────────────────────────────────────
+async function openMoments() {
+  document.getElementById("modal-moments").style.display = "flex";
+  await loadMoments();
+  // 触发检测是否该发新动态
+  api("/api/moments/check").catch(() => {});
+}
+
+async function loadMoments() {
+  const list = document.getElementById("moments-list");
+  try {
+    const res = await api("/api/moments");
+    const moments = res.data || [];
+    if (!moments.length) {
+      list.innerHTML = '<div style="text-align:center;color:#9aa4b2;font-size:13px;padding:30px;">还没有动态</div>';
+      return;
+    }
+    const aiName = (state.runtime && state.runtime.display_name) || "AI";
+    list.innerHTML = moments.map(m => `
+      <div style="background:#1b2130;border-radius:12px;padding:14px;border:1px solid rgba(255,255,255,0.06);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <img src="/static/ai-avatar.png" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#eef2ff;">${aiName}</div>
+            <div style="font-size:11px;color:#9aa4b2;">${formatMomentTime(m.created_at)}</div>
+          </div>
+        </div>
+        <div style="font-size:14px;color:#eef2ff;line-height:1.7;margin-bottom:10px;">${escapeHtml(m.text)}</div>
+        ${m.image_url ? `<img src="${m.image_url}" style="width:100%;border-radius:8px;margin-bottom:10px;object-fit:cover;max-height:300px;">` : ''}
+        <div style="display:flex;gap:16px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">
+          <button onclick="momentLike(${m.id}, this)" style="background:none;border:none;color:${m.liked ? '#7c9cff' : '#9aa4b2'};font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+            ♥ <span>${m.likes || 0}</span>
+          </button>
+          <button onclick="momentCollect(${m.id}, this)" style="background:none;border:none;color:${m.collected ? '#f59e0b' : '#9aa4b2'};font-size:12px;cursor:pointer;">
+            ${m.collected ? '★ 已收藏' : '☆ 收藏'}
+          </button>
+        </div>
+      </div>
+    `).join("");
+  } catch (e) {
+    list.innerHTML = '<div style="text-align:center;color:#9aa4b2;font-size:13px;padding:20px;">加载失败</div>';
+  }
+}
+
+async function momentLike(id, btn) {
+  try {
+    const res = await api(`/api/moments/like/${id}`, { method: "POST" });
+    if (res.ok) {
+      const m = res.data;
+      btn.style.color = m.liked ? "#7c9cff" : "#9aa4b2";
+      btn.querySelector("span").textContent = m.likes || 0;
+      // 点赞反馈给情绪系统
+      if (m.liked) {
+        api("/api/soul/state").then(r => {
+          // 用户点赞说明喜欢这条内容，触发warmth上涨
+          fetch("/api/moments/like_feedback", { method: "POST" }).catch(() => {});
+        });
+      }
+    }
+  } catch (e) {}
+}
+
+async function momentCollect(id, btn) {
+  try {
+    const res = await api(`/api/moments/collect/${id}`, { method: "POST" });
+    if (res.ok) {
+      btn.style.color = res.data.collected ? "#f59e0b" : "#9aa4b2";
+      btn.textContent = res.data.collected ? "★ 已收藏" : "☆ 收藏";
+    }
+  } catch (e) {}
+}
+
+function formatMomentTime(isoStr) {
+  try {
+    const d = new Date(isoStr);
+    const now = new Date();
+    const diff = (now - d) / 1000;
+    if (diff < 60) return "刚刚";
+    if (diff < 3600) return `${Math.floor(diff/60)}分钟前`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}小时前`;
+    return `${Math.floor(diff/86400)}天前`;
+  } catch(e) { return ""; }
+}
+// ── 朋友圈结束 ────────────────────────────────────────────
