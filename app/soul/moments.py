@@ -120,7 +120,7 @@ async def generate_moment() -> dict | None:
 
         runtime = get_runtime()
         current = settings_service.get_frontend_settings()
-        summary_model = (current.get("summary_model") or runtime.settings.llm_summary_model).strip()
+        summary_model = (current.get("primary_model") or current.get("summary_model") or runtime.settings.llm_summary_model).strip()
         display_name = (current.get("display_name") or runtime.yaml.assistant.display_name).strip()
         persona_core = (current.get("persona_core") or runtime.yaml.assistant.persona_core).strip()
 
