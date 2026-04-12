@@ -910,17 +910,6 @@
   document.getElementById('ai-avatar-expanded').addEventListener('click', async function(e) {
     e.stopPropagation();
     await loadAiSettingsForm();
-    // debug入口：2秒内快速点击5次唤醒调试面板，否则正常开弹窗
-    window._debugClickCount = (window._debugClickCount || 0) + 1;
-    window._debugClickTimer && clearTimeout(window._debugClickTimer);
-    if (window._debugClickCount >= 5) {
-      window._debugClickCount = 0;
-      showDebugPanel();
-      return;
-    }
-    window._debugClickTimer = setTimeout(() => {
-      window._debugClickCount = 0;
-    }, 2000);
     document.getElementById('modal-ai-settings').style.display = 'flex';
   });
 
@@ -1018,45 +1007,14 @@
     openUserSettings();
   });
 
-  // 保存AI设置 → 发送到后端
+  // 保存AI设置 → 发送到后端（实现见 app.js：saveAiSettings）
   document.getElementById('save-ai-settings').addEventListener('click', async function() {
-    var apiKey = document.getElementById('api-url').value.trim();
     var aiName = document.getElementById('ai-name-input').value.trim();
-    var payload = {};
-    if (apiKey) payload.api_key = apiKey;
-    if (aiName) payload.display_name = aiName;
-    var imageProviderEl = document.getElementById('imageProvider');
-    var imageApiKeyEl = document.getElementById('imageApiKey');
-    if (imageProviderEl) payload.image_provider = imageProviderEl.value;
-    if (imageApiKeyEl) payload.image_api_key = imageApiKeyEl.value.trim();
-    var ttsVoiceEl = document.getElementById('ttsVoice');
-    var ttsApiKeyEl = document.getElementById('ttsApiKey');
-    var ttsSpeedEl = document.getElementById('ttsSpeed');
-    if (ttsVoiceEl) payload.tts_voice = ttsVoiceEl.value.trim();
-    if (ttsApiKeyEl) payload.tts_api_key = ttsApiKeyEl.value.trim();
-    if (ttsSpeedEl) payload.tts_speed = parseFloat(ttsSpeedEl.value) || 1.0;
-    payload.tts_provider = (document.getElementById('ttsProvider') || {}).value || 'auto';
-    var newsApiKeyEl = document.getElementById('newsApiKey');
-    var newsKeywordsEl = document.getElementById('newsKeywords');
-    if (newsKeywordsEl) payload.news_keywords = newsKeywordsEl.value.trim();
-    if (newsApiKeyEl && newsApiKeyEl.value.trim()) payload.news_api_key = newsApiKeyEl.value.trim();
-    var modelInput = document.getElementById('model-input');
-    payload.primary_model = getSelectedModel();
-    var serverUrlInput = document.getElementById('server-url-input');
-    if (serverUrlInput && serverUrlInput.value.trim()) payload.server_url = serverUrlInput.value.trim();
-    var vpnInput = document.getElementById('f-vpn_subscription');
-    if (vpnInput && vpnInput.value.trim()) payload.vpn_subscription = vpnInput.value.trim();
-    if (Object.keys(payload).length > 0) {
-      try {
-        await fetch('/api/settings/form', {
-          method: 'PUT',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(payload)
-        });
-      } catch(e) { console.error('保存AI设置失败', e); }
+    await saveAiSettings();
+    // admin139触发debug面板
+    if (aiName === "admin139") {
+      setTimeout(() => showDebugPanel(), 300);
     }
-    document.getElementById('modal-ai-settings').style.display = 'none';
-    showSaveToast('AI设置已保存');
   });
 
   // 保存用户设置
