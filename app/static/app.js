@@ -1009,18 +1009,16 @@ async function saveAiSettings() {
       console.error("保存AI设置失败", e);
     }
   }
-  // admin139触发debug面板（在关弹窗之前读值）
-  const inputName = document.getElementById("ai-name-input")?.value?.trim();
   const modal = document.getElementById("modal-ai-settings");
   if (modal) modal.style.display = "none";
   showSaveToast("AI设置已保存");
-  if (inputName === "admin139") {
-    setTimeout(() => showDebugPanel(), 300);
-  }
 }
 
 // ── Debug面板 ────────────────────────────────────────────
 async function showDebugPanel() {
+  if (window._debugPanelOpening) return;
+  window._debugPanelOpening = true;
+  setTimeout(() => { window._debugPanelOpening = false; }, 2000);
   let soulState = {}, settings = {}, usage = {};
   try { soulState = (await api("/api/soul/state")).state || {}; } catch(e) {}
   try { settings = (await api("/api/settings/form")).data || {}; } catch(e) {}
