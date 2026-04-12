@@ -121,7 +121,7 @@ class LLMService:
                                 chunk = json.loads(raw)
                                 delta = chunk["choices"][0]["delta"].get("content", "")
                                 if delta:
-                                    yield f"data: {json.dumps({'text': delta}, ensure_ascii=False)}\n\n"
+                                    yield f"data: {json.dumps({'type': 'text', 'text': delta}, ensure_ascii=False)}\n\n"
                             except (KeyError, json.JSONDecodeError):
                                 continue
         except (httpx.ConnectError, httpx.TimeoutException) as e:

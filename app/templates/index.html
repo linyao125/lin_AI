@@ -910,6 +910,17 @@
   document.getElementById('ai-avatar-expanded').addEventListener('click', async function(e) {
     e.stopPropagation();
     await loadAiSettingsForm();
+    // debug入口：2秒内快速点击5次唤醒调试面板，否则正常开弹窗
+    window._debugClickCount = (window._debugClickCount || 0) + 1;
+    window._debugClickTimer && clearTimeout(window._debugClickTimer);
+    if (window._debugClickCount >= 5) {
+      window._debugClickCount = 0;
+      showDebugPanel();
+      return;
+    }
+    window._debugClickTimer = setTimeout(() => {
+      window._debugClickCount = 0;
+    }, 2000);
     document.getElementById('modal-ai-settings').style.display = 'flex';
   });
 
