@@ -22,12 +22,16 @@ def get_occupation_from_memory() -> str:
     try:
         from app.services.repository import repo
         memories = repo.list_memories("default", limit=50)
-        occupation_keywords = ["职业","工作","职位","岗位","上班","警察","医生","教师",
-                               "程序员","设计师","律师","护士","记者","厨师","司机","老师"]
+        # 不限制职业类型，从所有记忆里提取身份相关线索
+        identity_keywords = ["职业","工作","身份","角色","是个","我是","他是","她是",
+                             "上班","职位","岗位","做的","干的","专业","出差","任务"]
         for m in memories:
             content = f"{m.get('title','')} {m.get('content','')}"
-            if any(k in content for k in occupation_keywords):
+            if any(k in content for k in identity_keywords):
                 hints.append(content[:60])
+            # 没有明确职业关键词也保留部分记忆，让AI自己推断
+            elif m.get("kind") == "core":
+                hints.append(content[:40])
     except Exception:
         pass
 
@@ -75,19 +79,17 @@ async def build_identity_context() -> str | None:
         time_str = f"{weekday} {now.hour:02d}:{now.minute:02d}"
         day_type = "周末" if is_weekend else "工作日"
 
-        prompt = f"""根据以下信息，用第一人称推演你此刻的工作/生活处境（50字以内，不要解释，直接描述处境，语气自然）：
+        prompt = f"""根据以下信息，用第一人称推演你此刻的处境（50字以内，直接描述，语气自然）：
 
-职业线索：{occupation_hints}
+身份线索：{occupation_hints}
 当前时间：{time_str}（{day_type}）
-能量状态：{energy:.2f}（0低1高）
-情绪：{mood_tag}
-压力：{stress:.2f}
-波动：{volatility:.2f}
+能量：{energy:.2f} 情绪：{mood_tag} 压力：{stress:.2f} 波动：{volatility:.2f}
 
 要求：
-- 体现真实的职业知识和工作细节，不要泛泛而谈
-- 处境要合理，不要每次都是最戏剧化的状态
-- 只输出处境描述，不加标签"""
+- 处境可以是任何合理的场景，不限于地球或现实
+- 有细节感，不要泛泛而谈
+- 不要每次都是最戏剧化的状态，平淡也是生活
+- 只输出处境描述，不加任何标签或说明"""
 
         result = llm_service.chat(
             messages=[{"role": "user", "content": prompt}],
