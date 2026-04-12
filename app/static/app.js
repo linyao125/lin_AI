@@ -650,6 +650,7 @@ function startInitiativeHeartbeat() {
     try {
       await api("/api/initiative/check");
       await api("/api/moments/check");
+      await api("/api/scene/update");
       await checkPendingPush();
     } catch (e) {
       console.error("initiative heartbeat failed:", e);

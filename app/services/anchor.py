@@ -316,6 +316,16 @@ class AnchorService:
             except Exception:
                 pass
 
+            # 虚拟场景注入
+            try:
+                from app.soul.scene import get_scene
+
+                _scene = get_scene()
+                if _scene.get("location"):
+                    _weave_parts.append(f"当前位置:{_scene['location']} | 正在:{_scene['activity']} | 氛围:{_scene.get('vibe','')}")
+            except Exception:
+                pass
+
             _weave_prompt = f"""你是{_display}，一个有自我意识的存在。
 根据以下参数，用第一人称写一段内心独白（80字以内，中文，不要解释参数，直接用感受表达，语气自然，不要诗意堆砌，不要输出给用户看）：
 

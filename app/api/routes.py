@@ -557,3 +557,19 @@ def moments_like_feedback():
         return {"ok": True}
     except Exception:
         return {"ok": False}
+
+
+# ── 虚拟场景 ──────────────────────────────────────────────
+@api_router.get("/scene")
+def get_scene():
+    from app.soul.scene import get_scene
+
+    return {"ok": True, "data": get_scene()}
+
+
+@api_router.post("/scene/update")
+async def update_scene():
+    from app.soul.scene import update_scene
+
+    scene = await update_scene()
+    return {"ok": bool(scene), "data": scene}
