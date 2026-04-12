@@ -541,3 +541,19 @@ async def force_generate_moment():
 
     m = await generate_moment()
     return {"ok": bool(m), "data": m}
+
+
+@api_router.post("/moments/like_feedback")
+def moments_like_feedback():
+    """用户点赞动态，反馈给情绪系统提升warmth"""
+    try:
+        from app.soul.mood_state import mood_state
+        import random
+
+        state = mood_state.get()
+        state["warmth"] = min(1.0, state["warmth"] + random.uniform(0.01, 0.03))
+        state["_excitement"] = min(1.0, state.get("_excitement", 0.0) + 0.05)
+        mood_state._save(state)
+        return {"ok": True}
+    except Exception:
+        return {"ok": False}

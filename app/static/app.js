@@ -649,6 +649,7 @@ function startInitiativeHeartbeat() {
   const heartbeat = async () => {
     try {
       await api("/api/initiative/check");
+      await api("/api/moments/check");
       await checkPendingPush();
     } catch (e) {
       console.error("initiative heartbeat failed:", e);
