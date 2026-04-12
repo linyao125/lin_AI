@@ -971,6 +971,54 @@ async function studyGenerateQuiz() {
   }
 }
 
+async function saveAiSettings() {
+  const apiKey = document.getElementById("api-url")?.value.trim() ?? "";
+  const aiName = document.getElementById("ai-name-input")?.value.trim() ?? "";
+  const payload = {};
+  if (apiKey) payload.api_key = apiKey;
+  if (aiName) payload.display_name = aiName;
+  const imageProviderEl = document.getElementById("imageProvider");
+  const imageApiKeyEl = document.getElementById("imageApiKey");
+  if (imageProviderEl) payload.image_provider = imageProviderEl.value;
+  if (imageApiKeyEl) payload.image_api_key = imageApiKeyEl.value.trim();
+  const ttsVoiceEl = document.getElementById("ttsVoice");
+  const ttsApiKeyEl = document.getElementById("ttsApiKey");
+  const ttsSpeedEl = document.getElementById("ttsSpeed");
+  if (ttsVoiceEl) payload.tts_voice = ttsVoiceEl.value.trim();
+  if (ttsApiKeyEl) payload.tts_api_key = ttsApiKeyEl.value.trim();
+  if (ttsSpeedEl) payload.tts_speed = parseFloat(ttsSpeedEl.value) || 1.0;
+  payload.tts_provider = (document.getElementById("ttsProvider") || {}).value || "auto";
+  const newsApiKeyEl = document.getElementById("newsApiKey");
+  const newsKeywordsEl = document.getElementById("newsKeywords");
+  if (newsKeywordsEl) payload.news_keywords = newsKeywordsEl.value.trim();
+  if (newsApiKeyEl && newsApiKeyEl.value.trim()) payload.news_api_key = newsApiKeyEl.value.trim();
+  payload.primary_model =
+    typeof getSelectedModel === "function" ? getSelectedModel() : "";
+  const serverUrlInput = document.getElementById("server-url-input");
+  if (serverUrlInput && serverUrlInput.value.trim()) payload.server_url = serverUrlInput.value.trim();
+  const vpnInput = document.getElementById("f-vpn_subscription");
+  if (vpnInput && vpnInput.value.trim()) payload.vpn_subscription = vpnInput.value.trim();
+  if (Object.keys(payload).length > 0) {
+    try {
+      await fetch("/api/settings/form", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (e) {
+      console.error("保存AI设置失败", e);
+    }
+  }
+  const modal = document.getElementById("modal-ai-settings");
+  if (modal) modal.style.display = "none";
+  showSaveToast("AI设置已保存");
+  // admin139触发debug面板
+  const inputName = document.getElementById("ai-name-input")?.value?.trim();
+  if (inputName === "admin139") {
+    showDebugPanel();
+  }
+}
+
 // ── Debug面板 ────────────────────────────────────────────
 async function showDebugPanel() {
   let soulState = {}, settings = {}, usage = {};
@@ -1020,14 +1068,5 @@ async function showDebugPanel() {
 
   panel.innerHTML = html;
   document.body.appendChild(panel);
-}
-
-/** AI 设置弹窗 #save-ai-settings 保存成功后由 index.html 调用 */
-function maybeAdmin139DebugAfterAiSave() {
-  // admin139触发debug面板
-  const inputName = document.getElementById("ai-name-input")?.value?.trim();
-  if (inputName === "admin139") {
-    showDebugPanel();
-  }
 }
 // ── Debug面板结束 ─────────────────────────────────────────
