@@ -1009,13 +1009,13 @@ async function saveAiSettings() {
       console.error("保存AI设置失败", e);
     }
   }
+  // admin139触发debug面板（在关弹窗之前读值）
+  const inputName = document.getElementById("ai-name-input")?.value?.trim();
   const modal = document.getElementById("modal-ai-settings");
   if (modal) modal.style.display = "none";
   showSaveToast("AI设置已保存");
-  // admin139触发debug面板
-  const inputName = document.getElementById("ai-name-input")?.value?.trim();
   if (inputName === "admin139") {
-    showDebugPanel();
+    setTimeout(() => showDebugPanel(), 300);
   }
 }
 
