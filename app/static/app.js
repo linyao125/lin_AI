@@ -1036,34 +1036,19 @@ async function showDebugPanel() {
 
   const panel = document.createElement("div");
   panel.id = "debug-panel";
-  panel.style.cssText = `
-    position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;
-    padding:24px;font-family:monospace;font-size:12px;color:#00ff88;
-    overflow:auto;display:flex;flex-direction:column;gap:16px;
-  `;
+  panel.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;padding:24px;font-family:monospace;font-size:12px;color:#00ff88;overflow:auto;display:flex;flex-direction:column;gap:16px;";
 
   const sections = [
     { title: "🧠 Soul State", data: soulState },
     { title: "⚙️ Settings", data: safeSettings },
     { title: "📊 Usage", data: usage },
-    { title: "🖥️ Frontend State", data: {
-      currentConversationId: state.currentConversationId,
-      messageCount: state.messages?.length || 0,
-      runtime: state.runtime,
-    }},
+    { title: "🖥️ Frontend State", data: { currentConversationId: state.currentConversationId, messageCount: state.messages?.length || 0, runtime: state.runtime }},
   ];
 
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;">
-    <span style="font-size:16px;font-weight:bold;">🔍 SoulEngine Debug Console</span>
-    <button onclick="document.getElementById('debug-panel').remove()"
-      style="background:#333;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;">关闭</button>
-  </div>`;
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:16px;font-weight:bold;">🔍 SoulEngine Debug Console</span><button onclick="document.getElementById('debug-panel').remove()" style="background:#333;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;">关闭</button></div>`;
 
   for (const s of sections) {
-    html += `<div>
-      <div style="color:#7c9cff;font-weight:bold;margin-bottom:6px;">${s.title}</div>
-      <pre style="background:#0d1320;padding:12px;border-radius:8px;overflow:auto;margin:0;color:#00ff88;border:1px solid #1a2a4a;">${JSON.stringify(s.data, null, 2)}</pre>
-    </div>`;
+    html += `<div><div style="color:#7c9cff;font-weight:bold;margin-bottom:6px;">${s.title}</div><pre style="background:#0d1320;padding:12px;border-radius:8px;overflow:auto;margin:0;color:#00ff88;border:1px solid #1a2a4a;">${JSON.stringify(s.data, null, 2)}</pre></div>`;
   }
 
   panel.innerHTML = html;
