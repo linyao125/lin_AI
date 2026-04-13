@@ -189,6 +189,21 @@ def create_conversation(payload: ChatCreatePayload):
     return repo.get_conversation(cid)
 
 
+@api_router.patch("/conversations/{conversation_id}")
+def rename_conversation(conversation_id: str, body: dict[str, Any] = Body(...)):
+    title = body.get("title", "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="title required")
+    repo.rename_conversation(conversation_id, title)
+    return {"ok": True}
+
+
+@api_router.delete("/conversations/{conversation_id}")
+def delete_conversation(conversation_id: str):
+    repo.delete_conversation(conversation_id)
+    return {"ok": True}
+
+
 @api_router.get("/conversations/{conversation_id}/messages", response_model=list[ChatMessageOut])
 def list_messages(conversation_id: str):
     return repo.list_messages(conversation_id)

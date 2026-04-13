@@ -65,28 +65,75 @@ function renderRuntime() {
 }
 
 function renderConversations() {
-  const listA = qs("conversation-list");
-  const listB = qs("conversation-list-expanded");
+  const el = qs("conversation-list");
+  if (!el) return;
+  el.innerHTML = "";
+  state.conversations.forEach((conv) => {
+    const item = document.createElement("div");
+    item.className = `conv-item${conv.id === state.currentConversationId ? " active" : ""}`;
+    item.style.position = "relative";
 
-  [listA, listB].forEach((el) => {
-    if (!el) return;
-    el.innerHTML = "";
+    const titleEl = document.createElement("div");
+    titleEl.className = "conv-title";
+    titleEl.textContent = conv.title || "新对话";
+    titleEl.style.cursor = "pointer";
+    titleEl.onclick = async () => {
+      state.currentConversationId = conv.id;
+      localStorage.setItem("last_conversation_id", conv.id);
+      await loadMessages(conv.id);
+      renderConversations();
+    };
 
-    state.conversations.forEach((conv) => {
-      const div = document.createElement("div");
-      div.className =
-        "conv-item" + (conv.id === state.currentConversationId ? " active" : "");
-      div.innerHTML = `
-        <div class="conv-title">${escapeHtml(conv.title)}</div>
-        <div class="conv-time">${formatTime(conv.updated_at)}</div>
-      `;
-      div.onclick = async () => {
-        state.currentConversationId = conv.id;
-        await loadMessages(conv.id);
-        renderConversations();
-      };
-      el.appendChild(div);
-    });
+    const timeEl = document.createElement("div");
+    timeEl.className = "conv-time";
+    timeEl.textContent = formatTime(conv.created_at);
+
+    // 操作按钮（悬停显示）
+    const actions = document.createElement("div");
+    actions.style.cssText = "position:absolute;top:8px;right:8px;display:none;gap:4px;";
+
+    const renameBtn = document.createElement("button");
+    renameBtn.textContent = "✏️";
+    renameBtn.title = "重命名";
+    renameBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:13px;padding:2px;";
+    renameBtn.onclick = async (e) => {
+      e.stopPropagation();
+      const newTitle = prompt("重命名对话：", conv.title || "新对话");
+      if (!newTitle || !newTitle.trim()) return;
+      await api(`/api/conversations/${conv.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title: newTitle.trim() }),
+      });
+      await loadConversations();
+    };
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "🗑️";
+    deleteBtn.title = "删除";
+    deleteBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:13px;padding:2px;";
+    deleteBtn.onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm("删除这条对话？")) return;
+      await api(`/api/conversations/${conv.id}`, { method: "DELETE" });
+      if (state.currentConversationId === conv.id) {
+        state.currentConversationId = null;
+        localStorage.removeItem("last_conversation_id");
+        state.messages = [];
+        renderMessages();
+      }
+      await loadConversations();
+    };
+
+    actions.appendChild(renameBtn);
+    actions.appendChild(deleteBtn);
+
+    item.onmouseenter = () => (actions.style.display = "flex");
+    item.onmouseleave = () => (actions.style.display = "none");
+
+    item.appendChild(titleEl);
+    item.appendChild(timeEl);
+    item.appendChild(actions);
+    el.appendChild(item);
   });
 }
 
@@ -157,7 +204,9 @@ function renderMessages() {
 
       // 操作按钮组
       const actionsDiv = document.createElement("div");
-      actionsDiv.style.cssText = "display:flex;gap:4px;margin-top:6px;";
+      actionsDiv.style.cssText = "display:none;gap:4px;margin-top:6px;";
+      div.onmouseenter = () => (actionsDiv.style.display = "flex");
+      div.onmouseleave = () => (actionsDiv.style.display = "none");
 
       // 复制按钮
       const copyBtn = document.createElement("button");
@@ -202,7 +251,9 @@ function renderMessages() {
 
       // 用户消息操作按钮
       const userActionsDiv = document.createElement("div");
-      userActionsDiv.style.cssText = "display:flex;gap:4px;margin-top:6px;";
+      userActionsDiv.style.cssText = "display:none;gap:4px;margin-top:6px;";
+      div.onmouseenter = () => (userActionsDiv.style.display = "flex");
+      div.onmouseleave = () => (userActionsDiv.style.display = "none");
 
       // 复制按钮
       const userCopyBtn = document.createElement("button");
@@ -446,7 +497,14 @@ async function loadConversations() {
   state.conversations = await api("/api/conversations");
   renderConversations();
 
-  if (!state.currentConversationId && state.conversations.length) {
+  // 恢复上次对话
+  const savedId = localStorage.getItem("last_conversation_id");
+  const exists = savedId && state.conversations.find((c) => c.id === savedId);
+
+  if (exists) {
+    state.currentConversationId = savedId;
+    await loadMessages(savedId);
+  } else if (!state.currentConversationId && state.conversations.length) {
     state.currentConversationId = state.conversations[0].id;
     await loadMessages(state.currentConversationId);
   } else if (!state.currentConversationId) {
@@ -542,6 +600,7 @@ async function sendMessage() {
       });
     }
     state.currentConversationId = res.conversation_id;
+    localStorage.setItem("last_conversation_id", res.conversation_id);
     await loadConversations();
     await loadMessages(state.currentConversationId);
     await loadMemories();
