@@ -154,11 +154,84 @@ function renderMessages() {
       };
       row.appendChild(speakBtn);
       div.appendChild(row);
+
+      // 操作按钮组
+      const actionsDiv = document.createElement("div");
+      actionsDiv.style.cssText = "display:flex;gap:4px;margin-top:6px;";
+
+      // 复制按钮
+      const copyBtn = document.createElement("button");
+      copyBtn.style.cssText =
+        "background:transparent;border:none;cursor:pointer;font-size:12px;color:#9aa4b2;padding:2px 6px;border-radius:4px;";
+      copyBtn.textContent = "复制";
+      copyBtn.onclick = () => {
+        navigator.clipboard.writeText(msg.content).then(() => {
+          copyBtn.textContent = "已复制";
+          setTimeout(() => (copyBtn.textContent = "复制"), 1500);
+        });
+      };
+
+      // 重试按钮（仅AI消息）
+      const retryBtn = document.createElement("button");
+      retryBtn.style.cssText =
+        "background:transparent;border:none;cursor:pointer;font-size:12px;color:#9aa4b2;padding:2px 6px;border-radius:4px;";
+      retryBtn.textContent = "重试";
+      retryBtn.onclick = async () => {
+        // 找到这条AI消息前面的用户消息
+        const idx = state.messages.indexOf(msg);
+        const prevUser = state.messages
+          .slice(0, idx)
+          .reverse()
+          .find((m) => m.role === "user");
+        if (!prevUser) return;
+        const input = qs("composer-input");
+        if (input) {
+          input.value = prevUser.content;
+          sendMessage();
+        }
+      };
+
+      actionsDiv.appendChild(copyBtn);
+      actionsDiv.appendChild(retryBtn);
+      div.appendChild(actionsDiv);
     } else {
       const contentEl = document.createElement("div");
       contentEl.className = "msg-content";
       contentEl.innerHTML = escapeHtml(msg.content).replaceAll("\n", "<br>");
       div.appendChild(contentEl);
+
+      // 用户消息操作按钮
+      const userActionsDiv = document.createElement("div");
+      userActionsDiv.style.cssText = "display:flex;gap:4px;margin-top:6px;";
+
+      // 复制按钮
+      const userCopyBtn = document.createElement("button");
+      userCopyBtn.style.cssText =
+        "background:transparent;border:none;cursor:pointer;font-size:12px;color:#9aa4b2;padding:2px 6px;border-radius:4px;";
+      userCopyBtn.textContent = "复制";
+      userCopyBtn.onclick = () => {
+        navigator.clipboard.writeText(msg.content).then(() => {
+          userCopyBtn.textContent = "已复制";
+          setTimeout(() => (userCopyBtn.textContent = "复制"), 1500);
+        });
+      };
+
+      // 修改按钮（把内容填回输入框）
+      const editBtn = document.createElement("button");
+      editBtn.style.cssText =
+        "background:transparent;border:none;cursor:pointer;font-size:12px;color:#9aa4b2;padding:2px 6px;border-radius:4px;";
+      editBtn.textContent = "修改";
+      editBtn.onclick = () => {
+        const input = qs("composer-input");
+        if (input) {
+          input.value = msg.content;
+          input.focus();
+        }
+      };
+
+      userActionsDiv.appendChild(userCopyBtn);
+      userActionsDiv.appendChild(editBtn);
+      div.appendChild(userActionsDiv);
     }
 
     const metaEl = document.createElement("div");
