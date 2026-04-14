@@ -105,6 +105,7 @@ function renderConversations() {
         body: JSON.stringify({ title: newTitle.trim() }),
       });
       await loadConversations();
+      bcNotify("conv_changed");
     };
 
     const deleteBtn = document.createElement("button");
@@ -122,6 +123,7 @@ function renderConversations() {
         renderMessages();
       }
       await loadConversations();
+      bcNotify("conv_changed");
     };
 
     actions.appendChild(renameBtn);
@@ -618,6 +620,8 @@ async function sendMessage() {
     await loadMessages(state.currentConversationId);
     await loadMemories();
     bcNotify("memory_changed");
+    bcNotify("conv_changed");
+    bcNotify("message_received", { conversation_id: state.currentConversationId });
     // 上下文余量提示
     const meta = res.context_meta || {};
     if (meta.token_pct >= 90) {
@@ -729,55 +733,50 @@ function hideContextWarning() {
 // 跨窗口同步
 const _bc = new BroadcastChannel("linai_sync");
 _bc.onmessage = async (e) => {
-  if (e.data === "settings_changed") {
+  const type = e.data?.type ?? e.data;
+  if (type === "settings_changed") {
     await loadSettingsForm();
   }
-  if (e.data === "memory_changed") {
+  if (type === "memory_changed") {
     await loadMemories();
   }
 };
-function bcNotify(type) {
+function bcNotify(type, payload = null) {
   try {
-    _bc.postMessage(type);
+    _bc.postMessage({ type, payload });
   } catch (e) {}
 }
 
 // 情绪状态同步到CSS变量
+function _applySoulState(s) {
+  const energy = s.energy ?? 0.8;
+  const warmth = s.warmth ?? 0.5;
+  const loneliness = s.loneliness ?? 0.0;
+  const volatility = s._volatility ?? 0.0;
+  const stress = s._stress ?? 0.0;
+  const moodTag = s.mood_tag || "calm";
+  const root = document.documentElement;
+  const hue = Math.round(200 - warmth * 40);
+  root.style.setProperty("--mood-hue", hue);
+  root.style.setProperty("--mood-energy", energy.toFixed(2));
+  root.style.setProperty("--mood-warmth", warmth.toFixed(2));
+  const glowIntensity = Math.round(volatility * 12);
+  root.style.setProperty("--mood-glow", `${glowIntensity}px`);
+  const bgL = Math.round(97 - loneliness * 8);
+  root.style.setProperty("--mood-bg-l", `${bgL}%`);
+  const prevTag = window._lastMoodTag || "calm";
+  if (prevTag !== moodTag && (volatility > 0.5 || stress > 0.6)) {
+    triggerGlitch();
+  }
+  window._lastMoodTag = moodTag;
+}
+
 async function syncSoulState() {
   try {
     const res = await api("/api/soul/state");
     const s = res.state || {};
-
-    const energy = s.energy ?? 0.8;
-    const warmth = s.warmth ?? 0.5;
-    const loneliness = s.loneliness ?? 0.0;
-    const volatility = s._volatility ?? 0.0;
-    const stress = s._stress ?? 0.0;
-    const excitement = s._excitement ?? 0.0;
-    const moodTag = s.mood_tag || "calm";
-
-    const root = document.documentElement;
-
-    // 亲密度影响主色调温度
-    const hue = Math.round(200 - warmth * 40); // 冷蓝→暖橙
-    root.style.setProperty("--mood-hue", hue);
-    root.style.setProperty("--mood-energy", energy.toFixed(2));
-    root.style.setProperty("--mood-warmth", warmth.toFixed(2));
-
-    // 波动性影响边框/阴影强度
-    const glowIntensity = Math.round(volatility * 12);
-    root.style.setProperty("--mood-glow", `${glowIntensity}px`);
-
-    // 寂寞值影响背景亮度（越寂寞越暗）
-    const bgL = Math.round(97 - loneliness * 8);
-    root.style.setProperty("--mood-bg-l", `${bgL}%`);
-
-    // 情绪突变触发glitch
-    const prevTag = window._lastMoodTag || "calm";
-    if (prevTag !== moodTag && (volatility > 0.5 || stress > 0.6)) {
-      triggerGlitch();
-    }
-    window._lastMoodTag = moodTag;
+    _applySoulState(s);
+    bcNotify("soul_changed", s);
   } catch (e) {
     console.error("syncSoulState failed:", e);
   }
