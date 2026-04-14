@@ -224,8 +224,9 @@ class ChatService:
         except Exception:
             pass
 
-        if runtime.yaml.context.attach_cost_hint:
-            assistant_text = assistant_text.rstrip() + f"\n\n[estimated_cost=${result['estimated_cost']:.6f}]"
+        # 费用提示已关闭，不在回复里显示
+        # if runtime.yaml.context.attach_cost_hint:
+        #     assistant_text = assistant_text.rstrip() + f"\n\n[estimated_cost=${result['estimated_cost']:.6f}]"
 
         assistant_msg = repo.insert_message(
             cid,
