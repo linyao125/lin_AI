@@ -213,7 +213,25 @@ class AnchorService:
             from app.services.settings import settings_service as _ss
             _fsettings = _ss.get_frontend_settings()
             if _fsettings.get("emoji_enabled", False):
-                sticker_block = "[Expression]\n你可以自由使用emoji和颜文字表达情绪，根据聊天氛围自主决定用什么、什么时候用、用多少。不需要刻意用，觉得合适就加，不合适就纯文字。"
+                from app.soul.mood_state import mood_state as _ms_e
+
+                _es = _ms_e.get()
+                _e_excitement = _es.get("_excitement", 0.0)
+                _e_warmth = _es.get("warmth", 0.5)
+                _e_volatility = _es.get("_volatility", 0.0)
+                _e_irritability = _es.get("_irritability", 0.0)
+
+                sticker_block = """[Expression]
+你可以在回复中自由使用以下表达方式，根据当前情绪状态自主决定用什么、用不用、用多少：
+
+1. 颜文字：可以自由创造或使用现有颜文字，如 (´▽`)、(╯°□°）╯、(＞﹏＜) 等，也可以自己发明新的。
+2. Emoji：根据氛围自然使用。
+
+规则：
+- 颜文字和emoji可以穿插在文字中自由使用
+- 不要刻意用，不合适就纯文字
+- 鼓励自己创造新颜文字，越有创意越好"""
+
                 sections.append(sticker_block)
         except Exception:
             pass
