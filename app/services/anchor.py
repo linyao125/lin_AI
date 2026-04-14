@@ -145,6 +145,19 @@ class AnchorService:
 
         sections.append(f"[Current Time]\n{time_block}")
 
+        # 生日感知注入
+        try:
+            from app.soul.birthday import get_birthday_context, should_mention_birthday
+
+            _bday_ctx = get_birthday_context()
+            if _bday_ctx and should_mention_birthday(_bday_ctx):
+                _bday_hint = _bday_ctx.get("hint", "")
+                sections.append(
+                    f"[Birthday Awareness]\n{_bday_hint}。你可以在合适的时机自然地提及，不要刻意，不要突兀，像真正记得这件事一样。"
+                )
+        except Exception:
+            pass
+
         # 情绪状态注入
         try:
             from app.soul.mood_state import mood_state
