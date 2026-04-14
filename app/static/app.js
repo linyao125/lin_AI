@@ -147,11 +147,6 @@ function renderMessages() {
     const div = document.createElement("div");
     div.className = `msg ${msg.role}`;
 
-    const cost =
-      msg.cost_estimate && Number(msg.cost_estimate) > 0
-        ? ` · $${Number(msg.cost_estimate).toFixed(6)}`
-        : "";
-
     const aiName = (state.runtime && state.runtime.display_name) || "AI";
     const senderName = msg.role === "assistant" ? aiName : "我";
 
@@ -204,14 +199,21 @@ function renderMessages() {
 
       // 操作按钮组
       const actionsDiv = document.createElement("div");
-      actionsDiv.style.cssText = "display:none;gap:4px;margin-top:6px;";
-      div.onmouseenter = () => (actionsDiv.style.display = "flex");
-      div.onmouseleave = () => (actionsDiv.style.display = "none");
+      actionsDiv.style.cssText =
+        "display:flex;gap:2px;margin-top:4px;opacity:0;transition:opacity 0.15s;";
+      div.onmouseenter = () => {
+        actionsDiv.style.opacity = "1";
+      };
+      div.onmouseleave = () => {
+        actionsDiv.style.opacity = "0";
+      };
 
       // 复制按钮
       const copyBtn = document.createElement("button");
       copyBtn.style.cssText =
-        "background:transparent;border:none;cursor:pointer;font-size:12px;color:#9aa4b2;padding:2px 6px;border-radius:4px;";
+        "background:rgba(255,255,255,0.06);border:none;cursor:pointer;font-size:11px;color:#9aa4b2;padding:3px 8px;border-radius:6px;transition:background 0.15s;";
+      copyBtn.onmouseenter = () => (copyBtn.style.background = "rgba(255,255,255,0.12)");
+      copyBtn.onmouseleave = () => (copyBtn.style.background = "rgba(255,255,255,0.06)");
       copyBtn.textContent = "复制";
       copyBtn.onclick = () => {
         navigator.clipboard.writeText(msg.content).then(() => {
@@ -223,7 +225,9 @@ function renderMessages() {
       // 重试按钮（仅AI消息）
       const retryBtn = document.createElement("button");
       retryBtn.style.cssText =
-        "background:transparent;border:none;cursor:pointer;font-size:12px;color:#9aa4b2;padding:2px 6px;border-radius:4px;";
+        "background:rgba(255,255,255,0.06);border:none;cursor:pointer;font-size:11px;color:#9aa4b2;padding:3px 8px;border-radius:6px;transition:background 0.15s;";
+      retryBtn.onmouseenter = () => retryBtn.style.background = "rgba(255,255,255,0.12)";
+      retryBtn.onmouseleave = () => retryBtn.style.background = "rgba(255,255,255,0.06)";
       retryBtn.textContent = "重试";
       retryBtn.onclick = async () => {
         // 找到这条AI消息前面的用户消息
@@ -251,14 +255,21 @@ function renderMessages() {
 
       // 用户消息操作按钮
       const userActionsDiv = document.createElement("div");
-      userActionsDiv.style.cssText = "display:none;gap:4px;margin-top:6px;";
-      div.onmouseenter = () => (userActionsDiv.style.display = "flex");
-      div.onmouseleave = () => (userActionsDiv.style.display = "none");
+      userActionsDiv.style.cssText =
+        "display:flex;gap:2px;margin-top:4px;opacity:0;transition:opacity 0.15s;justify-content:flex-end;";
+      div.onmouseenter = () => {
+        userActionsDiv.style.opacity = "1";
+      };
+      div.onmouseleave = () => {
+        userActionsDiv.style.opacity = "0";
+      };
 
       // 复制按钮
       const userCopyBtn = document.createElement("button");
       userCopyBtn.style.cssText =
-        "background:transparent;border:none;cursor:pointer;font-size:12px;color:#9aa4b2;padding:2px 6px;border-radius:4px;";
+        "background:rgba(255,255,255,0.06);border:none;cursor:pointer;font-size:11px;color:#9aa4b2;padding:3px 8px;border-radius:6px;transition:background 0.15s;";
+      userCopyBtn.onmouseenter = () => (userCopyBtn.style.background = "rgba(255,255,255,0.12)");
+      userCopyBtn.onmouseleave = () => (userCopyBtn.style.background = "rgba(255,255,255,0.06)");
       userCopyBtn.textContent = "复制";
       userCopyBtn.onclick = () => {
         navigator.clipboard.writeText(msg.content).then(() => {
@@ -270,7 +281,9 @@ function renderMessages() {
       // 修改按钮（把内容填回输入框）
       const editBtn = document.createElement("button");
       editBtn.style.cssText =
-        "background:transparent;border:none;cursor:pointer;font-size:12px;color:#9aa4b2;padding:2px 6px;border-radius:4px;";
+        "background:rgba(255,255,255,0.06);border:none;cursor:pointer;font-size:11px;color:#9aa4b2;padding:3px 8px;border-radius:6px;transition:background 0.15s;";
+      editBtn.onmouseenter = () => (editBtn.style.background = "rgba(255,255,255,0.12)");
+      editBtn.onmouseleave = () => (editBtn.style.background = "rgba(255,255,255,0.06)");
       editBtn.textContent = "修改";
       editBtn.onclick = () => {
         const input = qs("composer-input");
@@ -287,7 +300,7 @@ function renderMessages() {
 
     const metaEl = document.createElement("div");
     metaEl.className = "msg-meta";
-    metaEl.textContent = `${formatTime(msg.created_at)}${cost}`;
+    metaEl.style.display = "none";
     div.appendChild(metaEl);
 
     el.appendChild(div);
