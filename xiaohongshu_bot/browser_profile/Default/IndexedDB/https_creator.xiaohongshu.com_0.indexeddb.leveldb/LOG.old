@@ -1,0 +1,25 @@
+2026/04/15-12:48:31.769 55dc Reusing MANIFEST D:\lin_AI\xiaohongshu_bot\browser_profile\Default\IndexedDB\https_creator.xiaohongshu.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/04/15-12:48:31.770 55dc Recovering log #110
+2026/04/15-12:48:31.770 55dc Reusing old log D:\lin_AI\xiaohongshu_bot\browser_profile\Default\IndexedDB\https_creator.xiaohongshu.com_0.indexeddb.leveldb/000110.log 
+2026/04/15-12:48:31.771 55dc Delete type=2 #109
+2026/04/15-12:48:31.879 55dc Level-0 table #115: started
+2026/04/15-12:48:31.882 55dc Level-0 table #115: 2881 bytes OK
+2026/04/15-12:48:31.888 55dc Delete type=0 #110
+2026/04/15-12:48:31.889 55dc Manual compaction at level-0 from '\x00(\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00)\x00\x00\x00' @ 0 : 0; will stop at '\x00(\x00\x00\x05' @ 1001 : 1
+2026/04/15-12:48:31.892 55dc Compacting 1@0 + 1@1 files
+2026/04/15-12:48:31.895 55dc Generated table #116@0: 55 keys, 10825 bytes
+2026/04/15-12:48:31.896 55dc Compacted 1@0 + 1@1 files => 10825 bytes
+2026/04/15-12:48:31.897 55dc compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/04/15-12:48:31.897 55dc Delete type=2 #115
+2026/04/15-12:48:31.898 55dc Manual compaction at level-0 from '\x00(\x00\x00\x05' @ 1001 : 1 .. '\x00)\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/04/15-12:48:31.900 d14 Level-0 table #118: started
+2026/04/15-12:48:31.904 d14 Level-0 table #118: 527 bytes OK
+2026/04/15-12:48:31.906 d14 Delete type=2 #112
+2026/04/15-12:48:31.906 d14 Delete type=0 #114
+2026/04/15-12:48:31.907 55dc Manual compaction at level-0 from '\x00)\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00*\x00\x00\x00' @ 0 : 0; will stop at '\x00)\x00\x00\x05' @ 1017 : 1
+2026/04/15-12:48:31.907 55dc Compacting 1@0 + 1@1 files
+2026/04/15-12:48:31.910 55dc Generated table #119@0: 55 keys, 10830 bytes
+2026/04/15-12:48:31.910 55dc Compacted 1@0 + 1@1 files => 10830 bytes
+2026/04/15-12:48:31.912 55dc compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/04/15-12:48:31.913 55dc Delete type=2 #118
+2026/04/15-12:48:31.913 55dc Manual compaction at level-0 from '\x00)\x00\x00\x05' @ 1017 : 1 .. '\x00*\x00\x00\x00' @ 0 : 0; will stop at (end)

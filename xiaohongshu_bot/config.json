@@ -1,0 +1,8 @@
+{
+  "linai_api_base": "http://101.43.56.65:8000",
+  "linai_api_key": "",
+  "image_api_base": "https://api.openai.com",
+  "image_api_key": "",
+  "image_provider": "dalle",
+  "post_interval_hours": 8
+}
