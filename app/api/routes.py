@@ -522,7 +522,8 @@ async def email_export(fmt: str = "json"):
         from app.soul.mcp_tools import _send_email
 
         filename, content = export_data(fmt)
-        body = f"你的叮咚数据导出文件：{filename}\n\n{content[:3000]}\n\n（如数据较多仅展示前3000字符）"
+        snippet = content[:3000].decode("utf-8", errors="replace")
+        body = f"你的叮咚数据导出文件：{filename}\n\n{snippet}\n\n（如数据较多仅展示前3000字符）"
         result = await _send_email(f"叮咚数据导出 · {filename}", body)
         if "已发送" in result:
             return {"ok": True}
@@ -532,15 +533,20 @@ async def email_export(fmt: str = "json"):
 
 
 @api_router.get("/data/export")
-async def data_export(fmt: str = "json"):
+async def data_export(fmt: str = "zip"):
     from app.soul.data_transfer import export_data
 
     filename, content = export_data(fmt)
-    media_type = "application/json" if fmt == "json" else "text/plain"
+    if fmt == "zip":
+        media_type = "application/zip"
+    elif fmt == "txt":
+        media_type = "text/plain"
+    else:
+        media_type = "application/json"
     return Response(
-        content=content.encode("utf-8"),
+        content=content,
         media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 

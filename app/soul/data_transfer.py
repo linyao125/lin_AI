@@ -1,6 +1,6 @@
 """
 Soul Layer: Data Transfer
-数据导出与导入。支持对话记录、记忆、设置的JSON/txt格式迁移。
+数据导出与导入。支持 zip（GPT 标准）/ JSON / txt 格式迁移。
 """
 from __future__ import annotations
 import json
@@ -10,63 +10,125 @@ from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 
-def export_data(fmt: str = "json") -> tuple[str, str]:
+def export_data(fmt: str = "json") -> tuple[str, bytes]:
     """
-    导出全部数据，返回(文件名, 内容字符串)
-    fmt: 'json' 或 'txt'
+    导出全部数据，返回(文件名, bytes内容)
+    fmt: 'zip'（GPT标准）或 'json' 或 'txt'
     """
+    import io
+    import zipfile
+
     from app.services.repository import repo
     from app.services.settings import settings_service
 
     now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    now_iso = datetime.now(timezone.utc).isoformat()
 
-    # 收集数据
     conversations = repo.list_conversations()
     all_messages = {}
     for conv in conversations:
         msgs = repo.list_messages(conv["id"])
-        all_messages[conv["id"]] = msgs
+        if msgs:
+            all_messages[conv["id"]] = msgs
 
     memories = repo.list_memories("default", limit=500)
     settings = settings_service.get_frontend_settings()
 
-    # 敏感字段脱敏
     sensitive = ["api_key", "tts_api_key", "image_api_key", "smtp_pass",
                  "newsapi_key", "vpn_subscription"]
     safe_settings = {k: ("***" if k in sensitive and v else v)
                      for k, v in settings.items()}
 
-    payload = {
-        "export_time": datetime.now(timezone.utc).isoformat(),
-        "version": "1.0",
-        "conversations": conversations,
-        "messages": all_messages,
-        "memories": memories,
-        "settings": safe_settings,
-    }
+    if fmt == "zip":
+        # GPT标准格式
+        manifest = {
+            "version": "1.0",
+            "export_time": now_iso,
+            "files": ["conversations.json", "user.json", "memories.json"]
+        }
 
-    if fmt == "txt":
+        # conversations.json - GPT格式
+        convs_out = []
+        for conv in conversations:
+            msgs = all_messages.get(conv["id"], [])
+            if not msgs:
+                continue
+            convs_out.append({
+                "id": conv["id"],
+                "title": conv.get("title", ""),
+                "create_time": conv.get("created_at", ""),
+                "update_time": conv.get("updated_at", conv.get("created_at", "")),
+                "messages": [
+                    {
+                        "id": msg.get("id", ""),
+                        "author": {"role": msg["role"]},
+                        "create_time": msg.get("created_at", ""),
+                        "content": {"content_type": "text", "parts": [msg["content"]]},
+                        "model": msg.get("meta", {}).get("model", "") if isinstance(msg.get("meta"), dict) else "",
+                    }
+                    for msg in msgs
+                ]
+            })
+
+        user_info = {
+            "display_name": safe_settings.get("user_display_name", ""),
+            "birthday": safe_settings.get("user_birthday", ""),
+            "export_time": now_iso,
+        }
+
+        memories_out = [
+            {
+                "kind": m.get("kind", ""),
+                "title": m.get("title", ""),
+                "content": m.get("content", ""),
+                "weight": m.get("weight", 0),
+                "pinned": m.get("pinned", False),
+                "tags": m.get("tags", []),
+            }
+            for m in memories
+        ]
+
+        # 打包ZIP
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("export_manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+            zf.writestr("conversations.json", json.dumps(convs_out, ensure_ascii=False, indent=2))
+            zf.writestr("user.json", json.dumps(user_info, ensure_ascii=False, indent=2))
+            zf.writestr("memories.json", json.dumps(memories_out, ensure_ascii=False, indent=2))
+        buf.seek(0)
+        return f"lin_ai_export_{now_str}.zip", buf.read()
+
+    elif fmt == "txt":
         lines = [f"LIN_AI 数据导出 · {now_str}", "=" * 40, ""]
         lines.append(f"对话数：{len(conversations)}  记忆数：{len(memories)}")
         lines.append("")
-
         for conv in conversations:
+            msgs = all_messages.get(conv["id"], [])
+            if not msgs:
+                continue
             lines.append(f"【对话】{conv.get('title','')}  ({conv['id']})")
-            for msg in all_messages.get(conv["id"], []):
+            for msg in msgs:
                 role = "我" if msg["role"] == "user" else "AI"
                 lines.append(f"  {role}: {msg['content'][:200]}")
             lines.append("")
-
         lines.append("=" * 40)
         lines.append("【记忆】")
         for m in memories:
             lines.append(f"  [{m.get('kind','')}] {m.get('title','')}: {m.get('content','')[:100]}")
-
         content = "\n".join(lines)
-        return f"lin_ai_export_{now_str}.txt", content
+        return f"lin_ai_export_{now_str}.txt", content.encode("utf-8")
+
     else:
+        payload = {
+            "export_time": now_iso,
+            "version": "1.0",
+            "conversations": [c for c in conversations if c["id"] in all_messages],
+            "messages": all_messages,
+            "memories": memories,
+            "settings": safe_settings,
+        }
         content = json.dumps(payload, ensure_ascii=False, indent=2)
-        return f"lin_ai_export_{now_str}.json", content
+        return f"lin_ai_export_{now_str}.json", content.encode("utf-8")
 
 
 def import_data(raw: str) -> tuple[bool, str]:
