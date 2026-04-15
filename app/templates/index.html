@@ -706,8 +706,8 @@
     <div style="margin-top:16px;margin-bottom:24px;">
       <div style="font-size:13px;font-weight:500;color:#333;margin-bottom:10px;">数据迁移</div>
       <div style="display:flex;gap:8px;margin-bottom:8px;">
-        <button onclick="exportData('json')" style="flex:1;padding:9px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;">⬇ 导出 JSON</button>
-        <button onclick="exportData('txt')" style="flex:1;padding:9px;background:#f9f9f9;border:1px solid #e5e5e5;border-radius:8px;font-size:13px;cursor:pointer;">⬇ 导出 TXT</button>
+        <button onclick="window.location.href='/api/data/export?fmt=json'" style="flex:1;padding:9px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;">⬇ 导出 JSON</button>
+        <button onclick="window.location.href='/api/data/export?fmt=txt'" style="flex:1;padding:9px;background:#f9f9f9;border:1px solid #e5e5e5;border-radius:8px;font-size:13px;cursor:pointer;">⬇ 导出 TXT</button>
       </div>
       <label style="display:block;width:100%;padding:10px;border:1px dashed #ccc;border-radius:8px;text-align:center;font-size:13px;color:#999;cursor:pointer;box-sizing:border-box;">
         ⬆ 点击导入数据（JSON）
