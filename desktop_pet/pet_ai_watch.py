@@ -116,7 +116,7 @@ def ai_watch_tick(pet: Any) -> None:
     if not getattr(pet, "ai_watch_enabled", False) or getattr(pet, "_ai_watch_busy", False):
         return
     try:
-        if pet._chat_console and getattr(pet._chat_console, "_sending", False):
+        if getattr(pet, "_chat_window", None) and getattr(pet._chat_window, "_sending", False):
             return
     except Exception:
         pass

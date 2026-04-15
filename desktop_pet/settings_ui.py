@@ -1350,7 +1350,7 @@ class SettingsDialog(QDialog):
             if hasattr(self, "pet"):
                 if hasattr(self.pet, "set_activity_bubbles_enabled"):
                     self.pet.set_activity_bubbles_enabled(enabled)
-                console = getattr(self.pet, "_chat_console", None)
+                console = getattr(self.pet, "_chat_console", None) or getattr(self.pet, "_chat_window", None)
                 if console and hasattr(console, "cb_app_bubbles"):
                     console.cb_app_bubbles.blockSignals(True)
                     console.cb_app_bubbles.setChecked(enabled)
@@ -1368,7 +1368,7 @@ class SettingsDialog(QDialog):
                 self.pet.quiet_mode = quiet
                 if hasattr(self.pet, "act_quiet"):
                     self.pet.act_quiet.setChecked(quiet)
-                console = getattr(self.pet, "_chat_console", None)
+                console = getattr(self.pet, "_chat_console", None) or getattr(self.pet, "_chat_window", None)
                 if console and hasattr(console, "cb_quiet"):
                     console.cb_quiet.blockSignals(True)
                     console.cb_quiet.setChecked(quiet)
@@ -2527,7 +2527,7 @@ class SettingsDialog(QDialog):
         self._dirty = False
         # 保存后同步控制台的勾选状态
         try:
-            console = getattr(self.pet, "_chat_console", None)
+            console = getattr(self.pet, "_chat_console", None) or getattr(self.pet, "_chat_window", None)
             if console is not None:
                 # 同步自动巡视
                 if hasattr(console, "_sync_auto_watch_from_pet"):
@@ -4121,7 +4121,7 @@ class SettingsDialog(QDialog):
                 self.pet.set_ai_watch_enabled(bool(enabled))
                 if hasattr(self.pet, "_refresh_ai_watch_timer"):
                     self.pet._refresh_ai_watch_timer()
-            console = getattr(self.pet, "_chat_console", None)
+            console = getattr(self.pet, "_chat_console", None) or getattr(self.pet, "_chat_window", None)
             if console and hasattr(console, "_sync_auto_watch_from_pet"):
                 console._sync_auto_watch_from_pet()
         except Exception:

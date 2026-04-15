@@ -681,29 +681,12 @@ class DesktopPet(QMainWindow, PetActivityBubblesMixin):
         self._settings_dialog.activateWindow()
 
     def open_chat_console(self):
-        """打开桌宠控制台（聊天窗）"""
-        try:
-            from chat_console import ChatConsole
-        except Exception as e:
-            try:
-                logger.exception("控制台导入失败")
-            except Exception:
-                pass
-            self._request_notice(f"控制台加载失败: {e}")
-            return
-        if getattr(self, "_chat_console", None) is None:
-            try:
-                self._chat_console = ChatConsole(self)
-            except Exception as e:
-                try:
-                    logger.exception("控制台创建失败")
-                except Exception:
-                    pass
-                self._request_notice(f"控制台创建失败: {e}")
-                return
-        self._chat_console.show()
-        self._chat_console.raise_()
-        self._chat_console.activateWindow()
+        from chat_window import ChatWindow
+        if getattr(self, "_chat_window", None) is None:
+            self._chat_window = ChatWindow()
+        self._chat_window.show()
+        self._chat_window.raise_()
+        self._chat_window.activateWindow()
     
     def export_log(self):
         """导出日志文件到桌面，方便用户发送给开发者"""

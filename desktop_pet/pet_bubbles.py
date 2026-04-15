@@ -109,8 +109,9 @@ class PetActivityBubblesMixin:
                 pass
         # sync chat console checkbox
         try:
-            if self._chat_console and hasattr(self._chat_console, "cb_app_bubbles"):
-                self._chat_console.cb_app_bubbles.setChecked(self.activity_bubbles_enabled)
+            cw = getattr(self, "_chat_window", None) or getattr(self, "_chat_console", None)
+            if cw and hasattr(cw, "cb_app_bubbles"):
+                cw.cb_app_bubbles.setChecked(self.activity_bubbles_enabled)
         except Exception:
             pass
         # sync settings dialog checkboxes (basic + AI mirror) in real-time
