@@ -22,23 +22,17 @@ class AnchorService:
         sections.append(f"[Assistant Name]\n{display_name}")
         sections.append(f"[User Name]\n{user_display_name}")
         sections.append(f"[System Goal]\n{system_goal}")
-        # 时间感知
+        # 时间感知：基于用户历史作息推导
         now = datetime.now()
         hour = now.hour
-        if 6 <= hour < 9:
-            time_context = f"现在是早上{hour}点，用户可能刚起床或在准备上班。"
-        elif 9 <= hour < 12:
-            time_context = f"现在是上午{hour}点，用户可能在工作或学习。"
-        elif 12 <= hour < 14:
-            time_context = f"现在是中午{hour}点，用户可能在吃饭或休息。"
-        elif 14 <= hour < 18:
-            time_context = f"现在是下午{hour}点，用户可能在工作。"
-        elif 18 <= hour < 21:
-            time_context = f"现在是傍晚{hour}点，用户可能在下班或吃晚饭。"
-        elif 21 <= hour < 24:
-            time_context = f"现在是晚上{hour}点，用户可能在休息放松。"
-        else:
-            time_context = f"现在是深夜{hour}点，用户还没睡或刚起床。"
+        try:
+            from app.soul.rhythm import infer_user_rhythm, get_weather_cached
+            time_context = infer_user_rhythm(hour)
+            weather = get_weather_cached()
+            if weather:
+                time_context += f" 当前天气：{weather}。"
+        except Exception:
+            time_context = f"现在是{hour}点。"
         sections.append(f"[Time Context]\n{time_context}")
         if persona_core:
             sections.append(f"[Persona Core]\n{persona_core}")

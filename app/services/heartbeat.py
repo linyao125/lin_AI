@@ -63,6 +63,14 @@ class HeartbeatService:
         except Exception:
             pass
 
+    def _run_weather(self) -> None:
+        import asyncio
+        from app.soul.rhythm import fetch_weather_by_ip
+        try:
+            asyncio.run(fetch_weather_by_ip())
+        except Exception:
+            pass
+
     def tick(self) -> None:
         runtime = get_runtime()
         toggles = settings_service.get_toggles()
@@ -82,6 +90,19 @@ class HeartbeatService:
                     pass
             if should_run_news:
                 self._run_news()
+
+        # 天气刷新：每6小时一次
+        last_weather = repo.get_setting("weather_cache")
+        should_run_weather = True
+        if isinstance(last_weather, dict) and last_weather.get("cached_at"):
+            try:
+                wdt = datetime.fromisoformat(last_weather["cached_at"])
+                if (datetime.now(timezone.utc) - wdt).total_seconds() < 21600:
+                    should_run_weather = False
+            except Exception:
+                pass
+        if should_run_weather:
+            self._run_weather()
 
         if not toggles.get("heartbeat_enabled", True):
             return

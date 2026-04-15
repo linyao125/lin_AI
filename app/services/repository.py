@@ -31,6 +31,18 @@ class Repository:
         )
         return dict(row) if row else None
 
+    def rename_conversation(self, conversation_id: str, title: str) -> None:
+        database.execute(
+            "UPDATE conversations SET title=?, updated_at=? WHERE id=? AND archived=0",
+            (title, utc_now_iso(), conversation_id),
+        )
+
+    def delete_conversation(self, conversation_id: str) -> None:
+        database.execute(
+            "UPDATE conversations SET archived=1, updated_at=? WHERE id=?",
+            (utc_now_iso(), conversation_id),
+        )
+
     def touch_conversation(self, conversation_id: str) -> None:
         database.execute(
             "UPDATE conversations SET updated_at=? WHERE id=?", (utc_now_iso(), conversation_id)
@@ -90,6 +102,14 @@ class Repository:
             "SELECT created_at FROM messages WHERE conversation_id=? ORDER BY id DESC LIMIT 1", (conversation_id,)
         )
         return row["created_at"] if row else None
+
+    def get_user_message_hour_distribution(self) -> dict[int, int]:
+        """统计所有用户消息按小时分布，用于推导作息"""
+        rows = database.fetch_all(
+            "SELECT strftime('%H', created_at) AS h, COUNT(*) AS c FROM messages WHERE role='user' GROUP BY h",
+            (),
+        )
+        return {int(r["h"]): int(r["c"]) for r in rows} if rows else {}
 
     def upsert_memory(
         self,
