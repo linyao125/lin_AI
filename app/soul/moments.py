@@ -2,12 +2,15 @@
 Soul Layer: Moments
 AI朋友圈系统。
 不定时、不固定内容，由当前状态自然涌现。
+
+小红书发帖（Playwright）：见文件末尾 post_note / _click_by_text。
 """
 from __future__ import annotations
 import logging
 import random
 import json
 from datetime import datetime, timezone, timedelta
+from playwright.async_api import Page, TimeoutError as PWTimeout
 from app.services.repository import repo
 
 logger = logging.getLogger(__name__)
@@ -276,3 +279,104 @@ async def run_moments_check():
             await generate_moment()
     except Exception as e:
         logger.error(f"[moments] run_moments_check error: {e}")
+
+
+# --- 小红书发帖（Playwright）---
+
+
+async def _click_by_text(page: Page, text: str, timeout: int = 5000) -> bool:
+    """用 Playwright 原生定位，比 evaluate 更可靠"""
+    try:
+        # 优先找 button，找不到就找任意元素
+        locator = page.locator(f"button:has-text('{text}')").first
+        await locator.wait_for(state="visible", timeout=timeout)
+        await locator.click()
+        return True
+    except PWTimeout:
+        pass
+    try:
+        locator = page.locator(f"*:has-text('{text}')").last
+        await locator.wait_for(state="visible", timeout=timeout)
+        await locator.click()
+        return True
+    except PWTimeout:
+        return False
+
+
+async def post_note(page: Page, title: str, body: str, tags: list[str], image_path: str | None = None) -> bool:
+    try:
+        print("[poster] 前往发布页...")
+        await page.goto(
+            "https://creator.xiaohongshu.com/publish/publish?source=official",
+            wait_until="networkidle",  # 改成 networkidle，等页面真正稳定
+            timeout=30000
+        )
+        await page.wait_for_timeout(3000)
+        await page.screenshot(path="debug_01_loaded.png")
+
+        # 切换到写长文
+        print("[poster] 切换到写长文...")
+        ok = await _click_by_text(page, "写长文")
+        print(f"[poster] 写长文点击: {ok}")
+        await page.wait_for_timeout(3000)
+        await page.screenshot(path="debug_02_changwen.png")
+
+        # 打印按钮确认状态
+        btns = await page.evaluate("() => Array.from(document.querySelectorAll('button')).map(e => e.textContent.trim())")
+        print(f"[poster] 写长文后按钮: {btns}")
+
+        # 填标题（长文编辑器的标题框）
+        print("[poster] 填写标题...")
+        title_input = await page.wait_for_selector(
+            'input[placeholder*="标题"], textarea[placeholder*="标题"], [contenteditable][data-placeholder*="标题"]',
+            timeout=8000
+        )
+        await title_input.click()
+        await title_input.fill(title)
+        await page.wait_for_timeout(500)
+
+        # 填正文
+        print("[poster] 填写正文...")
+        body_with_tags = body + "\n\n" + " ".join(f"#{t}" for t in tags[:5])
+        # 长文编辑器一般有多个 contenteditable，取第二个（第一个通常是标题）
+        editors = await page.query_selector_all('[contenteditable="true"]')
+        print(f"[poster] 找到 contenteditable 数量: {len(editors)}")
+        editor = editors[1] if len(editors) > 1 else editors[0] if editors else None
+        if editor:
+            await editor.click()
+            await page.keyboard.type(body_with_tags, delay=20)  # 用 type 更可靠
+            await page.wait_for_timeout(1000)
+
+        await page.screenshot(path="debug_03_filled.png")
+
+        # 点发布（长文模式直接有发布按钮，不需要下一步）
+        print("[poster] 点击发布...")
+        ok = await _click_by_text(page, "发布")
+        if ok:
+            await page.wait_for_timeout(4000)
+            await page.screenshot(path="debug_04_after_publish.png")
+            print("[poster] 发布成功！")
+            return True
+
+        # 如果没有发布，尝试走下一步流程
+        print("[poster] 未找到发布，尝试下一步...")
+        await _click_by_text(page, "下一步")
+        await page.wait_for_timeout(4000)
+        await page.screenshot(path="debug_04_next.png")
+        ok = await _click_by_text(page, "发布")
+        if ok:
+            await page.wait_for_timeout(3000)
+            print("[poster] 发布成功！")
+            return True
+
+        btns = await page.evaluate("() => Array.from(document.querySelectorAll('button')).map(e => e.textContent.trim())")
+        print(f"[poster] 最终按钮列表: {btns}")
+        print(f"[poster] 当前URL: {page.url}")
+        return False
+
+    except Exception as e:
+        import traceback
+        print(f"[poster] 发布失败：{e}")
+        traceback.print_exc()
+        await page.screenshot(path="debug_error.png")
+        return False

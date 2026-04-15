@@ -28,37 +28,37 @@ async def run_post(topic: str = ""):
             headless=True,
             args=["--disable-blink-features=AutomationControlled"],
         )
-        page = context.pages[0] if context.pages else await context.new_page()
+        try:
+            page = context.pages[0] if context.pages else await context.new_page()
 
-        username = cfg.get("xhs_username", "")
-        password = cfg.get("xhs_password", "")
-        logged_in = await ensure_login(context, page, username, password)
-        if not logged_in:
-            print("[main] 登录失败，退出")
+            username = cfg.get("xhs_username", "")
+            password = cfg.get("xhs_password", "")
+            logged_in = await ensure_login(context, page, username, password)
+            if not logged_in:
+                print("[main] 登录失败，退出")
+                return
+
+            print("[main] 生成笔记内容...")
+            content = await generate_post_content(topic)
+            print(f"[main] 标题：{content['title']}")
+
+            print("[main] 生成配图...")
+            image_path = await generate_image(content["image_prompt"])
+
+            success = await post_note(
+                page,
+                title=content["title"],
+                body=content["body"],
+                tags=content["tags"],
+                image_path=image_path,
+            )
+
+            if success:
+                print("[main] 笔记发布完成！")
+            else:
+                print("[main] 发布失败，请检查日志")
+        finally:
             await context.close()
-            return
-
-        print("[main] 生成笔记内容...")
-        content = await generate_post_content(topic)
-        print(f"[main] 标题：{content['title']}")
-
-        print("[main] 生成配图...")
-        image_path = await generate_image(content["image_prompt"])
-
-        success = await post_note(
-            page,
-            title=content["title"],
-            body=content["body"],
-            tags=content["tags"],
-            image_path=image_path,
-        )
-
-        if success:
-            print("[main] 笔记发布完成！")
-        else:
-            print("[main] 发布失败，请检查日志")
-
-        await context.close()
 
 
 async def daemon_loop():
@@ -101,8 +101,10 @@ if __name__ == "__main__":
                     headless=False,
                 )
                 page = context.pages[0] if context.pages else await context.new_page()
-                await ensure_login(context, page, cfg.get("xhs_username",""), cfg.get("xhs_password",""))
-                await context.close()
+                try:
+                    await ensure_login(context, page, cfg.get("xhs_username",""), cfg.get("xhs_password",""))
+                finally:
+                    await context.close()
         asyncio.run(just_login())
 
     elif args[0] == "post":

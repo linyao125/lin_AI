@@ -45,8 +45,11 @@ async def generate_post_content(topic: str = "") -> dict:
                 f"{base}/api/conversations/xhs_draft/messages",
                 json={"content": prompt},
             )
+            print(f"[content] 状态码: {resp.status_code}")
+            print(f"[content] 响应内容: {resp.text[:200]}")
             data = resp.json()
-            text = data.get("reply") or data.get("text", "")
+            text = (data.get("assistant_message") or {}).get("content", "")
+            print(f"[content] 获取到内容: {text[:100]}")
         import json, re
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
