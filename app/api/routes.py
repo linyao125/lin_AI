@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from app.core.config import get_runtime
 from app.models.schemas import (
     ChatCreatePayload,
@@ -485,20 +485,6 @@ async def study_quiz(request: Request):
 
 
 # ── 数据导出导入 ──────────────────────────────────────────
-@api_router.get("/data/export")
-def data_export(fmt: str = "json"):
-    from app.soul.data_transfer import export_data
-    from fastapi.responses import Response
-
-    filename, content = export_data(fmt)
-    media = "application/json" if fmt == "json" else "text/plain"
-    return Response(
-        content=content.encode("utf-8"),
-        media_type=media,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
-
-
 @api_router.post("/data/import")
 async def data_import(request: Request):
     from app.soul.data_transfer import import_data
@@ -543,6 +529,19 @@ async def email_export(fmt: str = "json"):
         return {"ok": False, "error": result}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+@api_router.get("/data/export")
+async def data_export(fmt: str = "json"):
+    from app.soul.data_transfer import export_data
+
+    filename, content = export_data(fmt)
+    media_type = "application/json" if fmt == "json" else "text/plain"
+    return Response(
+        content=content.encode("utf-8"),
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── 朋友圈 ────────────────────────────────────────────────
