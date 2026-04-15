@@ -125,6 +125,8 @@ class FrontendSettingsPayload(BaseModel):
     news_api_key: str = ""
     news_keywords: str = ""
     news_enabled: bool = False
+    moments_enabled: bool = False
+    scene_enabled: bool = False
 
 
 class FrontendSettingsOut(BaseModel):

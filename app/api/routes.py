@@ -516,6 +516,35 @@ async def data_import(request: Request):
     return {"ok": ok, "message": msg}
 
 
+@api_router.post("/email/test")
+async def email_test():
+    try:
+        from app.soul.mcp_tools import _send_email
+
+        result = await _send_email("叮咚测试邮件", "邮件配置成功！叮咚可以给你发邮件了 ✉️")
+        if "已发送" in result:
+            return {"ok": True}
+        return {"ok": False, "error": result}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@api_router.post("/email/export")
+async def email_export(fmt: str = "json"):
+    try:
+        from app.soul.data_transfer import export_data
+        from app.soul.mcp_tools import _send_email
+
+        filename, content = export_data(fmt)
+        body = f"你的叮咚数据导出文件：{filename}\n\n{content[:3000]}\n\n（如数据较多仅展示前3000字符）"
+        result = await _send_email(f"叮咚数据导出 · {filename}", body)
+        if "已发送" in result:
+            return {"ok": True}
+        return {"ok": False, "error": result}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 # ── 朋友圈 ────────────────────────────────────────────────
 @api_router.get("/moments")
 def list_moments():

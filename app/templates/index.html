@@ -679,6 +679,29 @@
         <div style="font-size:11px;color:#999;">选渐变色或点🖼上传图片</div>
       </div>
     </div>
+    <!-- 邮件通知 -->
+    <div style="margin-top:16px;margin-bottom:20px;">
+      <div style="font-size:12px;color:#999;margin-bottom:10px;">邮件通知（数据导出）</div>
+      <label style="display:block;font-size:13px;margin-bottom:8px;">接收邮箱
+        <input type="email" id="user-email-input" placeholder="your@email.com" style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;font-size:13px;">
+      </label>
+      <label style="display:block;font-size:13px;margin-bottom:8px;">SMTP服务器
+        <input type="text" id="smtp-host-input" placeholder="smtp.qq.com" style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;font-size:13px;">
+      </label>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <label style="flex:1;font-size:13px;">端口
+          <input type="number" id="smtp-port-input" placeholder="465" style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;font-size:13px;">
+        </label>
+        <label style="flex:2;font-size:13px;">发件账号
+          <input type="text" id="smtp-user-input" placeholder="your@qq.com" style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;font-size:13px;">
+        </label>
+      </div>
+      <label style="display:block;font-size:13px;margin-bottom:8px;">授权码/密码
+        <input type="password" id="smtp-pass-input" placeholder="邮箱授权码" style="display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #e5e5e5;border-radius:6px;box-sizing:border-box;font-size:13px;">
+      </label>
+      <button onclick="sendTestEmail()" style="width:100%;padding:9px;background:#f9f9f9;border:1px solid #e5e5e5;border-radius:8px;font-size:13px;cursor:pointer;">📧 发送测试邮件</button>
+      <div id="email-test-status" style="font-size:12px;color:#999;margin-top:6px;min-height:16px;"></div>
+    </div>
     <!-- 数据导出导入 -->
     <div style="margin-top:16px;margin-bottom:24px;">
       <div style="font-size:13px;font-weight:500;color:#333;margin-bottom:10px;">数据迁移</div>
@@ -1058,6 +1081,16 @@
     var lat = document.getElementById('user-lat') && document.getElementById('user-lat').value;
     var lon = document.getElementById('user-lon') && document.getElementById('user-lon').value;
     if (lat && lon) { payload.user_lat = lat; payload.user_lon = lon; }
+    var userEmail = document.getElementById('user-email-input')?.value.trim();
+    var smtpHost = document.getElementById('smtp-host-input')?.value.trim();
+    var smtpPort = document.getElementById('smtp-port-input')?.value.trim();
+    var smtpUser = document.getElementById('smtp-user-input')?.value.trim();
+    var smtpPass = document.getElementById('smtp-pass-input')?.value.trim();
+    if (userEmail) payload.user_email = userEmail;
+    if (smtpHost) payload.smtp_host = smtpHost;
+    if (smtpPort) payload.smtp_port = smtpPort;
+    if (smtpUser) payload.smtp_user = smtpUser;
+    if (smtpPass) payload.smtp_pass = smtpPass;
     if (Object.keys(payload).length > 0) {
       try {
         await fetch('/api/settings/form', {

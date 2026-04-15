@@ -61,6 +61,8 @@ class SettingsService:
             "news_api_key": "",
             "news_keywords": "",
             "news_enabled": False,
+            "moments_enabled": False,
+            "scene_enabled": False,
         }
 
     def get_frontend_settings(self) -> dict:

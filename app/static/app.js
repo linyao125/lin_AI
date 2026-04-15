@@ -1284,3 +1284,37 @@ function formatMomentTime(isoStr) {
   } catch(e) { return ""; }
 }
 // ── 朋友圈结束 ────────────────────────────────────────────
+
+async function sendTestEmail() {
+  var status = document.getElementById('email-test-status');
+  status.textContent = '发送中...';
+  status.style.color = '#999';
+  try {
+    var resp = await fetch('/api/email/test', { method: 'POST' });
+    var data = await resp.json();
+    if (data.ok) {
+      status.textContent = '✅ 测试邮件已发送，请检查收件箱';
+      status.style.color = '#4caf50';
+    } else {
+      status.textContent = '❌ ' + (data.error || '发送失败');
+      status.style.color = '#e53935';
+    }
+  } catch(e) {
+    status.textContent = '❌ 网络错误';
+    status.style.color = '#e53935';
+  }
+}
+
+async function exportDataEmail(fmt) {
+  try {
+    var resp = await fetch('/api/email/export?fmt=' + (fmt||'json'), { method: 'POST' });
+    var data = await resp.json();
+    if (data.ok) {
+      showSaveToast('数据已发送至邮箱 ✉️');
+    } else {
+      showSaveToast('发送失败：' + (data.error || '未知错误'));
+    }
+  } catch(e) {
+    showSaveToast('网络错误');
+  }
+}
