@@ -1,0 +1,39 @@
+{
+    "name": "dingdong-app",
+    "version": "1.0.0",
+    "description": "叮咚 - AI伴侣桌面版",
+    "main": "main.js",
+    "scripts": {
+        "start": "electron .",
+        "build:win": "electron-builder --win",
+        "build:mac": "electron-builder --mac"
+    },
+    "build": {
+        "appId": "com.dingdong.app",
+        "productName": "叮咚",
+        "directories": {
+            "output": "dist"
+        },
+        "win": {
+            "target": "nsis",
+            "icon": "assets/icon.ico"
+        },
+        "mac": {
+            "target": "dmg",
+            "icon": "assets/icon.icns"
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "installerIcon": "assets/icon.ico",
+            "installerHeaderIcon": "assets/icon.ico",
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "shortcutName": "叮咚"
+        }
+    },
+    "devDependencies": {
+        "electron": "^28.0.0",
+        "electron-builder": "^24.13.3"
+    }
+}
