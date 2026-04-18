@@ -132,6 +132,9 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
     await saveSettings({
       user_display_name: userName,
       user_birthday: userBirthday,
+      theme_hue: themeHue,
+      theme_sat: themeSat,
+      theme_light: themeLight,
     });
     setSaving(false);
     window.dispatchEvent(
