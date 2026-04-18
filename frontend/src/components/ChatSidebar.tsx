@@ -37,6 +37,7 @@ interface ChatSidebarProps {
   onOpenAIProfile: () => void;
   onOpenUserProfile: () => void;
   onOpenSettings: () => void;
+  onOpenSchedule: () => void;
 }
 
 const FEATURE_ICONS_ROW1 = [
@@ -53,7 +54,7 @@ const FEATURE_ICONS_ROW2 = [
   { icon: Settings2, label: "工具" },
 ];
 
-export function ChatSidebar({ conversations, activeId, onSelect, onNew, onDelete, onRename, isOpen, onClose, collapsed, onToggleCollapse, onOpenAIProfile, onOpenUserProfile, onOpenSettings }: ChatSidebarProps) {
+export function ChatSidebar({ conversations, activeId, onSelect, onNew, onDelete, onRename, isOpen, onClose, collapsed, onToggleCollapse, onOpenAIProfile, onOpenUserProfile, onOpenSettings, onOpenSchedule }: ChatSidebarProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -105,6 +106,7 @@ export function ChatSidebar({ conversations, activeId, onSelect, onNew, onDelete
           onOpenAIProfile={onOpenAIProfile}
           onOpenUserProfile={onOpenUserProfile}
           onOpenSettings={onOpenSettings}
+          onOpenSchedule={onOpenSchedule}
           onExpandSidebar={() => {}}
         />
       </aside>
@@ -134,6 +136,7 @@ export function ChatSidebar({ conversations, activeId, onSelect, onNew, onDelete
           onOpenAIProfile={onOpenAIProfile}
           onOpenUserProfile={onOpenUserProfile}
           onOpenSettings={onOpenSettings}
+          onOpenSchedule={onOpenSchedule}
           onExpandSidebar={() => { if (collapsed) onToggleCollapse(); }}
         />
       </aside>
@@ -178,6 +181,7 @@ function SidebarContent({
   onOpenAIProfile,
   onOpenUserProfile,
   onOpenSettings,
+  onOpenSchedule,
   onExpandSidebar,
 }: {
   collapsed: boolean;
@@ -197,10 +201,26 @@ function SidebarContent({
   onOpenAIProfile: () => void;
   onOpenUserProfile: () => void;
   onOpenSettings: () => void;
+  onOpenSchedule: () => void;
   onExpandSidebar: () => void;
 }) {
   const [featuresOpen, setFeaturesOpen] = useState(false);
+  const [hasPending, setHasPending] = useState(false);
   const { aiName, userName } = useProfileNames();
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const r = await fetch("/api/schedules");
+        const d = await r.json();
+        const pending = (d.schedules || []).filter((s: any) => !s.done);
+        setHasPending(pending.length > 0);
+      } catch {}
+    };
+    check();
+    const timer = setInterval(check, 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <>
@@ -245,10 +265,15 @@ function SidebarContent({
                 key={label}
                 onClick={(e) => {
                   e.stopPropagation();
-                  console.log(`${label} clicked`);
+                  if (label === "通知") onOpenSchedule();
+                  else console.log(`${label} clicked`);
                 }}
                 title={label}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors active:scale-90"
+                className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors active:scale-90 ${
+                  label === "通知" && hasPending
+                    ? "text-primary"
+                    : "text-sidebar-foreground/50 hover:text-sidebar-foreground"
+                }`}
               >
                 <Icon size={20} />
               </button>
@@ -285,9 +310,17 @@ function SidebarContent({
                 {FEATURE_ICONS_ROW2.map(({ icon: Icon, label }) => (
                   <button
                     key={label}
-                    onClick={() => console.log(`${label} clicked`)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (label === "通知") onOpenSchedule();
+                      else console.log(`${label} clicked`);
+                    }}
                     title={label}
-                    className="flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all active:scale-90"
+                    className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg transition-all active:scale-90 ${
+                      label === "通知" && hasPending
+                        ? "text-primary hover:bg-sidebar-accent/50"
+                        : "text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                    }`}
                   >
                     <Icon size={18} />
                   </button>

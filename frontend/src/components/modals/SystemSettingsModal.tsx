@@ -52,7 +52,6 @@ function APISettings() {
   const [apiKey, setApiKey] = useState("");
   const [serverUrl, setServerUrl] = useState("");
   const [vpn, setVpn] = useState("");
-  const [domain, setDomain] = useState("");
   const [imageApi, setImageApi] = useState("");
   const [ttsApi, setTtsApi] = useState("");
   const [imageEnabled, setImageEnabled] = useState(false);
@@ -66,7 +65,6 @@ function APISettings() {
       setApiKey((s.api_key as string) || "");
       setServerUrl((s.linai_server_url as string) || "");
       setVpn((s.vpn_subscription as string) || "");
-      setDomain((s.cloudflare_domain as string) || "");
       setImageApi((s.image_api_key as string) || "");
       setTtsApi((s.tts_api_key as string) || "");
       setImageEnabled(!!s.image_enabled);
@@ -82,7 +80,6 @@ function APISettings() {
       api_key: apiKey,
       linai_server_url: serverUrl,
       vpn_subscription: vpn,
-      cloudflare_domain: domain,
       image_api_key: imageApi,
       tts_api_key: ttsApi,
       image_enabled: imageEnabled,
@@ -120,15 +117,6 @@ function APISettings() {
           value={vpn}
           onChange={(e) => setVpn(e.target.value)}
           placeholder="订阅链接..."
-          className="mt-1.5 flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        />
-      </div>
-      <div>
-        <label className="text-sm font-medium text-foreground">海外域名</label>
-        <input
-          value={domain}
-          onChange={(e) => setDomain(e.target.value)}
-          placeholder="域名..."
           className="mt-1.5 flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
       </div>
@@ -267,6 +255,7 @@ function FeaturesSettings() {
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [city, setCity] = useState("");
+  const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -309,18 +298,47 @@ function FeaturesSettings() {
   return (
     <div className="animate-in fade-in duration-200">
       {/* 城市地址 */}
-      <div className="mb-4">
-        <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
-          <MapPin size={14} />
-          所在城市
-        </label>
+      <div className="mb-3">
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+            <MapPin size={14} />
+            所在城市
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              if (!navigator.geolocation) return;
+              setLocating(true);
+              navigator.geolocation.getCurrentPosition(
+                async (pos) => {
+                  const { latitude, longitude } = pos.coords;
+                  try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=zh`);
+                    const data = await res.json();
+                    const addr = data.address;
+                    const location = [addr.city || addr.town || addr.county, addr.state].filter(Boolean).join("，");
+                    setCity(location);
+                  } catch {
+                    setCity(`${pos.coords.latitude.toFixed(2)},${pos.coords.longitude.toFixed(2)}`);
+                  }
+                  setLocating(false);
+                },
+                () => setLocating(false)
+              );
+            }}
+            disabled={locating}
+            className="flex items-center justify-center gap-1 rounded-lg border border-border/60 px-3 h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-50"
+          >
+            <MapPin size={11} />
+            {locating ? "获取中..." : "自动获取"}
+          </button>
+        </div>
         <input
           value={city}
           onChange={(e) => setCity(e.target.value)}
-          placeholder="如：上海、北京、成都..."
-          className="mt-1.5 flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          placeholder="如：上海市、北京市朝阳区..."
+          className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
-        <p className="text-xs text-muted-foreground mt-1">用于天气感知、节假日感知</p>
       </div>
 
       <FeatureToggle label="自定义 Logo">

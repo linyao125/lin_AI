@@ -7193,7 +7193,7 @@ async function renameConversation(convId, title) {
     body: JSON.stringify({ title })
   });
 }
-window.__saveTheme = function(hue, sat, light) {
+window._ts = function(hue, sat, light) {
   fetch("/api/settings/form", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -49153,7 +49153,7 @@ const FEATURE_ICONS_ROW2 = [
   { icon: Bell, label: "通知" },
   { icon: Settings2, label: "工具" }
 ];
-function ChatSidebar({ conversations, activeId, onSelect, onNew, onDelete, onRename, isOpen, onClose, collapsed, onToggleCollapse, onOpenAIProfile, onOpenUserProfile, onOpenSettings }) {
+function ChatSidebar({ conversations, activeId, onSelect, onNew, onDelete, onRename, isOpen, onClose, collapsed, onToggleCollapse, onOpenAIProfile, onOpenUserProfile, onOpenSettings, onOpenSchedule }) {
   const [hoveredId, setHoveredId] = reactExports.useState(null);
   const [renamingId, setRenamingId] = reactExports.useState(null);
   const [renameValue, setRenameValue] = reactExports.useState("");
@@ -49207,6 +49207,7 @@ function ChatSidebar({ conversations, activeId, onSelect, onNew, onDelete, onRen
             onOpenAIProfile,
             onOpenUserProfile,
             onOpenSettings,
+            onOpenSchedule,
             onExpandSidebar: () => {
             }
           }
@@ -49241,6 +49242,7 @@ function ChatSidebar({ conversations, activeId, onSelect, onNew, onDelete, onRen
             onOpenAIProfile,
             onOpenUserProfile,
             onOpenSettings,
+            onOpenSchedule,
             onExpandSidebar: () => {
               if (collapsed) onToggleCollapse();
             }
@@ -49291,10 +49293,26 @@ function SidebarContent({
   onOpenAIProfile,
   onOpenUserProfile,
   onOpenSettings,
+  onOpenSchedule,
   onExpandSidebar
 }) {
   const [featuresOpen, setFeaturesOpen] = reactExports.useState(false);
+  const [hasPending, setHasPending] = reactExports.useState(false);
   const { aiName, userName } = useProfileNames();
+  reactExports.useEffect(() => {
+    const check = async () => {
+      try {
+        const r2 = await fetch("/api/schedules");
+        const d = await r2.json();
+        const pending = (d.schedules || []).filter((s) => !s.done);
+        setHasPending(pending.length > 0);
+      } catch {
+      }
+    };
+    check();
+    const timer = setInterval(check, 6e4);
+    return () => clearInterval(timer);
+  }, []);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-11 shrink-0 border-b border-sidebar-border flex items-center px-3", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex items-center w-full transition-all duration-300 ease-in-out ${collapsed ? "justify-center" : ""}`, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -49338,10 +49356,11 @@ function SidebarContent({
       {
         onClick: (e) => {
           e.stopPropagation();
-          console.log(`${label} clicked`);
+          if (label === "通知") onOpenSchedule();
+          else console.log(`${label} clicked`);
         },
         title: label,
-        className: "flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors active:scale-90",
+        className: `flex h-9 w-9 items-center justify-center rounded-lg transition-colors active:scale-90 ${label === "通知" && hasPending ? "text-primary" : "text-sidebar-foreground/50 hover:text-sidebar-foreground"}`,
         children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon2, { size: 20 })
       },
       label
@@ -49376,9 +49395,13 @@ function SidebarContent({
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-4 gap-1 px-3 pb-2.5", children: FEATURE_ICONS_ROW2.map(({ icon: Icon2, label }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
               "button",
               {
-                onClick: () => console.log(`${label} clicked`),
+                onClick: (e) => {
+                  e.stopPropagation();
+                  if (label === "通知") onOpenSchedule();
+                  else console.log(`${label} clicked`);
+                },
                 title: label,
-                className: "flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all active:scale-90",
+                className: `flex h-8 w-8 mx-auto items-center justify-center rounded-lg transition-all active:scale-90 ${label === "通知" && hasPending ? "text-primary hover:bg-sidebar-accent/50" : "text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`,
                 children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon2, { size: 18 })
               },
               label
@@ -51122,7 +51145,7 @@ function applyTheme(hue, sat, light) {
   localStorage.setItem("theme-hue", String(hue));
   localStorage.setItem("theme-sat", String(sat));
   localStorage.setItem("theme-light", String(light));
-  if (window.__saveTheme) window.__saveTheme(hue, sat, light);
+  if (window._ts) window._ts(hue, sat, light);
 }
 function UserProfileModal({ open, onClose }) {
   const [userName, setUserName] = reactExports.useState(() => localStorage.getItem("user-name") || "User");
@@ -51138,9 +51161,9 @@ function UserProfileModal({ open, onClose }) {
     loadSettings$1().then((s) => {
       if (s.user_display_name) setUserName(s.user_display_name);
       if (s.user_birthday) setUserBirthday(s.user_birthday);
-      if (s.theme_hue) setThemeHue(Number(s.theme_hue));
-      if (s.theme_sat) setThemeSat(Number(s.theme_sat));
-      if (s.theme_light) setThemeLight(Number(s.theme_light));
+      if (s.theme_hue !== void 0) setThemeHue(Number(s.theme_hue));
+      if (s.theme_sat !== void 0) setThemeSat(Number(s.theme_sat));
+      if (s.theme_light !== void 0 && s.theme_light !== null) setThemeLight(Number(s.theme_light));
     });
   }, []);
   const autoSave = reactExports.useCallback(() => {
@@ -51527,7 +51550,6 @@ function APISettings() {
   const [apiKey, setApiKey] = reactExports.useState("");
   const [serverUrl, setServerUrl] = reactExports.useState("");
   const [vpn, setVpn] = reactExports.useState("");
-  const [domain, setDomain] = reactExports.useState("");
   const [imageApi, setImageApi] = reactExports.useState("");
   const [ttsApi, setTtsApi] = reactExports.useState("");
   const [imageEnabled, setImageEnabled] = reactExports.useState(false);
@@ -51540,7 +51562,6 @@ function APISettings() {
       setApiKey(s.api_key || "");
       setServerUrl(s.linai_server_url || "");
       setVpn(s.vpn_subscription || "");
-      setDomain(s.cloudflare_domain || "");
       setImageApi(s.image_api_key || "");
       setTtsApi(s.tts_api_key || "");
       setImageEnabled(!!s.image_enabled);
@@ -51555,7 +51576,6 @@ function APISettings() {
       api_key: apiKey,
       linai_server_url: serverUrl,
       vpn_subscription: vpn,
-      cloudflare_domain: domain,
       image_api_key: imageApi,
       tts_api_key: ttsApi,
       image_enabled: imageEnabled,
@@ -51599,18 +51619,6 @@ function APISettings() {
           value: vpn,
           onChange: (e) => setVpn(e.target.value),
           placeholder: "订阅链接...",
-          className: "mt-1.5 flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "text-sm font-medium text-foreground", children: "海外域名" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "input",
-        {
-          value: domain,
-          onChange: (e) => setDomain(e.target.value),
-          placeholder: "域名...",
           className: "mt-1.5 flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         }
       )
@@ -51724,6 +51732,7 @@ function FeaturesSettings() {
   const [scheduleEnabled, setScheduleEnabled] = reactExports.useState(false);
   const [emailInput, setEmailInput] = reactExports.useState("");
   const [city, setCity] = reactExports.useState("");
+  const [locating, setLocating] = reactExports.useState(false);
   const [saving, setSaving] = reactExports.useState(false);
   reactExports.useEffect(() => {
     loadSettings().then((s) => {
@@ -51761,21 +51770,54 @@ function FeaturesSettings() {
     reader.readAsDataURL(file);
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "animate-in fade-in duration-200", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-4", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "text-sm font-medium text-foreground flex items-center gap-1.5", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(MapPin, { size: 14 }),
-        "所在城市"
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-3", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-1.5", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "text-sm font-medium text-foreground flex items-center gap-1.5", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(MapPin, { size: 14 }),
+          "所在城市"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            type: "button",
+            onClick: () => {
+              if (!navigator.geolocation) return;
+              setLocating(true);
+              navigator.geolocation.getCurrentPosition(
+                async (pos) => {
+                  const { latitude, longitude } = pos.coords;
+                  try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=zh`);
+                    const data2 = await res.json();
+                    const addr = data2.address;
+                    const location = [addr.city || addr.town || addr.county, addr.state].filter(Boolean).join("，");
+                    setCity(location);
+                  } catch {
+                    setCity(`${pos.coords.latitude.toFixed(2)},${pos.coords.longitude.toFixed(2)}`);
+                  }
+                  setLocating(false);
+                },
+                () => setLocating(false)
+              );
+            },
+            disabled: locating,
+            className: "flex items-center justify-center gap-1 rounded-lg border border-border/60 px-3 h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-50",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(MapPin, { size: 11 }),
+              locating ? "获取中..." : "自动获取"
+            ]
+          }
+        )
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         "input",
         {
           value: city,
           onChange: (e) => setCity(e.target.value),
-          placeholder: "如：上海、北京、成都...",
-          className: "mt-1.5 flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          placeholder: "如：上海市、北京市朝阳区...",
+          className: "flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground mt-1", children: "用于天气感知、节假日感知" })
+      )
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "自定义 Logo", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
       logoPreview && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex justify-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: logoPreview, alt: "Logo", className: "h-12 w-12 rounded-lg object-cover border border-border/60" }) }),
@@ -51892,6 +51934,409 @@ function SystemSettingsModal({ open, onClose }) {
         ]
       }
     )
+  ] });
+}
+const REPEAT_OPTIONS = [
+  { value: "none", label: "不重复" },
+  { value: "daily", label: "每天" },
+  { value: "weekly", label: "每周" },
+  { value: "monthly", label: "每月指定日期" }
+];
+const WEEKDAYS = [
+  { value: 1, label: "一" },
+  { value: 2, label: "二" },
+  { value: 3, label: "三" },
+  { value: 4, label: "四" },
+  { value: 5, label: "五" },
+  { value: 6, label: "六" },
+  { value: 0, label: "日" }
+];
+const MONTH_DAYS = Array.from({ length: 31 }, (_2, i2) => i2 + 1);
+function ScheduleModal({ open, onClose }) {
+  var _a3;
+  const [schedules, setSchedules] = reactExports.useState([]);
+  const [title, setTitle] = reactExports.useState("");
+  const [remindAt, setRemindAt] = reactExports.useState("");
+  const [note, setNote] = reactExports.useState("");
+  const [repeat, setRepeat] = reactExports.useState("none");
+  const [repeatDays, setRepeatDays] = reactExports.useState([]);
+  const [adding, setAdding] = reactExports.useState(false);
+  const [showForm, setShowForm] = reactExports.useState(false);
+  const [repeatOpen, setRepeatOpen] = reactExports.useState(false);
+  const [editingId, setEditingId] = reactExports.useState(null);
+  const [editTitle, setEditTitle] = reactExports.useState("");
+  const [editRemindAt, setEditRemindAt] = reactExports.useState("");
+  const [editNote, setEditNote] = reactExports.useState("");
+  const load = async () => {
+    const r2 = await fetch("/api/schedules");
+    const d = await r2.json();
+    setSchedules(d.schedules || []);
+  };
+  reactExports.useEffect(() => {
+    if (open) load();
+  }, [open]);
+  const toggleRepeatDay = (day) => {
+    setRepeatDays(
+      (prev) => prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
+  };
+  const handleAdd = async () => {
+    if (!title || !remindAt) return;
+    setAdding(true);
+    await fetch("/api/schedules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, remind_at: remindAt, note, repeat, repeat_days: repeatDays })
+    });
+    setTitle("");
+    setRemindAt("");
+    setNote("");
+    setRepeat("none");
+    setRepeatDays([]);
+    setShowForm(false);
+    await load();
+    setAdding(false);
+  };
+  const handleDelete = async (id2) => {
+    await fetch(`/api/schedules/${id2}`, { method: "DELETE" });
+    await load();
+  };
+  const handleDone = async (id2) => {
+    await fetch(`/api/schedules/${id2}/done`, { method: "POST" });
+    await load();
+  };
+  const handleEdit = (s) => {
+    setEditingId(s.id);
+    setEditTitle(s.title);
+    setEditRemindAt(s.remind_at.slice(0, 16));
+    setEditNote(s.note || "");
+  };
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    await fetch(`/api/schedules/${editingId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: editTitle, remind_at: editRemindAt, note: editNote })
+    });
+    setEditingId(null);
+    await load();
+  };
+  const formatTime = (iso) => {
+    try {
+      return new Date(iso).toLocaleString("zh-CN", {
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch {
+      return iso;
+    }
+  };
+  const repeatLabel = (s) => {
+    if (!s.repeat || s.repeat === "none") return null;
+    if (s.repeat === "daily") return "每天";
+    if (s.repeat === "weekly") {
+      const names = ["日", "一", "二", "三", "四", "五", "六"];
+      return "每周" + s.repeat_days.map((d) => names[d]).join("、");
+    }
+    if (s.repeat === "monthly") return "每月" + s.repeat_days.join("、") + "日";
+    return null;
+  };
+  const pending = schedules.filter((s) => !s.done);
+  const done = schedules.filter((s) => s.done);
+  if (!open) return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "fixed inset-0 z-[100] flex items-center justify-center", onClick: onClose, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute inset-0 bg-black/60 backdrop-blur-sm" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "relative z-10 w-full max-w-md h-[75vh] rounded-2xl bg-popover border border-border flex flex-col overflow-hidden",
+        onClick: (e) => e.stopPropagation(),
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between px-5 py-4 border-b border-border/60 shrink-0", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Bell, { size: 16, className: "text-foreground" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-semibold text-foreground", children: "日程提醒" }),
+              pending.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "flex h-4 min-w-4 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] px-1", children: pending.length })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "button",
+                {
+                  onClick: () => setShowForm(!showForm),
+                  className: "flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { size: 13 }),
+                    "新建"
+                  ]
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onClose, className: "flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors", children: /* @__PURE__ */ jsxRuntimeExports.jsx(X$1, { size: 16 }) })
+            ] })
+          ] }),
+          showForm && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-5 py-3 border-b border-border/60 space-y-2 animate-in fade-in shrink-0", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                value: title,
+                onChange: (e) => setTitle(e.target.value),
+                placeholder: "日程标题",
+                className: "flex h-9 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "datetime-local",
+                value: remindAt,
+                onChange: (e) => setRemindAt(e.target.value),
+                className: "flex h-9 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring [color-scheme:dark]"
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                value: note,
+                onChange: (e) => setNote(e.target.value),
+                placeholder: "备注（选填）",
+                className: "flex h-9 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "button",
+                {
+                  type: "button",
+                  onClick: () => setRepeatOpen(!repeatOpen),
+                  className: "flex h-9 w-full items-center justify-between rounded-lg border border-input bg-background px-3 text-sm text-foreground hover:bg-accent/30 transition-colors",
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: ((_a3 = REPEAT_OPTIONS.find((o) => o.value === repeat)) == null ? void 0 : _a3.label) || "不重复" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronDown, { size: 14, className: `transition-transform ${repeatOpen ? "rotate-180" : ""}` })
+                  ]
+                }
+              ),
+              repeatOpen && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute z-10 top-full mt-1 w-full rounded-lg border border-border bg-popover shadow-lg overflow-hidden", children: REPEAT_OPTIONS.map((o) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  type: "button",
+                  onClick: () => {
+                    setRepeat(o.value);
+                    setRepeatDays([]);
+                    setRepeatOpen(false);
+                  },
+                  className: `w-full text-left px-3 py-2 text-sm transition-colors ${repeat === o.value ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50"}`,
+                  children: o.label
+                },
+                o.value
+              )) })
+            ] }),
+            repeat === "weekly" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1.5", children: WEEKDAYS.map((d) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                type: "button",
+                onClick: () => toggleRepeatDay(d.value),
+                className: `flex-1 py-1.5 rounded-lg text-xs transition-colors ${repeatDays.includes(d.value) ? "bg-accent text-foreground" : "border border-border/40 text-muted-foreground hover:bg-accent/30"}`,
+                children: d.label
+              },
+              d.value
+            )) }),
+            repeat === "monthly" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-7 gap-1", children: MONTH_DAYS.map((d) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                type: "button",
+                onClick: () => toggleRepeatDay(d),
+                className: `py-1 rounded text-xs transition-colors ${repeatDays.includes(d) ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/30"}`,
+                children: d
+              },
+              d
+            )) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: handleAdd,
+                disabled: adding || !title || !remindAt,
+                className: "w-full py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity",
+                children: adding ? "添加中..." : "添加日程"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 overflow-y-auto scrollbar-thin", children: [
+            pending.length === 0 && done.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center justify-center h-full text-muted-foreground text-sm", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Bell, { size: 32, strokeWidth: 1, className: "mb-2 opacity-40" }),
+              "暂无日程"
+            ] }),
+            pending.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 pt-3", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs font-medium text-muted-foreground mb-2", children: "待完成" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-2", children: pending.map((s) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rounded-xl border border-border/60 bg-accent/20 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-border cursor-default", children: editingId === s.id ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-3 space-y-2", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    value: editTitle,
+                    onChange: (e) => setEditTitle(e.target.value),
+                    className: "flex h-8 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    type: "datetime-local",
+                    value: editRemindAt,
+                    onChange: (e) => setEditRemindAt(e.target.value),
+                    className: "flex h-8 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring [color-scheme:dark]"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    value: editNote,
+                    onChange: (e) => setEditNote(e.target.value),
+                    placeholder: "备注",
+                    className: "flex h-8 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: handleSaveEdit, className: "flex-1 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 transition-opacity", children: "保存" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setEditingId(null), className: "flex-1 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-accent transition-colors", children: "取消" })
+                ] })
+              ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-3 p-3", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: () => handleDone(s.id),
+                    className: "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border/60 hover:border-foreground transition-colors"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm font-medium text-foreground", children: s.title }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground mt-0.5", children: formatTime(s.remind_at) }),
+                  repeatLabel(s) && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-primary mt-0.5", children: repeatLabel(s) }),
+                  s.note && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground mt-0.5", children: s.note })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => handleEdit(s), className: "text-muted-foreground hover:text-foreground transition-colors p-1", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "13", height: "13", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" })
+                  ] }) }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => handleDelete(s.id), className: "text-muted-foreground hover:text-destructive transition-colors p-1", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { size: 13 }) })
+                ] })
+              ] }) }, s.id)) })
+            ] }),
+            done.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 pt-4 pb-3", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs font-medium text-muted-foreground mb-2", children: "已完成" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-2", children: done.map((s) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-3 rounded-xl border border-border/30 p-3 opacity-50 transition-all duration-200 hover:opacity-70 hover:shadow-sm hover:-translate-y-0.5 cursor-default", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground border-foreground border", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { size: 11, className: "text-background" }) }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm font-medium text-foreground line-through", children: s.title }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground mt-0.5", children: formatTime(s.remind_at) })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => handleDelete(s.id), className: "text-muted-foreground hover:text-destructive transition-colors", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { size: 14 }) })
+              ] }, s.id)) })
+            ] })
+          ] })
+        ]
+      }
+    )
+  ] });
+}
+function ScheduleNotification() {
+  const [notifications, setNotifications] = reactExports.useState([]);
+  const [notified, setNotified] = reactExports.useState(/* @__PURE__ */ new Set());
+  const checkDue = reactExports.useCallback(async () => {
+    try {
+      const r2 = await fetch("/api/schedules/due");
+      const d = await r2.json();
+      const due = d.due || [];
+      const newOnes = due.filter((s) => !notified.has(s.id));
+      if (newOnes.length > 0) {
+        setNotifications((prev) => [
+          ...prev,
+          ...newOnes.map((s) => ({ schedule: s, key: Date.now() + s.id }))
+        ]);
+        setNotified((prev) => {
+          const next = new Set(prev);
+          newOnes.forEach((s) => next.add(s.id));
+          return next;
+        });
+      }
+    } catch {
+    }
+  }, [notified]);
+  reactExports.useEffect(() => {
+    checkDue();
+    const timer = setInterval(checkDue, 6e4);
+    return () => clearInterval(timer);
+  }, [checkDue]);
+  const dismiss = (key) => {
+    setNotifications((prev) => prev.filter((n2) => n2.key !== key));
+  };
+  const markDone = async (id2, key) => {
+    await fetch(`/api/schedules/${id2}/done`, { method: "POST" });
+    dismiss(key);
+  };
+  if (notifications.length === 0) return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "fixed top-0 left-0 right-0 z-[200] flex flex-col items-center gap-2 pt-4 pointer-events-none", children: [
+    notifications.map((n2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        className: "pointer-events-auto w-full max-w-sm mx-auto",
+        style: {
+          animation: "slideDown 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)"
+        },
+        children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: "mx-4 rounded-2xl border border-border/80 bg-popover shadow-2xl overflow-hidden",
+            style: {
+              boxShadow: "0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15)"
+            },
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-1 w-full bg-primary opacity-80" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 px-4 py-3.5", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Bell, { size: 16, className: "text-primary" }) }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm font-semibold text-foreground leading-tight", children: n2.schedule.title }),
+                  n2.schedule.note && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground mt-0.5 truncate", children: n2.schedule.note }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground/70 mt-0.5", children: "日程提醒" })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 shrink-0", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "button",
+                    {
+                      onClick: () => markDone(n2.schedule.id, n2.key),
+                      className: "flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors",
+                      title: "完成",
+                      children: /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { size: 14 })
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "button",
+                    {
+                      onClick: async () => {
+                        if (!n2.schedule.repeat || n2.schedule.repeat === "none") {
+                          await fetch(`/api/schedules/${n2.schedule.id}/done`, { method: "POST" });
+                        }
+                        dismiss(n2.key);
+                      },
+                      className: "flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors",
+                      title: "关闭",
+                      children: /* @__PURE__ */ jsxRuntimeExports.jsx(X$1, { size: 14 })
+                    }
+                  )
+                ] })
+              ] })
+            ]
+          }
+        )
+      },
+      n2.key
+    )),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("style", { children: `
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      ` })
   ] });
 }
 /**
@@ -91759,6 +92204,7 @@ const Index = () => {
   const [aiProfileOpen, setAiProfileOpen] = reactExports.useState(false);
   const [userProfileOpen, setUserProfileOpen] = reactExports.useState(false);
   const [settingsOpen, setSettingsOpen] = reactExports.useState(false);
+  const [scheduleOpen, setScheduleOpen] = reactExports.useState(false);
   const [weatherConfig, setWeatherConfig] = reactExports.useState(defaultWeather);
   const [isLightScene, setIsLightScene] = reactExports.useState(false);
   const activeConversation = conversations.find((c) => c.id === activeId);
@@ -91900,7 +92346,8 @@ const Index = () => {
         onToggleCollapse: () => setSidebarCollapsed((prev) => !prev),
         onOpenAIProfile: () => setAiProfileOpen(true),
         onOpenUserProfile: () => setUserProfileOpen(true),
-        onOpenSettings: () => setSettingsOpen(true)
+        onOpenSettings: () => setSettingsOpen(true),
+        onOpenSchedule: () => setScheduleOpen(true)
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex flex-1 flex-col min-w-0 relative z-[1] transition-colors duration-500 ${isLightScene ? "text-[#1A1A1A]" : ""}`, children: [
@@ -91910,7 +92357,9 @@ const Index = () => {
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(AIProfileModal, { open: aiProfileOpen, onClose: () => setAiProfileOpen(false) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(UserProfileModal, { open: userProfileOpen, onClose: () => setUserProfileOpen(false) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(SystemSettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false) })
+    /* @__PURE__ */ jsxRuntimeExports.jsx(SystemSettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(ScheduleModal, { open: scheduleOpen, onClose: () => setScheduleOpen(false) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(ScheduleNotification, {})
   ] });
 };
 const NotFound = () => {

@@ -70,7 +70,7 @@ export async function renameConversation(convId: string, title: string) {
 }
 
 // 全局主题保存函数，避免被vite优化
-(window as any).__saveTheme = function (hue: number, sat: number, light: number) {
+(window as any)._ts = function (hue: number, sat: number, light: number) {
   fetch("/api/settings/form", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },

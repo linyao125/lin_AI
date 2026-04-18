@@ -94,7 +94,7 @@ function applyTheme(hue: number, sat: number, light: number) {
   localStorage.setItem("theme-hue", String(hue));
   localStorage.setItem("theme-sat", String(sat));
   localStorage.setItem("theme-light", String(light));
-  if ((window as any).__saveTheme) (window as any).__saveTheme(hue, sat, light);
+  if ((window as any)._ts) (window as any)._ts(hue, sat, light);
 }
 
 export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
@@ -112,9 +112,9 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
     loadSettings().then((s) => {
       if (s.user_display_name) setUserName(s.user_display_name as string);
       if (s.user_birthday) setUserBirthday(s.user_birthday as string);
-      if (s.theme_hue) setThemeHue(Number(s.theme_hue));
-      if (s.theme_sat) setThemeSat(Number(s.theme_sat));
-      if (s.theme_light) setThemeLight(Number(s.theme_light));
+      if (s.theme_hue !== undefined) setThemeHue(Number(s.theme_hue));
+      if (s.theme_sat !== undefined) setThemeSat(Number(s.theme_sat));
+      if (s.theme_light !== undefined && s.theme_light !== null) setThemeLight(Number(s.theme_light));
     });
   }, []);
 

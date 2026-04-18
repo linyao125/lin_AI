@@ -13,6 +13,8 @@ import { ChatInput } from "@/components/ChatInput";
 import { AIProfileModal } from "@/components/modals/AIProfileModal";
 import { UserProfileModal } from "@/components/modals/UserProfileModal";
 import { SystemSettingsModal } from "@/components/modals/SystemSettingsModal";
+import { ScheduleModal } from "@/components/modals/ScheduleModal";
+import { ScheduleNotification } from "@/components/ScheduleNotification";
 import { SceneManager } from "@/components/weather/SceneManager";
 import type { WeatherConfig } from "@/components/WeatherCanvas";
 
@@ -69,6 +71,7 @@ const Index = () => {
   const [aiProfileOpen, setAiProfileOpen] = useState(false);
   const [userProfileOpen, setUserProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [weatherConfig, setWeatherConfig] = useState<WeatherConfig>(defaultWeather);
   const [isLightScene, setIsLightScene] = useState(false);
 
@@ -218,6 +221,7 @@ const Index = () => {
         onOpenAIProfile={() => setAiProfileOpen(true)}
         onOpenUserProfile={() => setUserProfileOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSchedule={() => setScheduleOpen(true)}
       />
 
       <div className={`flex flex-1 flex-col min-w-0 relative z-[1] transition-colors duration-500 ${isLightScene ? "text-[#1A1A1A]" : ""}`}>
@@ -229,6 +233,8 @@ const Index = () => {
       <AIProfileModal open={aiProfileOpen} onClose={() => setAiProfileOpen(false)} />
       <UserProfileModal open={userProfileOpen} onClose={() => setUserProfileOpen(false)} />
       <SystemSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <ScheduleModal open={scheduleOpen} onClose={() => setScheduleOpen(false)} />
+      <ScheduleNotification />
     </div>
   );
 };
