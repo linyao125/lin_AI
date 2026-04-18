@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { X, ChevronDown, Upload, Mail } from "lucide-react";
+import { X, ChevronDown, Upload, Mail, MapPin } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 const API = "/api";
 
 async function loadSettings() {
   const r = await fetch(`${API}/settings/form`);
-  return r.json();
+  const res = await r.json();
+  return res.data || res;
 }
 
 async function saveSettings(data: Record<string, unknown>) {
@@ -30,6 +31,22 @@ const SECTIONS = [
 
 type SectionId = typeof SECTIONS[number]["id"];
 
+const IMAGE_TYPES = [
+  { value: "realistic", label: "写真" },
+  { value: "anime", label: "动漫" },
+  { value: "illustration", label: "插画" },
+  { value: "3d", label: "3D渲染" },
+];
+
+const TTS_VOICES = [
+  { value: "alloy", label: "Alloy（中性）" },
+  { value: "echo", label: "Echo（男声）" },
+  { value: "fable", label: "Fable（英式）" },
+  { value: "onyx", label: "Onyx（低沉）" },
+  { value: "nova", label: "Nova（女声）" },
+  { value: "shimmer", label: "Shimmer（轻柔）" },
+];
+
 function APISettings() {
   const [genOpen, setGenOpen] = useState(false);
   const [apiKey, setApiKey] = useState("");
@@ -40,6 +57,8 @@ function APISettings() {
   const [ttsApi, setTtsApi] = useState("");
   const [imageEnabled, setImageEnabled] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(false);
+  const [imageType, setImageType] = useState("realistic");
+  const [ttsVoice, setTtsVoice] = useState("nova");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -52,6 +71,8 @@ function APISettings() {
       setTtsApi((s.tts_api_key as string) || "");
       setImageEnabled(!!s.image_enabled);
       setTtsEnabled(!!s.tts_enabled);
+      setImageType((s.image_type as string) || "realistic");
+      setTtsVoice((s.tts_voice as string) || "nova");
     });
   }, []);
 
@@ -66,6 +87,8 @@ function APISettings() {
       tts_api_key: ttsApi,
       image_enabled: imageEnabled,
       tts_enabled: ttsEnabled,
+      image_type: imageType,
+      tts_voice: ttsVoice,
     });
     setSaving(false);
   };
@@ -120,27 +143,79 @@ function APISettings() {
           <ChevronDown size={16} className={`transition-transform duration-200 ${genOpen ? "rotate-180" : ""}`} />
         </button>
         {genOpen && (
-          <div className="border-t border-border/60 p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">图片生成</span>
-              <Switch checked={imageEnabled} onCheckedChange={setImageEnabled} />
+          <div className="border-t border-border/60 p-3 space-y-4">
+            {/* 图片生成 */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">图片生成</span>
+                <Switch checked={imageEnabled} onCheckedChange={setImageEnabled} />
+              </div>
+              {imageEnabled && (
+                <div className="space-y-2 pl-1">
+                  <input
+                    value={imageApi}
+                    onChange={(e) => setImageApi(e.target.value)}
+                    placeholder="第三方图片 API Key（不填使用官方）"
+                    className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                  {imageApi && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1.5">图片风格</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {IMAGE_TYPES.map((t) => (
+                          <button
+                            key={t.value}
+                            type="button"
+                            onClick={() => setImageType(t.value)}
+                            className={`py-1.5 rounded-lg text-xs transition-colors ${imageType === t.value ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50 border border-border/40"}`}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {!imageApi && (
+                    <p className="text-xs text-muted-foreground">未填写第三方Key，将使用官方DALL-E</p>
+                  )}
+                </div>
+              )}
             </div>
-            <input
-              value={imageApi}
-              onChange={(e) => setImageApi(e.target.value)}
-              placeholder="图片生成 API..."
-              className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">语音服务</span>
-              <Switch checked={ttsEnabled} onCheckedChange={setTtsEnabled} />
+
+            {/* 语音服务 */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">语音服务</span>
+                <Switch checked={ttsEnabled} onCheckedChange={setTtsEnabled} />
+              </div>
+              {ttsEnabled && (
+                <div className="space-y-2 pl-1">
+                  <input
+                    value={ttsApi}
+                    onChange={(e) => setTtsApi(e.target.value)}
+                    placeholder="第三方语音 API Key（不填使用官方）"
+                    className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1.5">
+                      {ttsApi ? "音色选择（第三方）" : "音色选择（官方OpenAI）"}
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {TTS_VOICES.map((v) => (
+                        <button
+                          key={v.value}
+                          type="button"
+                          onClick={() => setTtsVoice(v.value)}
+                          className={`py-1.5 rounded-lg text-xs transition-colors ${ttsVoice === v.value ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50 border border-border/40"}`}
+                        >
+                          {v.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <input
-              value={ttsApi}
-              onChange={(e) => setTtsApi(e.target.value)}
-              placeholder="语音服务 API..."
-              className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
           </div>
         )}
       </div>
@@ -191,6 +266,7 @@ function FeaturesSettings() {
   const [momentsEnabled, setMomentsEnabled] = useState(false);
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [emailInput, setEmailInput] = useState("");
+  const [city, setCity] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -200,6 +276,7 @@ function FeaturesSettings() {
       setMomentsEnabled(!!s.moments_enabled);
       setScheduleEnabled(!!s.scene_enabled);
       setEmailInput((s.user_email as string) || "");
+      setCity((s.user_city as string) || "");
       if (s.custom_logo) setLogoPreview(s.custom_logo as string);
     });
   }, []);
@@ -212,6 +289,7 @@ function FeaturesSettings() {
       moments_enabled: momentsEnabled,
       scene_enabled: scheduleEnabled,
       user_email: emailInput,
+      user_city: city,
     });
     setSaving(false);
   };
@@ -230,6 +308,21 @@ function FeaturesSettings() {
 
   return (
     <div className="animate-in fade-in duration-200">
+      {/* 城市地址 */}
+      <div className="mb-4">
+        <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+          <MapPin size={14} />
+          所在城市
+        </label>
+        <input
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          placeholder="如：上海、北京、成都..."
+          className="mt-1.5 flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+        <p className="text-xs text-muted-foreground mt-1">用于天气感知、节假日感知</p>
+      </div>
+
       <FeatureToggle label="自定义 Logo">
         <div className="space-y-2">
           {logoPreview && (
@@ -247,7 +340,7 @@ function FeaturesSettings() {
 
       <FeatureToggle label="MCP 工具" enabled={mcpEnabled} onToggle={setMcpEnabled} />
 
-      <FeatureToggle label="邮箱发送">
+      <FeatureToggle label="邮件发送">
         <div className="flex items-center gap-2">
           <Mail size={14} className="text-muted-foreground shrink-0" />
           <input
@@ -321,21 +414,17 @@ function DataSettings() {
 export function SystemSettingsModal({ open, onClose }: SystemSettingsModalProps) {
   const [activeSection, setActiveSection] = useState<SectionId>("api");
 
-  const handleClose = () => {
-    onClose();
-  };
-
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center" onClick={handleClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         className="relative z-10 w-full max-w-2xl h-[80vh] rounded-2xl bg-popover border border-border overflow-hidden flex"
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          onClick={handleClose}
+          onClick={onClose}
           className="absolute top-3 left-3 z-30 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         >
           <X size={18} />
