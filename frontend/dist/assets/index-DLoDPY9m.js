@@ -7193,12 +7193,44 @@ async function renameConversation(convId, title) {
     body: JSON.stringify({ title })
   });
 }
+async function loadSettings$2() {
+  const r2 = await fetch(`${LINAI_BASE}/settings/form`);
+  const res = await r2.json();
+  return res.data || res;
+}
+async function saveSettings$2(data2) {
+  await fetch(`${LINAI_BASE}/settings/form`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data2)
+  });
+}
+async function saveChatBg(chatBg, chatBgImage) {
+  const body = { chat_bg: chatBg };
+  if (chatBgImage !== void 0) body.chat_bg_image = chatBgImage;
+  await fetch(`${LINAI_BASE}/settings/form`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+}
+;
 window._ts = function(hue, sat, light) {
   fetch("/api/settings/form", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ theme_hue: hue, theme_sat: sat, theme_light: light })
   });
+};
+window._bc = function(uc2, ac2) {
+  fetch("/api/settings/form", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_bubble_color: uc2, ai_bubble_color: ac2 })
+  });
+};
+window._bg = function(bg2, img) {
+  saveChatBg(bg2, img);
 };
 const linai = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
@@ -7208,7 +7240,10 @@ const linai = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePropert
   listConversations,
   loadConversations,
   loadMessages,
+  loadSettings: loadSettings$2,
   renameConversation,
+  saveChatBg,
+  saveSettings: saveSettings$2,
   streamChat
 }, Symbol.toStringTag, { value: "Module" }));
 var Subscribable = class {
@@ -49542,26 +49577,31 @@ function ChatMessages({ messages }) {
   const [hoveredId, setHoveredId] = reactExports.useState(null);
   const [bgStyle, setBgStyle] = reactExports.useState({});
   reactExports.useEffect(() => {
-    const updateBg = () => {
-      const chatBg = localStorage.getItem("chat-bg") || "default";
-      if (chatBg === "default") {
+    const applyBg = (bg2, bgImage) => {
+      if (!bg2 || bg2 === "default") {
         setBgStyle({});
-      } else if (chatBg === "custom-image") {
-        const img = localStorage.getItem("chat-bg-image");
+      } else if (bg2 === "custom-image") {
+        const img = bgImage || window.__chatBgImage || "";
         if (img) {
-          setBgStyle({ backgroundImage: `url(${img})`, backgroundSize: "cover", backgroundPosition: "center" });
+          setBgStyle({
+            backgroundImage: `url(${img})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center"
+          });
         }
-      } else if (chatBg.startsWith("linear-gradient")) {
-        setBgStyle({ background: chatBg });
+      } else if (bg2.startsWith("linear-gradient")) {
+        setBgStyle({ background: bg2 });
       }
     };
-    updateBg();
-    window.addEventListener("storage", updateBg);
-    window.addEventListener("chat-bg-changed", updateBg);
-    return () => {
-      window.removeEventListener("storage", updateBg);
-      window.removeEventListener("chat-bg-changed", updateBg);
+    const initBg = window.__chatBg || "default";
+    const initImg = window.__chatBgImage || "";
+    applyBg(initBg, initImg);
+    const handler = (e) => {
+      const detail = e.detail || {};
+      applyBg(detail.bg || "default", detail.bgImage);
     };
+    window.addEventListener("chat-bg-changed", handler);
+    return () => window.removeEventListener("chat-bg-changed", handler);
   }, []);
   const handleCopy = (text) => {
     navigator.clipboard.writeText(text);
@@ -50935,38 +50975,46 @@ function BubbleStylePanel({
   onUserBubbleChange,
   onAiBubbleChange
 }) {
-  const [linked, setLinked] = reactExports.useState(() => localStorage.getItem("bubble-linked") === "true");
-  const [userColor, setUserColor] = reactExports.useState(() => localStorage.getItem("user-bubble-color") || "0 0% 18%");
-  const [aiColor, setAiColor] = reactExports.useState(() => localStorage.getItem("ai-bubble-color") || "0 0% 18%");
+  const [linked, setLinked] = reactExports.useState(
+    () => !!window.__bubbleLinked
+  );
+  const [userColor, setUserColor] = reactExports.useState(
+    () => window.__userBubbleColor || "0 0% 18%"
+  );
+  const [aiColor, setAiColor] = reactExports.useState(
+    () => window.__aiBubbleColor || "0 0% 18%"
+  );
   const [rippleKey, setRippleKey] = reactExports.useState(0);
   reactExports.useEffect(() => {
-    localStorage.setItem("bubble-linked", String(linked));
+    fetch("/api/settings/form", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bubble_linked: linked })
+    });
   }, [linked]);
   const applyColor = (side, hsl) => {
     if (side === "user") {
-      setUserColor(hsl);
-      localStorage.setItem("user-bubble-color", hsl);
-      document.documentElement.style.setProperty("--chat-user-bg", hsl);
-      if (window._bc) window._bc(hsl, localStorage.getItem("ai-bubble-color") || "");
+      const newUser = hsl;
+      const newAi = linked ? hsl : aiColor;
+      setUserColor(newUser);
+      document.documentElement.style.setProperty("--chat-user-bg", newUser);
       if (linked) {
-        setAiColor(hsl);
-        localStorage.setItem("ai-bubble-color", hsl);
-        document.documentElement.style.setProperty("--chat-ai-bg", hsl);
-        if (window._bc) window._bc(hsl, hsl);
+        setAiColor(newAi);
+        document.documentElement.style.setProperty("--chat-ai-bg", newAi);
         setRippleKey((k2) => k2 + 1);
       }
+      if (window._bc) window._bc(newUser, newAi);
     } else {
-      setAiColor(hsl);
-      localStorage.setItem("ai-bubble-color", hsl);
-      document.documentElement.style.setProperty("--chat-ai-bg", hsl);
-      if (window._bc) window._bc(localStorage.getItem("user-bubble-color") || "", hsl);
+      const newAi = hsl;
+      const newUser = linked ? hsl : userColor;
+      setAiColor(newAi);
+      document.documentElement.style.setProperty("--chat-ai-bg", newAi);
       if (linked) {
-        setUserColor(hsl);
-        localStorage.setItem("user-bubble-color", hsl);
-        document.documentElement.style.setProperty("--chat-user-bg", hsl);
-        if (window._bc) window._bc(hsl, hsl);
+        setUserColor(newUser);
+        document.documentElement.style.setProperty("--chat-user-bg", newUser);
         setRippleKey((k2) => k2 + 1);
       }
+      if (window._bc) window._bc(newUser, newAi);
     }
   };
   const handleModeChange = (side, mode) => {
@@ -50983,7 +51031,6 @@ function BubbleStylePanel({
     setLinked(next);
     if (next) {
       setAiColor(userColor);
-      localStorage.setItem("ai-bubble-color", userColor);
       document.documentElement.style.setProperty("--chat-ai-bg", userColor);
       if (window._bc) window._bc(userColor, userColor);
       onAiBubbleChange(userBubble);
@@ -51074,7 +51121,8 @@ function BubbleStylePanel({
 const API$1 = "/api";
 async function loadSettings$1() {
   const r2 = await fetch(`${API$1}/settings/form`);
-  return r2.json();
+  const res = await r2.json();
+  return res.data || res;
 }
 async function saveSettings$1(data2) {
   await fetch(`${API$1}/settings/form`, {
@@ -51142,39 +51190,30 @@ function applyTheme(hue, sat, light) {
   root.style.setProperty("--sidebar-accent", `${hue} ${sat}% ${light + (isLightTheme ? -6 : 5.5)}%`);
   root.style.setProperty("--sidebar-accent-foreground", fg2);
   root.style.setProperty("--sidebar-border", `${hue} ${Math.min(sat, 20)}% ${light + (isLightTheme ? -12 : 3)}%`);
-  localStorage.setItem("theme-hue", String(hue));
-  localStorage.setItem("theme-sat", String(sat));
-  localStorage.setItem("theme-light", String(light));
   if (window._ts) window._ts(hue, sat, light);
 }
 function UserProfileModal({ open, onClose }) {
-  const [userName, setUserName] = reactExports.useState(() => localStorage.getItem("user-name") || "User");
-  const [userBirthday, setUserBirthday] = reactExports.useState(() => localStorage.getItem("user-birthday") || "");
+  const [userName, setUserName] = reactExports.useState("User");
+  const [userBirthday, setUserBirthday] = reactExports.useState("");
   const [saving, setSaving] = reactExports.useState(false);
-  const [themeHue, setThemeHue] = reactExports.useState(() => Number(localStorage.getItem("theme-hue") || 0));
-  const [themeSat, setThemeSat] = reactExports.useState(() => Number(localStorage.getItem("theme-sat") || 0));
-  const [themeLight, setThemeLight] = reactExports.useState(() => Number(localStorage.getItem("theme-light") || 13));
-  const [chatBg, setChatBg] = reactExports.useState(() => localStorage.getItem("chat-bg") || "default");
-  const [userBubble, setUserBubble] = reactExports.useState(() => localStorage.getItem("user-bubble") || "bubble");
-  const [aiBubble, setAiBubble] = reactExports.useState(() => localStorage.getItem("ai-bubble") || "flat");
+  const [themeHue, setThemeHue] = reactExports.useState(0);
+  const [themeSat, setThemeSat] = reactExports.useState(0);
+  const [themeLight, setThemeLight] = reactExports.useState(13);
+  const [chatBg, setChatBg] = reactExports.useState(() => window.__chatBg || "default");
+  const [userBubble, setUserBubble] = reactExports.useState("bubble");
+  const [aiBubble, setAiBubble] = reactExports.useState("flat");
   reactExports.useEffect(() => {
+    if (!open) return;
     loadSettings$1().then((s) => {
       if (s.user_display_name) setUserName(s.user_display_name);
       if (s.user_birthday) setUserBirthday(s.user_birthday);
       if (s.theme_hue !== void 0) setThemeHue(Number(s.theme_hue));
       if (s.theme_sat !== void 0) setThemeSat(Number(s.theme_sat));
       if (s.theme_light !== void 0 && s.theme_light !== null) setThemeLight(Number(s.theme_light));
+      if (s.chat_bg) setChatBg(s.chat_bg);
     });
-  }, []);
-  const autoSave = reactExports.useCallback(() => {
-    localStorage.setItem("user-name", userName);
-    localStorage.setItem("user-birthday", userBirthday);
-    localStorage.setItem("chat-bg", chatBg);
-    localStorage.setItem("user-bubble", userBubble);
-    localStorage.setItem("ai-bubble", aiBubble);
-  }, [userName, userBirthday, chatBg, userBubble, aiBubble]);
+  }, [open]);
   const handleClose = async () => {
-    autoSave();
     setSaving(true);
     await saveSettings$1({
       user_display_name: userName,
@@ -51186,7 +51225,7 @@ function UserProfileModal({ open, onClose }) {
     setSaving(false);
     window.dispatchEvent(
       new CustomEvent("profile-updated", {
-        detail: { aiName: localStorage.getItem("ai-name"), userName }
+        detail: { userName }
       })
     );
     onClose();
@@ -51196,12 +51235,17 @@ function UserProfileModal({ open, onClose }) {
     const file = (_a3 = e.target.files) == null ? void 0 : _a3[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const result = reader.result;
-      localStorage.setItem("chat-bg-image", result);
       setChatBg("custom-image");
-      localStorage.setItem("chat-bg", "custom-image");
-      window.dispatchEvent(new CustomEvent("chat-bg-changed"));
+      await saveChatBg("custom-image", result);
+      window.__chatBg = "custom-image";
+      window.__chatBgImage = result;
+      window.dispatchEvent(
+        new CustomEvent("chat-bg-changed", {
+          detail: { bg: "custom-image", bgImage: result }
+        })
+      );
     };
     reader.readAsDataURL(file);
   };
@@ -51288,14 +51332,8 @@ function UserProfileModal({ open, onClose }) {
                       {
                         userBubble,
                         aiBubble,
-                        onUserBubbleChange: (v2) => {
-                          setUserBubble(v2);
-                          localStorage.setItem("user-bubble", v2);
-                        },
-                        onAiBubbleChange: (v2) => {
-                          setAiBubble(v2);
-                          localStorage.setItem("ai-bubble", v2);
-                        }
+                        onUserBubbleChange: (v2) => setUserBubble(v2),
+                        onAiBubbleChange: (v2) => setAiBubble(v2)
                       }
                     ) })
                   ] }),
@@ -51306,11 +51344,13 @@ function UserProfileModal({ open, onClose }) {
                         /* @__PURE__ */ jsxRuntimeExports.jsx(
                           "button",
                           {
-                            onClick: () => {
+                            onClick: async () => {
                               setChatBg("default");
-                              localStorage.setItem("chat-bg", "default");
-                              document.documentElement.style.removeProperty("--chat-bg-custom");
-                              window.dispatchEvent(new CustomEvent("chat-bg-changed"));
+                              await saveChatBg("default");
+                              window.__chatBg = "default";
+                              window.dispatchEvent(
+                                new CustomEvent("chat-bg-changed", { detail: { bg: "default" } })
+                              );
                             },
                             className: `px-3 py-1.5 rounded-lg text-xs transition-colors ${chatBg === "default" ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50"}`,
                             children: "默认"
@@ -51319,11 +51359,13 @@ function UserProfileModal({ open, onClose }) {
                         GRADIENT_PRESETS.map((g2) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
                           "button",
                           {
-                            onClick: () => {
+                            onClick: async () => {
                               setChatBg(g2.value);
-                              localStorage.setItem("chat-bg", g2.value);
-                              document.documentElement.style.setProperty("--chat-bg-custom", g2.value);
-                              window.dispatchEvent(new CustomEvent("chat-bg-changed"));
+                              await saveChatBg(g2.value);
+                              window.__chatBg = g2.value;
+                              window.dispatchEvent(
+                                new CustomEvent("chat-bg-changed", { detail: { bg: g2.value } })
+                              );
                             },
                             className: "flex flex-col items-center gap-1",
                             children: [

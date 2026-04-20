@@ -14,7 +14,6 @@ from app.models.schemas import (
     ChatRequest,
     ConversationOut,
     FrontendSettingsOut,
-    FrontendSettingsPayload,
     LoginPayload,
     MemoryCreatePayload,
     MemoryOut,
@@ -98,13 +97,13 @@ def get_frontend_settings():
     }
 
 
-@api_router.put("/settings/form", response_model=FrontendSettingsOut)
-def update_frontend_settings(payload: FrontendSettingsPayload):
-    data = settings_service.update_frontend_settings(payload.model_dump())
-    return {
-        "ok": True,
-        "data": data
-    }
+# ★ 关键：用裸 Request 接收 json，不用 Pydantic model
+# 这样不会把未传字段用默认值覆盖数据库里已有的值
+@api_router.put("/settings/form")
+async def update_frontend_settings(request: Request):
+    payload = await request.json()
+    data = settings_service.update_frontend_settings(payload)
+    return {"ok": True, "data": data}
 
 
 @api_router.get("/push/pending")
@@ -249,7 +248,6 @@ async def conversation_messages_stream(conversation_id: str, payload: MessageCre
     async def _stream():
         import json as _j
 
-        # 先推meta
         meta = {"type": "meta", "conversation_id": cid, "user_message_id": user_msg["id"]}
         yield f"data: {_j.dumps(meta, ensure_ascii=False)}\n\n"
 
@@ -266,7 +264,6 @@ async def conversation_messages_stream(conversation_id: str, payload: MessageCre
                 except Exception:
                     continue
 
-        # 存库
         if full_text:
             assistant_msg = repo.insert_message(cid, "assistant", full_text, meta={"streamed": True})
             from app.services.memory import memory_service

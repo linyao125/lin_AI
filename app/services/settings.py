@@ -52,7 +52,6 @@ class SettingsService:
             "ollama_mode": False,
             "ollama_base_url": "http://localhost:11434",
             "ollama_local_model": "gemma4",
-            "emoji_enabled": False,
             "proactive_enabled": True,
             "user_birthday": "",
             "user_city": "",
@@ -63,6 +62,13 @@ class SettingsService:
             "news_enabled": False,
             "moments_enabled": False,
             "scene_enabled": False,
+            # 外观：气泡颜色
+            "user_bubble_color": "",
+            "ai_bubble_color": "",
+            "bubble_linked": False,
+            # 外观：聊天背景（全部存后端，不走 localStorage）
+            "chat_bg": "default",
+            "chat_bg_image": "",
         }
 
     def get_frontend_settings(self) -> dict:
@@ -78,7 +84,12 @@ class SettingsService:
     def update_frontend_settings(self, payload: dict) -> dict:
         current = self.get_frontend_settings()
         # 敏感字段：空字符串不覆盖已有值
-        protected = {"api_key", "image_api_key", "tts_api_key", "news_api_key", "vpn_subscription", "access_token"}
+        protected = {
+            "api_key", "image_api_key", "tts_api_key", "news_api_key",
+            "vpn_subscription", "access_token",
+            # 图片是 base64 大字段，空字符串不覆盖
+            "chat_bg_image",
+        }
         for key, val in payload.items():
             if key in protected and (val is None or str(val).strip() == ""):
                 continue

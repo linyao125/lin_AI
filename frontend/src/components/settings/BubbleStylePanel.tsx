@@ -33,40 +33,51 @@ export function BubbleStylePanel({
   onUserBubbleChange,
   onAiBubbleChange,
 }: BubbleStylePanelProps) {
-  const [linked, setLinked] = useState(() => localStorage.getItem("bubble-linked") === "true");
-  const [userColor, setUserColor] = useState(() => localStorage.getItem("user-bubble-color") || "0 0% 18%");
-  const [aiColor, setAiColor] = useState(() => localStorage.getItem("ai-bubble-color") || "0 0% 18%");
+  // 初始值从后端注入的全局变量读取（main.py 在 HTML 里注入了这三个变量）
+  const [linked, setLinked] = useState<boolean>(
+    () => !!(window as any).__bubbleLinked
+  );
+  const [userColor, setUserColor] = useState<string>(
+    () => (window as any).__userBubbleColor || "0 0% 18%"
+  );
+  const [aiColor, setAiColor] = useState<string>(
+    () => (window as any).__aiBubbleColor || "0 0% 18%"
+  );
   const [rippleKey, setRippleKey] = useState(0);
 
+  // linked 状态变化时同步到后端
   useEffect(() => {
-    localStorage.setItem("bubble-linked", String(linked));
+    fetch("/api/settings/form", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bubble_linked: linked }),
+    });
   }, [linked]);
 
   const applyColor = (side: "user" | "ai", hsl: string) => {
     if (side === "user") {
-      setUserColor(hsl);
-      localStorage.setItem("user-bubble-color", hsl);
-      document.documentElement.style.setProperty("--chat-user-bg", hsl);
-      if ((window as any)._bc) (window as any)._bc(hsl, localStorage.getItem("ai-bubble-color") || "");
+      const newUser = hsl;
+      const newAi = linked ? hsl : aiColor;
+      setUserColor(newUser);
+      document.documentElement.style.setProperty("--chat-user-bg", newUser);
       if (linked) {
-        setAiColor(hsl);
-        localStorage.setItem("ai-bubble-color", hsl);
-        document.documentElement.style.setProperty("--chat-ai-bg", hsl);
-        if ((window as any)._bc) (window as any)._bc(hsl, hsl);
+        setAiColor(newAi);
+        document.documentElement.style.setProperty("--chat-ai-bg", newAi);
         setRippleKey((k) => k + 1);
       }
+      // 一次性保存到后端
+      if ((window as any)._bc) (window as any)._bc(newUser, newAi);
     } else {
-      setAiColor(hsl);
-      localStorage.setItem("ai-bubble-color", hsl);
-      document.documentElement.style.setProperty("--chat-ai-bg", hsl);
-      if ((window as any)._bc) (window as any)._bc(localStorage.getItem("user-bubble-color") || "", hsl);
+      const newAi = hsl;
+      const newUser = linked ? hsl : userColor;
+      setAiColor(newAi);
+      document.documentElement.style.setProperty("--chat-ai-bg", newAi);
       if (linked) {
-        setUserColor(hsl);
-        localStorage.setItem("user-bubble-color", hsl);
-        document.documentElement.style.setProperty("--chat-user-bg", hsl);
-        if ((window as any)._bc) (window as any)._bc(hsl, hsl);
+        setUserColor(newUser);
+        document.documentElement.style.setProperty("--chat-user-bg", newUser);
         setRippleKey((k) => k + 1);
       }
+      if ((window as any)._bc) (window as any)._bc(newUser, newAi);
     }
   };
 
@@ -84,8 +95,8 @@ export function BubbleStylePanel({
     const next = !linked;
     setLinked(next);
     if (next) {
+      // 开启联动时，AI 同步为用户颜色
       setAiColor(userColor);
-      localStorage.setItem("ai-bubble-color", userColor);
       document.documentElement.style.setProperty("--chat-ai-bg", userColor);
       if ((window as any)._bc) (window as any)._bc(userColor, userColor);
       onAiBubbleChange(userBubble);

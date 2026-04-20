@@ -29,26 +29,37 @@ export function ChatMessages({ messages }: ChatMessagesProps) {
   const [bgStyle, setBgStyle] = useState<React.CSSProperties>({});
 
   useEffect(() => {
-    const updateBg = () => {
-      const chatBg = localStorage.getItem("chat-bg") || "default";
-      if (chatBg === "default") {
+    // 根据背景值设置样式
+    const applyBg = (bg: string, bgImage?: string) => {
+      if (!bg || bg === "default") {
         setBgStyle({});
-      } else if (chatBg === "custom-image") {
-        const img = localStorage.getItem("chat-bg-image");
+      } else if (bg === "custom-image") {
+        const img = bgImage || (window as any).__chatBgImage || "";
         if (img) {
-          setBgStyle({ backgroundImage: `url(${img})`, backgroundSize: "cover", backgroundPosition: "center" });
+          setBgStyle({
+            backgroundImage: `url(${img})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          });
         }
-      } else if (chatBg.startsWith("linear-gradient")) {
-        setBgStyle({ background: chatBg });
+      } else if (bg.startsWith("linear-gradient")) {
+        setBgStyle({ background: bg });
       }
     };
-    updateBg();
-    window.addEventListener("storage", updateBg);
-    window.addEventListener("chat-bg-changed", updateBg);
-    return () => {
-      window.removeEventListener("storage", updateBg);
-      window.removeEventListener("chat-bg-changed", updateBg);
+
+    // 优先读后端注入的全局变量（刷新时零闪烁，不依赖 localStorage）
+    const initBg = (window as any).__chatBg || "default";
+    const initImg = (window as any).__chatBgImage || "";
+    applyBg(initBg, initImg);
+
+    // 监听用户在设置里改背景后的通知
+    // detail 格式：{ bg: string, bgImage?: string }
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ bg: string; bgImage?: string }>).detail || {};
+      applyBg(detail.bg || "default", detail.bgImage);
     };
+    window.addEventListener("chat-bg-changed", handler);
+    return () => window.removeEventListener("chat-bg-changed", handler);
   }, []);
 
   const handleCopy = (text: string) => {

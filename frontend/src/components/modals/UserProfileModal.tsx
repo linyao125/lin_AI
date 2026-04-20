@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import {
   Accordion,
@@ -7,12 +7,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { BubbleStylePanel } from "@/components/settings/BubbleStylePanel";
+import { saveChatBg } from "@/lib/linai";
 
 const API = "/api";
 
 async function loadSettings() {
   const r = await fetch(`${API}/settings/form`);
-  return r.json();
+  const res = await r.json();
+  return res.data || res;
 }
 
 async function saveSettings(data: Record<string, unknown>) {
@@ -91,44 +93,38 @@ function applyTheme(hue: number, sat: number, light: number) {
   root.style.setProperty("--sidebar-accent-foreground", fg);
   root.style.setProperty("--sidebar-border", `${hue} ${Math.min(sat, 20)}% ${light + (isLightTheme ? -12 : 3)}%`);
 
-  localStorage.setItem("theme-hue", String(hue));
-  localStorage.setItem("theme-sat", String(sat));
-  localStorage.setItem("theme-light", String(light));
+  // 不再写 localStorage，只存后端
   if ((window as any)._ts) (window as any)._ts(hue, sat, light);
 }
 
 export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
-  const [userName, setUserName] = useState(() => localStorage.getItem("user-name") || "User");
-  const [userBirthday, setUserBirthday] = useState(() => localStorage.getItem("user-birthday") || "");
+  const [userName, setUserName] = useState("User");
+  const [userBirthday, setUserBirthday] = useState("");
   const [saving, setSaving] = useState(false);
-  const [themeHue, setThemeHue] = useState(() => Number(localStorage.getItem("theme-hue") || 0));
-  const [themeSat, setThemeSat] = useState(() => Number(localStorage.getItem("theme-sat") || 0));
-  const [themeLight, setThemeLight] = useState(() => Number(localStorage.getItem("theme-light") || 13));
-  const [chatBg, setChatBg] = useState(() => localStorage.getItem("chat-bg") || "default");
-  const [userBubble, setUserBubble] = useState(() => localStorage.getItem("user-bubble") || "bubble");
-  const [aiBubble, setAiBubble] = useState(() => localStorage.getItem("ai-bubble") || "flat");
+  const [themeHue, setThemeHue] = useState(0);
+  const [themeSat, setThemeSat] = useState(0);
+  const [themeLight, setThemeLight] = useState(13);
+  // 背景：初始值从后端注入的全局变量读（main.py 注入了 window.__chatBg）
+  const [chatBg, setChatBg] = useState<string>(() => (window as any).__chatBg || "default");
+  const [userBubble, setUserBubble] = useState("bubble");
+  const [aiBubble, setAiBubble] = useState("flat");
 
+  // 打开弹窗时从后端加载最新设置
   useEffect(() => {
+    if (!open) return;
     loadSettings().then((s) => {
       if (s.user_display_name) setUserName(s.user_display_name as string);
       if (s.user_birthday) setUserBirthday(s.user_birthday as string);
       if (s.theme_hue !== undefined) setThemeHue(Number(s.theme_hue));
       if (s.theme_sat !== undefined) setThemeSat(Number(s.theme_sat));
       if (s.theme_light !== undefined && s.theme_light !== null) setThemeLight(Number(s.theme_light));
+      if (s.chat_bg) setChatBg(s.chat_bg as string);
     });
-  }, []);
-
-  const autoSave = useCallback(() => {
-    localStorage.setItem("user-name", userName);
-    localStorage.setItem("user-birthday", userBirthday);
-    localStorage.setItem("chat-bg", chatBg);
-    localStorage.setItem("user-bubble", userBubble);
-    localStorage.setItem("ai-bubble", aiBubble);
-  }, [userName, userBirthday, chatBg, userBubble, aiBubble]);
+  }, [open]);
 
   const handleClose = async () => {
-    autoSave();
     setSaving(true);
+    // 只保存用户名/生日/主题，背景已在选择时实时保存
     await saveSettings({
       user_display_name: userName,
       user_birthday: userBirthday,
@@ -139,7 +135,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
     setSaving(false);
     window.dispatchEvent(
       new CustomEvent("profile-updated", {
-        detail: { aiName: localStorage.getItem("ai-name"), userName },
+        detail: { userName },
       }),
     );
     onClose();
@@ -149,12 +145,19 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const result = reader.result as string;
-      localStorage.setItem("chat-bg-image", result);
       setChatBg("custom-image");
-      localStorage.setItem("chat-bg", "custom-image");
-      window.dispatchEvent(new CustomEvent("chat-bg-changed"));
+      // 保存到后端（图片 base64 存 chat_bg_image）
+      await saveChatBg("custom-image", result);
+      // 更新全局变量，让其他窗口/刷新后也能读到
+      (window as any).__chatBg = "custom-image";
+      (window as any).__chatBgImage = result;
+      window.dispatchEvent(
+        new CustomEvent("chat-bg-changed", {
+          detail: { bg: "custom-image", bgImage: result },
+        }),
+      );
     };
     reader.readAsDataURL(file);
   };
@@ -247,8 +250,8 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                     <BubbleStylePanel
                       userBubble={userBubble}
                       aiBubble={aiBubble}
-                      onUserBubbleChange={(v) => { setUserBubble(v); localStorage.setItem("user-bubble", v); }}
-                      onAiBubbleChange={(v) => { setAiBubble(v); localStorage.setItem("ai-bubble", v); }}
+                      onUserBubbleChange={(v) => setUserBubble(v)}
+                      onAiBubbleChange={(v) => setAiBubble(v)}
                     />
                   </AccordionContent>
                 </AccordionItem>
@@ -260,25 +263,32 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                   <AccordionContent>
                     <div className="space-y-3 pt-1">
                       <div className="flex flex-wrap gap-2">
+                        {/* 默认背景 */}
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             setChatBg("default");
-                            localStorage.setItem("chat-bg", "default");
-                            document.documentElement.style.removeProperty("--chat-bg-custom");
-                            window.dispatchEvent(new CustomEvent("chat-bg-changed"));
+                            await saveChatBg("default");
+                            (window as any).__chatBg = "default";
+                            window.dispatchEvent(
+                              new CustomEvent("chat-bg-changed", { detail: { bg: "default" } }),
+                            );
                           }}
                           className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${chatBg === "default" ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50"}`}
                         >
                           默认
                         </button>
+
+                        {/* 渐变预设 */}
                         {GRADIENT_PRESETS.map((g) => (
                           <button
                             key={g.name}
-                            onClick={() => {
+                            onClick={async () => {
                               setChatBg(g.value);
-                              localStorage.setItem("chat-bg", g.value);
-                              document.documentElement.style.setProperty("--chat-bg-custom", g.value);
-                              window.dispatchEvent(new CustomEvent("chat-bg-changed"));
+                              await saveChatBg(g.value);
+                              (window as any).__chatBg = g.value;
+                              window.dispatchEvent(
+                                new CustomEvent("chat-bg-changed", { detail: { bg: g.value } }),
+                              );
                             }}
                             className="flex flex-col items-center gap-1"
                           >
@@ -290,6 +300,8 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                           </button>
                         ))}
                       </div>
+
+                      {/* 自定义图片上传 */}
                       <div>
                         <label className="flex items-center justify-center w-full py-2.5 rounded-lg border border-dashed border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-border cursor-pointer transition-colors">
                           上传自定义背景图片

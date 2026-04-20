@@ -69,11 +69,55 @@ export async function renameConversation(convId: string, title: string) {
   })
 }
 
-// 全局主题保存函数，避免被vite优化
-(window as any)._ts = function (hue: number, sat: number, light: number) {
+// ── 设置读写 ────────────────────────────────────────────────
+
+export async function loadSettings() {
+  const r = await fetch(`${LINAI_BASE}/settings/form`)
+  const res = await r.json()
+  return res.data || res
+}
+
+export async function saveSettings(data: Record<string, unknown>) {
+  await fetch(`${LINAI_BASE}/settings/form`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+}
+
+// 聊天背景：存后端，不走 localStorage
+export async function saveChatBg(chatBg: string, chatBgImage?: string) {
+  const body: Record<string, string> = { chat_bg: chatBg }
+  // 只有明确传入图片时才带上（protected 字段，空字符串后端不覆盖）
+  if (chatBgImage !== undefined) body.chat_bg_image = chatBgImage
+  await fetch(`${LINAI_BASE}/settings/form`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+}
+
+// ── 全局工具函数（注入 HTML 的 _ts/_bc/_bg 的前端侧镜像）────
+
+// 主题保存（和 window._ts 等价，供组件内直接调用）
+;(window as any)._ts = function (hue: number, sat: number, light: number) {
   fetch("/api/settings/form", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ theme_hue: hue, theme_sat: sat, theme_light: light }),
   })
+}
+
+// 气泡颜色保存（和 window._bc 等价）
+;(window as any)._bc = function (uc: string, ac: string) {
+  fetch("/api/settings/form", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_bubble_color: uc, ai_bubble_color: ac }),
+  })
+}
+
+// 背景保存（和 window._bg 等价）
+;(window as any)._bg = function (bg: string, img?: string) {
+  saveChatBg(bg, img)
 }
