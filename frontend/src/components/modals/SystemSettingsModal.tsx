@@ -345,7 +345,6 @@ function FeatureToggle({ label, children, enabled: externalEnabled, onToggle }: 
 }
 
 const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function FeaturesSettings(_, ref) {
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [newsEnabled, setNewsEnabled] = useState(false);
   const [mcpEnabled, setMcpEnabled] = useState(false);
   const [momentsEnabled, setMomentsEnabled] = useState(false);
@@ -353,9 +352,7 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [city, setCity] = useState("");
-  const [lat, setLat] = useState("");
-  const [lon, setLon] = useState("");
-  const [loaded, setLoaded] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   useEffect(() => {
     loadSettings().then((s) => {
@@ -366,59 +363,27 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
       setEmailEnabled(!!s.email_enabled);
       setEmailInput((s.user_email as string) || "");
       setCity((s.user_city as string) || "");
-      setLat((s.user_lat as string) || "");
-      setLon((s.user_lon as string) || "");
       if (s.custom_logo) setLogoPreview(s.custom_logo as string);
-      setLoaded(true);
     });
   }, []);
 
-  // 用ref实时追踪最新state，避免闭包旧值问题
-  const stateRef = useRef({
-    newsEnabled, mcpEnabled, momentsEnabled, scheduleEnabled,
-    emailEnabled, emailInput, city, lat, lon
-  });
-  useEffect(() => {
-    stateRef.current = {
-      newsEnabled, mcpEnabled, momentsEnabled, scheduleEnabled,
-      emailEnabled, emailInput, city, lat, lon
-    };
-  });
+  const saveSingle = async (key: string, value: unknown) => {
+    await saveSettings({ [key]: value });
+  };
 
   const handleSave = async () => {
-    const s = stateRef.current;
-    const effectiveMcp = s.mcpEnabled || s.emailEnabled || s.newsEnabled || s.momentsEnabled || s.scheduleEnabled;
-    let saveLat = s.lat;
-    let saveLon = s.lon;
-    if (s.city) {
-      try {
-        const geo = await fetch(`${API}/geo/city?city=${encodeURIComponent(s.city)}`);
-        const geoData = await geo.json();
-        if (geoData.lat) { saveLat = geoData.lat; saveLon = geoData.lon; }
-      } catch { /* ignore */ }
-    }
     await saveSettings({
-      news_enabled: s.newsEnabled,
-      mcp_enabled: effectiveMcp,
-      moments_enabled: s.momentsEnabled,
-      scene_enabled: s.scheduleEnabled,
-      email_enabled: s.emailEnabled,
-      user_email: s.emailInput,
-      user_city: s.city,
-      user_lat: saveLat,
-      user_lon: saveLon,
+      news_enabled: newsEnabled,
+      mcp_enabled: mcpEnabled,
+      moments_enabled: momentsEnabled,
+      scene_enabled: scheduleEnabled,
+      email_enabled: emailEnabled,
+      user_email: emailInput,
+      user_city: city,
     });
   };
 
   useImperativeHandle(ref, () => ({ save: handleSave }));
-
-  // 加载完成后，每次开关变化立即保存
-  const isFirstRender = useRef(true);
-  useEffect(() => {
-    if (!loaded) return;
-    if (isFirstRender.current) { isFirstRender.current = false; return; }
-    void handleSave();
-  }, [emailEnabled, newsEnabled, momentsEnabled, scheduleEnabled, mcpEnabled, loaded]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -431,8 +396,6 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
     };
     reader.readAsDataURL(file);
   };
-
-  const effectiveMcp = mcpEnabled || emailEnabled || newsEnabled || momentsEnabled || scheduleEnabled;
 
   return (
     <div className="animate-in fade-in duration-200">
@@ -447,7 +410,7 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
         <input
           value={city}
           onChange={(e) => setCity(e.target.value)}
-          onBlur={() => void handleSave()}
+          onBlur={() => void saveSingle("user_city", city)}
           placeholder="如：上海市、北京市朝阳区..."
           className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
@@ -468,37 +431,40 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
         </div>
       </FeatureToggle>
 
-      <FeatureToggle
-        label="MCP 工具"
-        enabled={effectiveMcp}
-        onToggle={(v) => {
-          setMcpEnabled(v);
-          if (!v) {
-            setEmailEnabled(false);
-            setNewsEnabled(false);
-            setMomentsEnabled(false);
-            setScheduleEnabled(false);
-          }
-        }}
-      />
+      <FeatureToggle label="MCP 工具" enabled={mcpEnabled} onToggle={(v) => {
+        setMcpEnabled(v);
+        void saveSingle("mcp_enabled", v);
+      }} />
 
-      <FeatureToggle label="邮件发送" enabled={emailEnabled} onToggle={setEmailEnabled}>
+      <FeatureToggle label="邮件发送" enabled={emailEnabled} onToggle={(v) => {
+        setEmailEnabled(v);
+        void saveSingle("email_enabled", v);
+      }}>
         <div className="flex items-center gap-2">
           <Mail size={14} className="text-muted-foreground shrink-0" />
           <input
             type="email"
             value={emailInput}
             onChange={(e) => setEmailInput(e.target.value)}
-            onBlur={() => void handleSave()}
+            onBlur={() => void saveSingle("user_email", emailInput)}
             placeholder="你的收件邮箱"
             className="flex h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
       </FeatureToggle>
 
-      <FeatureToggle label="新闻推送" enabled={newsEnabled} onToggle={setNewsEnabled} />
-      <FeatureToggle label="小红书使用" enabled={momentsEnabled} onToggle={setMomentsEnabled} />
-      <FeatureToggle label="日程提醒" enabled={scheduleEnabled} onToggle={setScheduleEnabled} />
+      <FeatureToggle label="新闻推送" enabled={newsEnabled} onToggle={(v) => {
+        setNewsEnabled(v);
+        void saveSingle("news_enabled", v);
+      }} />
+      <FeatureToggle label="小红书使用" enabled={momentsEnabled} onToggle={(v) => {
+        setMomentsEnabled(v);
+        void saveSingle("moments_enabled", v);
+      }} />
+      <FeatureToggle label="日程提醒" enabled={scheduleEnabled} onToggle={(v) => {
+        setScheduleEnabled(v);
+        void saveSingle("scene_enabled", v);
+      }} />
     </div>
   );
 });
