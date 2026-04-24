@@ -510,15 +510,17 @@ function intToEdgePercent(n: number): string {
   return (n >= 0 ? `+${n}` : String(n)) + "%";
 }
 
+/** 音调只存 +NHz（0～50），不允许负数。 */
 function intToEdgeHz(n: number): string {
-  return (n >= 0 ? `+${n}` : String(n)) + "Hz";
+  const v = Math.max(0, n);
+  return `+${v}Hz`;
 }
 
-/** 旧存盘为 % 时迁移为同数值的 Hz。 */
+/** 旧存盘为 % 时迁移为同数值的 Hz；负 Hz 钳到 +0Hz。 */
 function normalizeEdgePitchValue(raw: string | undefined): string {
   if (raw == null || raw === "") return "+0Hz";
   const s = String(raw);
-  if (s.includes("Hz")) return s;
+  if (s.includes("Hz")) return intToEdgeHz(edgePercentToInt(s));
   if (s.includes("%")) return intToEdgeHz(edgePercentToInt(s));
   return "+0Hz";
 }
@@ -748,10 +750,14 @@ function VoiceSettings() {
                   <span className="text-xs text-muted-foreground w-6">{label}</span>
                   <input
                     type="range"
-                    min={-50}
+                    min={unit === "hz" ? 0 : -50}
                     max={50}
                     step={5}
-                    value={edgePercentToInt(form[key])}
+                    value={
+                      unit === "hz"
+                        ? Math.max(0, edgePercentToInt(form[key]))
+                        : edgePercentToInt(form[key])
+                    }
                     onChange={(e) => {
                       const n = Number(e.target.value);
                       if (unit === "hz") {
