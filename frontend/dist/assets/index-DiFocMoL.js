@@ -51856,32 +51856,11 @@ const SECTIONS = [
   { id: "features", label: "功能" },
   { id: "data", label: "数据管理" }
 ];
-const IMAGE_TYPES = [
-  { value: "realistic", label: "写真" },
-  { value: "anime", label: "动漫" },
-  { value: "illustration", label: "插画" },
-  { value: "3d", label: "3D渲染" }
-];
-const TTS_VOICES = [
-  { value: "alloy", label: "Alloy（中性）" },
-  { value: "echo", label: "Echo（男声）" },
-  { value: "fable", label: "Fable（英式）" },
-  { value: "onyx", label: "Onyx（低沉）" },
-  { value: "nova", label: "Nova（女声）" },
-  { value: "shimmer", label: "Shimmer（轻柔）" }
-];
 const APISettings = reactExports.forwardRef(function APISettings2(_2, ref) {
-  const [genOpen, setGenOpen] = reactExports.useState(false);
   const [vpnOpen, setVpnOpen] = reactExports.useState(false);
   const [apiKey, setApiKey] = reactExports.useState("");
   const [serverUrl, setServerUrl] = reactExports.useState("");
   const [vpn, setVpn] = reactExports.useState("");
-  const [imageApi, setImageApi] = reactExports.useState("");
-  const [ttsApi, setTtsApi] = reactExports.useState("");
-  const [imageEnabled, setImageEnabled] = reactExports.useState(false);
-  const [ttsEnabled, setTtsEnabled] = reactExports.useState(false);
-  const [imageType, setImageType] = reactExports.useState("realistic");
-  const [ttsVoice, setTtsVoice] = reactExports.useState("nova");
   const [nodes, setNodes] = reactExports.useState([]);
   const [currentNode, setCurrentNode] = reactExports.useState("");
   const [loadingNodes, setLoadingNodes] = reactExports.useState(false);
@@ -51903,12 +51882,6 @@ const APISettings = reactExports.forwardRef(function APISettings2(_2, ref) {
       setApiKey(s.api_key || "");
       setServerUrl(s.linai_server_url || "");
       setVpn(s.vpn_subscription || "");
-      setImageApi(s.image_api_key || "");
-      setTtsApi(s.tts_api_key || "");
-      setImageEnabled(!!s.image_enabled);
-      setTtsEnabled(!!s.tts_enabled);
-      setImageType(s.image_type || "realistic");
-      setTtsVoice(s.tts_voice || "nova");
       if (s.vpn_subscription) {
         setVpnOpen(true);
         void fetchNodes();
@@ -51932,13 +51905,7 @@ const APISettings = reactExports.forwardRef(function APISettings2(_2, ref) {
     await saveSettings({
       api_key: apiKey,
       linai_server_url: serverUrl,
-      vpn_subscription: vpn,
-      image_api_key: imageApi,
-      tts_api_key: ttsApi,
-      image_enabled: imageEnabled,
-      tts_enabled: ttsEnabled,
-      image_type: imageType,
-      tts_voice: ttsVoice
+      vpn_subscription: vpn
     });
     if (vpn) {
       await fetch(`${API}/proxy/apply`, {
@@ -51950,17 +51917,7 @@ const APISettings = reactExports.forwardRef(function APISettings2(_2, ref) {
       await fetchNodes();
     }
   };
-  reactExports.useImperativeHandle(ref, () => ({ save: handleSave }), [
-    apiKey,
-    serverUrl,
-    vpn,
-    imageApi,
-    ttsApi,
-    imageEnabled,
-    ttsEnabled,
-    imageType,
-    ttsVoice
-  ]);
+  reactExports.useImperativeHandle(ref, () => ({ save: handleSave }), [apiKey, serverUrl, vpn]);
   const delayColor = (delay) => {
     if (delay < 200) return "text-green-500";
     if (delay < 500) return "text-yellow-500";
@@ -52045,83 +52002,6 @@ const APISettings = reactExports.forwardRef(function APISettings2(_2, ref) {
           },
           node.name
         )) })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-border/60 rounded-xl overflow-hidden", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "button",
-        {
-          type: "button",
-          onClick: () => setGenOpen(!genOpen),
-          className: "flex w-full items-center justify-between p-3 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors",
-          children: [
-            "生成服务",
-            /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronDown, { size: 16, className: `transition-transform duration-200 ${genOpen ? "rotate-180" : ""}` })
-          ]
-        }
-      ),
-      genOpen && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border-t border-border/60 p-3 space-y-4", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-muted-foreground", children: "图片生成" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Switch, { checked: imageEnabled, onCheckedChange: setImageEnabled })
-          ] }),
-          imageEnabled && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2 pl-1", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                value: imageApi,
-                onChange: (e) => setImageApi(e.target.value),
-                placeholder: "第三方图片 API Key（不填使用官方）",
-                className: "flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              }
-            ),
-            imageApi && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground mb-1.5", children: "图片风格" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 gap-1.5", children: IMAGE_TYPES.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  type: "button",
-                  onClick: () => setImageType(t2.value),
-                  className: `py-1.5 rounded-lg text-xs transition-colors ${imageType === t2.value ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50 border border-border/40"}`,
-                  children: t2.label
-                },
-                t2.value
-              )) })
-            ] }),
-            !imageApi && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground", children: "未填写第三方Key，将使用官方DALL-E" })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-muted-foreground", children: "语音服务" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Switch, { checked: ttsEnabled, onCheckedChange: setTtsEnabled })
-          ] }),
-          ttsEnabled && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2 pl-1", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                value: ttsApi,
-                onChange: (e) => setTtsApi(e.target.value),
-                placeholder: "第三方语音 API Key（不填使用官方）",
-                className: "flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground mb-1.5", children: ttsApi ? "音色选择（第三方）" : "音色选择（官方OpenAI）" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 gap-1.5", children: TTS_VOICES.map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  type: "button",
-                  onClick: () => setTtsVoice(v2.value),
-                  className: `py-1.5 rounded-lg text-xs transition-colors ${ttsVoice === v2.value ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50 border border-border/40"}`,
-                  children: v2.label
-                },
-                v2.value
-              )) })
-            ] })
-          ] })
-        ] })
       ] })
     ] })
   ] });
@@ -52424,11 +52304,12 @@ function VoiceSettings() {
           ]
         }
       );
-      return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2", children: [
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 items-stretch", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs(
           "div",
           {
-            className: `flex-1 border rounded-xl overflow-hidden transition-all duration-200 ${activePanel === "official" ? "flex-[2]" : "flex-[0.6] opacity-60"}`,
+            className: `flex-1 border rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${activePanel === "official" ? "flex-[2]" : "flex-[0.6] opacity-60"}`,
+            style: { minHeight: "340px" },
             children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(PanelHeader, { id: "official", title: "官方 TTS", active: activePanel === "official" }),
               activePanel === "official" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-4 pb-4 space-y-3", children: isNativeOpenAI ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
@@ -52465,7 +52346,8 @@ function VoiceSettings() {
         /* @__PURE__ */ jsxRuntimeExports.jsxs(
           "div",
           {
-            className: `flex-1 border rounded-xl overflow-hidden transition-all duration-200 ${activePanel === "edge" ? "flex-[2]" : "flex-[0.6] opacity-60"}`,
+            className: `flex-1 border rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${activePanel === "edge" ? "flex-[2]" : "flex-[0.6] opacity-60"}`,
+            style: { minHeight: "340px" },
             children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 PanelHeader,
@@ -52556,7 +52438,8 @@ function VoiceSettings() {
         /* @__PURE__ */ jsxRuntimeExports.jsxs(
           "div",
           {
-            className: `flex-1 border rounded-xl overflow-hidden transition-all duration-200 ${activePanel === "fish" ? "flex-[2]" : "flex-[0.6] opacity-60"}`,
+            className: `flex-1 border rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${activePanel === "fish" ? "flex-[2]" : "flex-[0.6] opacity-60"}`,
+            style: { minHeight: "340px" },
             children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(PanelHeader, { id: "fish", title: "自设 TTS", active: activePanel === "fish" }),
               activePanel === "fish" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 pb-4 space-y-2", children: [

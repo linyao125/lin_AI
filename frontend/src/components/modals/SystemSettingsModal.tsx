@@ -33,34 +33,11 @@ const SECTIONS = [
 
 type SectionId = typeof SECTIONS[number]["id"];
 
-const IMAGE_TYPES = [
-  { value: "realistic", label: "写真" },
-  { value: "anime", label: "动漫" },
-  { value: "illustration", label: "插画" },
-  { value: "3d", label: "3D渲染" },
-];
-
-const TTS_VOICES = [
-  { value: "alloy", label: "Alloy（中性）" },
-  { value: "echo", label: "Echo（男声）" },
-  { value: "fable", label: "Fable（英式）" },
-  { value: "onyx", label: "Onyx（低沉）" },
-  { value: "nova", label: "Nova（女声）" },
-  { value: "shimmer", label: "Shimmer（轻柔）" },
-];
-
 const APISettings = forwardRef<{ save: () => Promise<void> }>(function APISettings(_, ref) {
-  const [genOpen, setGenOpen] = useState(false);
   const [vpnOpen, setVpnOpen] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [serverUrl, setServerUrl] = useState("");
   const [vpn, setVpn] = useState("");
-  const [imageApi, setImageApi] = useState("");
-  const [ttsApi, setTtsApi] = useState("");
-  const [imageEnabled, setImageEnabled] = useState(false);
-  const [ttsEnabled, setTtsEnabled] = useState(false);
-  const [imageType, setImageType] = useState("realistic");
-  const [ttsVoice, setTtsVoice] = useState("nova");
   const [nodes, setNodes] = useState<{ name: string; type: string; delay: number }[]>([]);
   const [currentNode, setCurrentNode] = useState("");
   const [loadingNodes, setLoadingNodes] = useState(false);
@@ -84,12 +61,6 @@ const APISettings = forwardRef<{ save: () => Promise<void> }>(function APISettin
       setApiKey((s.api_key as string) || "");
       setServerUrl((s.linai_server_url as string) || "");
       setVpn((s.vpn_subscription as string) || "");
-      setImageApi((s.image_api_key as string) || "");
-      setTtsApi((s.tts_api_key as string) || "");
-      setImageEnabled(!!s.image_enabled);
-      setTtsEnabled(!!s.tts_enabled);
-      setImageType((s.image_type as string) || "realistic");
-      setTtsVoice((s.tts_voice as string) || "nova");
       if (s.vpn_subscription) {
         setVpnOpen(true);
         void fetchNodes();
@@ -117,12 +88,6 @@ const APISettings = forwardRef<{ save: () => Promise<void> }>(function APISettin
       api_key: apiKey,
       linai_server_url: serverUrl,
       vpn_subscription: vpn,
-      image_api_key: imageApi,
-      tts_api_key: ttsApi,
-      image_enabled: imageEnabled,
-      tts_enabled: ttsEnabled,
-      image_type: imageType,
-      tts_voice: ttsVoice,
     });
     if (vpn) {
       await fetch(`${API}/proxy/apply`, {
@@ -135,10 +100,7 @@ const APISettings = forwardRef<{ save: () => Promise<void> }>(function APISettin
     }
   };
 
-  useImperativeHandle(ref, () => ({ save: handleSave }), [
-    apiKey, serverUrl, vpn, imageApi, ttsApi,
-    imageEnabled, ttsEnabled, imageType, ttsVoice
-  ]);
+  useImperativeHandle(ref, () => ({ save: handleSave }), [apiKey, serverUrl, vpn]);
 
   const delayColor = (delay: number) => {
     if (delay < 200) return "text-green-500";
@@ -227,91 +189,6 @@ const APISettings = forwardRef<{ save: () => Promise<void> }>(function APISettin
                 )}
               </div>
             )}
-          </div>
-        )}
-      </div>
-
-      <div className="border border-border/60 rounded-xl overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setGenOpen(!genOpen)}
-          className="flex w-full items-center justify-between p-3 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
-        >
-          生成服务
-          <ChevronDown size={16} className={`transition-transform duration-200 ${genOpen ? "rotate-180" : ""}`} />
-        </button>
-        {genOpen && (
-          <div className="border-t border-border/60 p-3 space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">图片生成</span>
-                <Switch checked={imageEnabled} onCheckedChange={setImageEnabled} />
-              </div>
-              {imageEnabled && (
-                <div className="space-y-2 pl-1">
-                  <input
-                    value={imageApi}
-                    onChange={(e) => setImageApi(e.target.value)}
-                    placeholder="第三方图片 API Key（不填使用官方）"
-                    className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  />
-                  {imageApi && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1.5">图片风格</p>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {IMAGE_TYPES.map((t) => (
-                          <button
-                            key={t.value}
-                            type="button"
-                            onClick={() => setImageType(t.value)}
-                            className={`py-1.5 rounded-lg text-xs transition-colors ${imageType === t.value ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50 border border-border/40"}`}
-                          >
-                            {t.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {!imageApi && (
-                    <p className="text-xs text-muted-foreground">未填写第三方Key，将使用官方DALL-E</p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">语音服务</span>
-                <Switch checked={ttsEnabled} onCheckedChange={setTtsEnabled} />
-              </div>
-              {ttsEnabled && (
-                <div className="space-y-2 pl-1">
-                  <input
-                    value={ttsApi}
-                    onChange={(e) => setTtsApi(e.target.value)}
-                    placeholder="第三方语音 API Key（不填使用官方）"
-                    className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  />
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1.5">
-                      {ttsApi ? "音色选择（第三方）" : "音色选择（官方OpenAI）"}
-                    </p>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {TTS_VOICES.map((v) => (
-                        <button
-                          key={v.value}
-                          type="button"
-                          onClick={() => setTtsVoice(v.value)}
-                          className={`py-1.5 rounded-lg text-xs transition-colors ${ttsVoice === v.value ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50 border border-border/40"}`}
-                        >
-                          {v.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>
@@ -684,12 +561,13 @@ function VoiceSettings() {
             );
 
             return (
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-stretch">
                 {/* 官方TTS */}
                 <div
-                  className={`flex-1 border rounded-xl overflow-hidden transition-all duration-200 ${
+                  className={`flex-1 border rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${
                     activePanel === "official" ? "flex-[2]" : "flex-[0.6] opacity-60"
                   }`}
+                  style={{ minHeight: "340px" }}
                 >
                   <PanelHeader id="official" title="官方 TTS" active={activePanel === "official"} />
                   {activePanel === "official" && (
@@ -738,9 +616,10 @@ function VoiceSettings() {
 
                 {/* 免费TTS */}
                 <div
-                  className={`flex-1 border rounded-xl overflow-hidden transition-all duration-200 ${
+                  className={`flex-1 border rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${
                     activePanel === "edge" ? "flex-[2]" : "flex-[0.6] opacity-60"
                   }`}
+                  style={{ minHeight: "340px" }}
                 >
                   <PanelHeader
                     id="edge"
@@ -835,9 +714,10 @@ function VoiceSettings() {
 
                 {/* 自设TTS - Fish Audio */}
                 <div
-                  className={`flex-1 border rounded-xl overflow-hidden transition-all duration-200 ${
+                  className={`flex-1 border rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${
                     activePanel === "fish" ? "flex-[2]" : "flex-[0.6] opacity-60"
                   }`}
+                  style={{ minHeight: "340px" }}
                 >
                   <PanelHeader id="fish" title="自设 TTS" active={activePanel === "fish"} />
                   {activePanel === "fish" && (
