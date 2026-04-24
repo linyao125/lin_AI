@@ -529,7 +529,6 @@ const EDGE_TTS_VOICES: Record<"female" | "male", { value: string; label: string 
     { value: "zh-CN-XiaoyiNeural", label: "晓伊 · 活泼" },
     { value: "zh-CN-XiaohanNeural", label: "晓涵 · 知性" },
     { value: "zh-CN-XiaomoNeural", label: "晓墨 · 平静" },
-    { value: "zh-CN-XiaoqiuNeural", label: "晓秋 · 低沉" },
     { value: "zh-CN-XiaoxuanNeural", label: "晓萱 · 理性" },
     { value: "zh-CN-XiaoruiNeural", label: "晓睿 · 轻柔" },
     { value: "zh-CN-XiaozhenNeural", label: "晓甄 · 激情" },
