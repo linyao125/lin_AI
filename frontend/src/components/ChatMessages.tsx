@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Copy, RotateCcw, Bot, Heart, Pencil, Check } from "lucide-react";
-import { synthesizeTTS } from "@/lib/linai";
+import { loadSettings, synthesizeTTS } from "@/lib/linai";
 
 export interface Message {
   id: string;
@@ -190,6 +190,8 @@ export function ChatMessages({ messages, activeKey, onRetry, onEdit }: ChatMessa
   };
 
   const handleSpeak = async (msgId: string, text: string) => {
+    const s = await loadSettings();
+    if (!s.tts_enabled) return;
     if (playingId === msgId) {
       audioRef.current?.pause();
       setPlayingId(null);

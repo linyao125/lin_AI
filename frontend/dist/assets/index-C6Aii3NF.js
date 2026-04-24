@@ -49726,6 +49726,8 @@ function ChatMessages({ messages, activeKey, onRetry, onEdit }) {
   };
   const handleSpeak = async (msgId, text) => {
     var _a3, _b3;
+    const s = await loadSettings$2();
+    if (!s.tts_enabled) return;
     if (playingId === msgId) {
       (_a3 = audioRef.current) == null ? void 0 : _a3.pause();
       setPlayingId(null);
