@@ -49449,9 +49449,9 @@ function SidebarContent({
       "button",
       {
         onClick: onNew,
-        className: "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent active:bg-sidebar-accent",
+        className: "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground border border-sidebar-border/60 hover:bg-sidebar-accent hover:border-sidebar-border transition-all active:scale-[0.97] active:bg-sidebar-accent",
         children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { size: 16 }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { size: 16, className: "text-primary" }),
           "New Chat"
         ]
       }
@@ -92575,9 +92575,6 @@ const Index = () => {
         }));
         setConversations(result);
         setLoadingHistory(false);
-        if (result.length > 0) {
-          setActiveId(result[0].id);
-        }
       });
     });
   }, []);

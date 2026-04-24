@@ -2288,6 +2288,9 @@ video {
 .hover\:border-foreground:hover {
   border-color: hsl(var(--foreground));
 }
+.hover\:border-sidebar-border:hover {
+  border-color: hsl(var(--sidebar-border));
+}
 .hover\:bg-accent:hover {
   background-color: hsl(var(--accent));
 }
@@ -2466,6 +2469,11 @@ video {
 .active\:scale-95:active {
   --tw-scale-x: .95;
   --tw-scale-y: .95;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+.active\:scale-\[0\.97\]:active {
+  --tw-scale-x: 0.97;
+  --tw-scale-y: 0.97;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 .active\:bg-sidebar-accent:active {

@@ -57,9 +57,7 @@ const Index = () => {
         }));
         setConversations(result);
         setLoadingHistory(false);
-        if (result.length > 0) {
-          setActiveId(result[0].id);
-        }
+        // 不自动选中，让用户主动点击
       });
     });
   }, []);
