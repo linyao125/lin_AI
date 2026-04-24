@@ -355,19 +355,12 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
   const [city, setCity] = useState("");
   const [lat, setLat] = useState("");
   const [lon, setLon] = useState("");
-  // MCP由子功能驱动，任意子功能开启则MCP自动开启
-  const subEnabled = emailEnabled || newsEnabled || momentsEnabled || scheduleEnabled;
-  const effectiveMcp = mcpEnabled || subEnabled;
+  const [loaded, setLoaded] = useState(false);
+
   useEffect(() => {
     loadSettings().then((s) => {
       setNewsEnabled(!!s.news_enabled);
-      const subFromS = !!(
-        s.email_enabled ||
-        s.news_enabled ||
-        s.moments_enabled ||
-        s.scene_enabled
-      );
-      setMcpEnabled(!!s.mcp_enabled && !subFromS);
+      setMcpEnabled(!!s.mcp_enabled);
       setMomentsEnabled(!!s.moments_enabled);
       setScheduleEnabled(!!s.scene_enabled);
       setEmailEnabled(!!s.email_enabled);
@@ -376,53 +369,56 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
       setLat((s.user_lat as string) || "");
       setLon((s.user_lon as string) || "");
       if (s.custom_logo) setLogoPreview(s.custom_logo as string);
+      setLoaded(true);
     });
   }, []);
 
+  // 用ref实时追踪最新state，避免闭包旧值问题
+  const stateRef = useRef({
+    newsEnabled, mcpEnabled, momentsEnabled, scheduleEnabled,
+    emailEnabled, emailInput, city, lat, lon
+  });
+  useEffect(() => {
+    stateRef.current = {
+      newsEnabled, mcpEnabled, momentsEnabled, scheduleEnabled,
+      emailEnabled, emailInput, city, lat, lon
+    };
+  });
+
   const handleSave = async () => {
-    let saveLat = lat;
-    let saveLon = lon;
-    // 有城市名则调后端 geocode 更新经纬度
-    if (city) {
+    const s = stateRef.current;
+    const effectiveMcp = s.mcpEnabled || s.emailEnabled || s.newsEnabled || s.momentsEnabled || s.scheduleEnabled;
+    let saveLat = s.lat;
+    let saveLon = s.lon;
+    if (s.city) {
       try {
-        const geo = await fetch(`${API}/geo/city?city=${encodeURIComponent(city)}`);
+        const geo = await fetch(`${API}/geo/city?city=${encodeURIComponent(s.city)}`);
         const geoData = await geo.json();
-        if (geoData.lat) {
-          saveLat = geoData.lat;
-          saveLon = geoData.lon;
-          setLat(saveLat);
-          setLon(saveLon);
-        }
-      } catch {
-        /* ignore */
-      }
+        if (geoData.lat) { saveLat = geoData.lat; saveLon = geoData.lon; }
+      } catch { /* ignore */ }
     }
     await saveSettings({
-      news_enabled: newsEnabled,
+      news_enabled: s.newsEnabled,
       mcp_enabled: effectiveMcp,
-      moments_enabled: momentsEnabled,
-      scene_enabled: scheduleEnabled,
-      email_enabled: emailEnabled,
-      user_email: emailInput,
-      user_city: city,
+      moments_enabled: s.momentsEnabled,
+      scene_enabled: s.scheduleEnabled,
+      email_enabled: s.emailEnabled,
+      user_email: s.emailInput,
+      user_city: s.city,
       user_lat: saveLat,
       user_lon: saveLon,
     });
   };
 
-  useImperativeHandle(ref, () => ({ save: handleSave }), [
-    newsEnabled, mcpEnabled, momentsEnabled, scheduleEnabled,
-    emailEnabled, emailInput, city, lat, lon, effectiveMcp
-  ]);
+  useImperativeHandle(ref, () => ({ save: handleSave }));
 
+  // 加载完成后，每次开关变化立即保存
   const isFirstRender = useRef(true);
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
+    if (!loaded) return;
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
     void handleSave();
-  }, [emailEnabled, newsEnabled, momentsEnabled, scheduleEnabled, mcpEnabled, emailInput]);
+  }, [emailEnabled, newsEnabled, momentsEnabled, scheduleEnabled, mcpEnabled, loaded]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -436,9 +432,10 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
     reader.readAsDataURL(file);
   };
 
+  const effectiveMcp = mcpEnabled || emailEnabled || newsEnabled || momentsEnabled || scheduleEnabled;
+
   return (
     <div className="animate-in fade-in duration-200">
-      {/* 城市地址 */}
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1.5">
           <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
@@ -450,9 +447,7 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
         <input
           value={city}
           onChange={(e) => setCity(e.target.value)}
-          onBlur={() => {
-            void handleSave();
-          }}
+          onBlur={() => void handleSave()}
           placeholder="如：上海市、北京市朝阳区..."
           className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
@@ -478,7 +473,6 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
         enabled={effectiveMcp}
         onToggle={(v) => {
           setMcpEnabled(v);
-          // 关闭MCP时同时关闭所有子功能
           if (!v) {
             setEmailEnabled(false);
             setNewsEnabled(false);
@@ -488,50 +482,23 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
         }}
       />
 
-      <FeatureToggle
-        label="邮件发送"
-        enabled={emailEnabled}
-        onToggle={(v) => {
-          setEmailEnabled(v);
-          if (v) setMcpEnabled(true);
-        }}
-      >
+      <FeatureToggle label="邮件发送" enabled={emailEnabled} onToggle={setEmailEnabled}>
         <div className="flex items-center gap-2">
           <Mail size={14} className="text-muted-foreground shrink-0" />
           <input
             type="email"
             value={emailInput}
             onChange={(e) => setEmailInput(e.target.value)}
+            onBlur={() => void handleSave()}
             placeholder="你的收件邮箱"
             className="flex h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
       </FeatureToggle>
 
-      <FeatureToggle
-        label="新闻推送"
-        enabled={newsEnabled}
-        onToggle={(v) => {
-          setNewsEnabled(v);
-          if (v) setMcpEnabled(true);
-        }}
-      />
-      <FeatureToggle
-        label="小红书使用"
-        enabled={momentsEnabled}
-        onToggle={(v) => {
-          setMomentsEnabled(v);
-          if (v) setMcpEnabled(true);
-        }}
-      />
-      <FeatureToggle
-        label="日程提醒"
-        enabled={scheduleEnabled}
-        onToggle={(v) => {
-          setScheduleEnabled(v);
-          if (v) setMcpEnabled(true);
-        }}
-      />
+      <FeatureToggle label="新闻推送" enabled={newsEnabled} onToggle={setNewsEnabled} />
+      <FeatureToggle label="小红书使用" enabled={momentsEnabled} onToggle={setMomentsEnabled} />
+      <FeatureToggle label="日程提醒" enabled={scheduleEnabled} onToggle={setScheduleEnabled} />
     </div>
   );
 });

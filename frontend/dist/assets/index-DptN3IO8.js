@@ -52097,13 +52097,11 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
   const [city, setCity] = reactExports.useState("");
   const [lat, setLat] = reactExports.useState("");
   const [lon, setLon] = reactExports.useState("");
-  const subEnabled = emailEnabled || newsEnabled || momentsEnabled || scheduleEnabled;
-  const effectiveMcp = mcpEnabled || subEnabled;
+  const [loaded, setLoaded] = reactExports.useState(false);
   reactExports.useEffect(() => {
     loadSettings().then((s) => {
       setNewsEnabled(!!s.news_enabled);
-      const subFromS = !!(s.email_enabled || s.news_enabled || s.moments_enabled || s.scene_enabled);
-      setMcpEnabled(!!s.mcp_enabled && !subFromS);
+      setMcpEnabled(!!s.mcp_enabled);
       setMomentsEnabled(!!s.moments_enabled);
       setScheduleEnabled(!!s.scene_enabled);
       setEmailEnabled(!!s.email_enabled);
@@ -52112,37 +52110,10 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
       setLat(s.user_lat || "");
       setLon(s.user_lon || "");
       if (s.custom_logo) setLogoPreview(s.custom_logo);
+      setLoaded(true);
     });
   }, []);
-  const handleSave = async () => {
-    let saveLat = lat;
-    let saveLon = lon;
-    if (city) {
-      try {
-        const geo = await fetch(`${API}/geo/city?city=${encodeURIComponent(city)}`);
-        const geoData = await geo.json();
-        if (geoData.lat) {
-          saveLat = geoData.lat;
-          saveLon = geoData.lon;
-          setLat(saveLat);
-          setLon(saveLon);
-        }
-      } catch {
-      }
-    }
-    await saveSettings({
-      news_enabled: newsEnabled,
-      mcp_enabled: effectiveMcp,
-      moments_enabled: momentsEnabled,
-      scene_enabled: scheduleEnabled,
-      email_enabled: emailEnabled,
-      user_email: emailInput,
-      user_city: city,
-      user_lat: saveLat,
-      user_lon: saveLon
-    });
-  };
-  reactExports.useImperativeHandle(ref, () => ({ save: handleSave }), [
+  const stateRef = reactExports.useRef({
     newsEnabled,
     mcpEnabled,
     momentsEnabled,
@@ -52151,17 +52122,59 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
     emailInput,
     city,
     lat,
-    lon,
-    effectiveMcp
-  ]);
+    lon
+  });
+  reactExports.useEffect(() => {
+    stateRef.current = {
+      newsEnabled,
+      mcpEnabled,
+      momentsEnabled,
+      scheduleEnabled,
+      emailEnabled,
+      emailInput,
+      city,
+      lat,
+      lon
+    };
+  });
+  const handleSave = async () => {
+    const s = stateRef.current;
+    const effectiveMcp2 = s.mcpEnabled || s.emailEnabled || s.newsEnabled || s.momentsEnabled || s.scheduleEnabled;
+    let saveLat = s.lat;
+    let saveLon = s.lon;
+    if (s.city) {
+      try {
+        const geo = await fetch(`${API}/geo/city?city=${encodeURIComponent(s.city)}`);
+        const geoData = await geo.json();
+        if (geoData.lat) {
+          saveLat = geoData.lat;
+          saveLon = geoData.lon;
+        }
+      } catch {
+      }
+    }
+    await saveSettings({
+      news_enabled: s.newsEnabled,
+      mcp_enabled: effectiveMcp2,
+      moments_enabled: s.momentsEnabled,
+      scene_enabled: s.scheduleEnabled,
+      email_enabled: s.emailEnabled,
+      user_email: s.emailInput,
+      user_city: s.city,
+      user_lat: saveLat,
+      user_lon: saveLon
+    });
+  };
+  reactExports.useImperativeHandle(ref, () => ({ save: handleSave }));
   const isFirstRender = reactExports.useRef(true);
   reactExports.useEffect(() => {
+    if (!loaded) return;
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
     void handleSave();
-  }, [emailEnabled, newsEnabled, momentsEnabled, scheduleEnabled, mcpEnabled, emailInput]);
+  }, [emailEnabled, newsEnabled, momentsEnabled, scheduleEnabled, mcpEnabled, loaded]);
   const handleLogoUpload = (e) => {
     var _a3;
     const file = (_a3 = e.target.files) == null ? void 0 : _a3[0];
@@ -52174,6 +52187,7 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
     };
     reader.readAsDataURL(file);
   };
+  const effectiveMcp = mcpEnabled || emailEnabled || newsEnabled || momentsEnabled || scheduleEnabled;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "animate-in fade-in duration-200", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-3", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-1.5", children: [
@@ -52188,9 +52202,7 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
         {
           value: city,
           onChange: (e) => setCity(e.target.value),
-          onBlur: () => {
-            void handleSave();
-          },
+          onBlur: () => void handleSave(),
           placeholder: "如：上海市、北京市朝阳区...",
           className: "flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         }
@@ -52220,63 +52232,23 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
         }
       }
     ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      FeatureToggle,
-      {
-        label: "邮件发送",
-        enabled: emailEnabled,
-        onToggle: (v2) => {
-          setEmailEnabled(v2);
-          if (v2) setMcpEnabled(true);
-        },
-        children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Mail, { size: 14, className: "text-muted-foreground shrink-0" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "email",
-              value: emailInput,
-              onChange: (e) => setEmailInput(e.target.value),
-              placeholder: "你的收件邮箱",
-              className: "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            }
-          )
-        ] })
-      }
-    ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      FeatureToggle,
-      {
-        label: "新闻推送",
-        enabled: newsEnabled,
-        onToggle: (v2) => {
-          setNewsEnabled(v2);
-          if (v2) setMcpEnabled(true);
+    /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "邮件发送", enabled: emailEnabled, onToggle: setEmailEnabled, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Mail, { size: 14, className: "text-muted-foreground shrink-0" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          type: "email",
+          value: emailInput,
+          onChange: (e) => setEmailInput(e.target.value),
+          onBlur: () => void handleSave(),
+          placeholder: "你的收件邮箱",
+          className: "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         }
-      }
-    ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      FeatureToggle,
-      {
-        label: "小红书使用",
-        enabled: momentsEnabled,
-        onToggle: (v2) => {
-          setMomentsEnabled(v2);
-          if (v2) setMcpEnabled(true);
-        }
-      }
-    ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      FeatureToggle,
-      {
-        label: "日程提醒",
-        enabled: scheduleEnabled,
-        onToggle: (v2) => {
-          setScheduleEnabled(v2);
-          if (v2) setMcpEnabled(true);
-        }
-      }
-    )
+      )
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "新闻推送", enabled: newsEnabled, onToggle: setNewsEnabled }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "小红书使用", enabled: momentsEnabled, onToggle: setMomentsEnabled }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "日程提醒", enabled: scheduleEnabled, onToggle: setScheduleEnabled })
   ] });
 });
 function DataSettings() {
