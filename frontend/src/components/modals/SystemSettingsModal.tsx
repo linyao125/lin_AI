@@ -434,11 +434,28 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
       <FeatureToggle label="MCP 工具" enabled={mcpEnabled} onToggle={(v) => {
         setMcpEnabled(v);
         void saveSingle("mcp_enabled", v);
+        if (!v) {
+          setEmailEnabled(false);
+          setNewsEnabled(false);
+          setMomentsEnabled(false);
+          setScheduleEnabled(false);
+          void saveSettings({
+            mcp_enabled: false,
+            email_enabled: false,
+            news_enabled: false,
+            moments_enabled: false,
+            scene_enabled: false,
+          });
+        }
       }} />
 
       <FeatureToggle label="邮件发送" enabled={emailEnabled} onToggle={(v) => {
         setEmailEnabled(v);
         void saveSingle("email_enabled", v);
+        if (v && !mcpEnabled) {
+          setMcpEnabled(true);
+          void saveSingle("mcp_enabled", true);
+        }
       }}>
         <div className="flex items-center gap-2">
           <Mail size={14} className="text-muted-foreground shrink-0" />
@@ -456,14 +473,26 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
       <FeatureToggle label="新闻推送" enabled={newsEnabled} onToggle={(v) => {
         setNewsEnabled(v);
         void saveSingle("news_enabled", v);
+        if (v && !mcpEnabled) {
+          setMcpEnabled(true);
+          void saveSingle("mcp_enabled", true);
+        }
       }} />
       <FeatureToggle label="小红书使用" enabled={momentsEnabled} onToggle={(v) => {
         setMomentsEnabled(v);
         void saveSingle("moments_enabled", v);
+        if (v && !mcpEnabled) {
+          setMcpEnabled(true);
+          void saveSingle("mcp_enabled", true);
+        }
       }} />
       <FeatureToggle label="日程提醒" enabled={scheduleEnabled} onToggle={(v) => {
         setScheduleEnabled(v);
         void saveSingle("scene_enabled", v);
+        if (v && !mcpEnabled) {
+          setMcpEnabled(true);
+          void saveSingle("mcp_enabled", true);
+        }
       }} />
     </div>
   );

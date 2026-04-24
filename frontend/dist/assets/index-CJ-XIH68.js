@@ -52165,10 +52165,27 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
     /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "MCP 工具", enabled: mcpEnabled, onToggle: (v2) => {
       setMcpEnabled(v2);
       void saveSingle("mcp_enabled", v2);
+      if (!v2) {
+        setEmailEnabled(false);
+        setNewsEnabled(false);
+        setMomentsEnabled(false);
+        setScheduleEnabled(false);
+        void saveSettings({
+          mcp_enabled: false,
+          email_enabled: false,
+          news_enabled: false,
+          moments_enabled: false,
+          scene_enabled: false
+        });
+      }
     } }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "邮件发送", enabled: emailEnabled, onToggle: (v2) => {
       setEmailEnabled(v2);
       void saveSingle("email_enabled", v2);
+      if (v2 && !mcpEnabled) {
+        setMcpEnabled(true);
+        void saveSingle("mcp_enabled", true);
+      }
     }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(Mail, { size: 14, className: "text-muted-foreground shrink-0" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -52186,14 +52203,26 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
     /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "新闻推送", enabled: newsEnabled, onToggle: (v2) => {
       setNewsEnabled(v2);
       void saveSingle("news_enabled", v2);
+      if (v2 && !mcpEnabled) {
+        setMcpEnabled(true);
+        void saveSingle("mcp_enabled", true);
+      }
     } }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "小红书使用", enabled: momentsEnabled, onToggle: (v2) => {
       setMomentsEnabled(v2);
       void saveSingle("moments_enabled", v2);
+      if (v2 && !mcpEnabled) {
+        setMcpEnabled(true);
+        void saveSingle("mcp_enabled", true);
+      }
     } }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "日程提醒", enabled: scheduleEnabled, onToggle: (v2) => {
       setScheduleEnabled(v2);
       void saveSingle("scene_enabled", v2);
+      if (v2 && !mcpEnabled) {
+        setMcpEnabled(true);
+        void saveSingle("mcp_enabled", true);
+      }
     } })
   ] });
 });
