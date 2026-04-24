@@ -415,6 +415,15 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
     emailEnabled, emailInput, city, lat, lon, effectiveMcp
   ]);
 
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    void handleSave();
+  }, [emailEnabled, newsEnabled, momentsEnabled, scheduleEnabled, mcpEnabled, emailInput]);
+
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -441,6 +450,9 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
         <input
           value={city}
           onChange={(e) => setCity(e.target.value)}
+          onBlur={() => {
+            void handleSave();
+          }}
           placeholder="如：上海市、北京市朝阳区..."
           className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />

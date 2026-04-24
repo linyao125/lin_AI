@@ -52154,6 +52154,14 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
     lon,
     effectiveMcp
   ]);
+  const isFirstRender = reactExports.useRef(true);
+  reactExports.useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    void handleSave();
+  }, [emailEnabled, newsEnabled, momentsEnabled, scheduleEnabled, mcpEnabled, emailInput]);
   const handleLogoUpload = (e) => {
     var _a3;
     const file = (_a3 = e.target.files) == null ? void 0 : _a3[0];
@@ -52180,6 +52188,9 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
         {
           value: city,
           onChange: (e) => setCity(e.target.value),
+          onBlur: () => {
+            void handleSave();
+          },
           placeholder: "如：上海市、北京市朝阳区...",
           className: "flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         }
