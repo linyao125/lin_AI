@@ -52085,7 +52085,6 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
   const [emailInput, setEmailInput] = reactExports.useState("");
   const [smtpUser, setSmtpUser] = reactExports.useState("");
   const [smtpPass, setSmtpPass] = reactExports.useState("");
-  const [smtpHost, setSmtpHost] = reactExports.useState("smtp.qq.com");
   const [city, setCity] = reactExports.useState("");
   const [lat, setLat] = reactExports.useState("");
   const [lon, setLon] = reactExports.useState("");
@@ -52098,7 +52097,6 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
       setEmailInput(s.user_email || "");
       setSmtpUser(s.smtp_user || "");
       setSmtpPass(s.smtp_pass || "");
-      setSmtpHost(s.smtp_host || "smtp.qq.com");
       setCity(s.user_city || "");
       setLat(s.user_lat || "");
       setLon(s.user_lon || "");
@@ -52121,16 +52119,25 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
       } catch {
       }
     }
+    const inferSmtpHost = (email) => {
+      if (!email.includes("@")) return "";
+      if (email.includes("@qq.com")) return "smtp.qq.com";
+      if (email.includes("@163.com")) return "smtp.163.com";
+      if (email.includes("@126.com")) return "smtp.126.com";
+      if (email.includes("@gmail.com")) return "smtp.gmail.com";
+      if (email.includes("@outlook.com") || email.includes("@hotmail.com")) return "smtp.office365.com";
+      return "smtp." + email.split("@")[1];
+    };
     await saveSettings({
       news_enabled: newsEnabled,
       mcp_enabled: mcpEnabled,
       moments_enabled: momentsEnabled,
       scene_enabled: scheduleEnabled,
-      user_email: emailInput,
       smtp_user: smtpUser,
       smtp_pass: smtpPass,
-      smtp_host: smtpHost,
+      smtp_host: inferSmtpHost(smtpUser),
       smtp_port: 465,
+      user_email: emailInput,
       user_city: city,
       user_lat: saveLat,
       user_lon: saveLon
@@ -52207,15 +52214,6 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
           value: smtpPass,
           onChange: (e) => setSmtpPass(e.target.value),
           placeholder: "SMTP授权码",
-          className: "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "input",
-        {
-          value: smtpHost,
-          onChange: (e) => setSmtpHost(e.target.value),
-          placeholder: "SMTP服务器（如 smtp.qq.com）",
           className: "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         }
       )

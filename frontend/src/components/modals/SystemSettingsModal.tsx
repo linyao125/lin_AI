@@ -350,7 +350,6 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
   const [emailInput, setEmailInput] = useState("");
   const [smtpUser, setSmtpUser] = useState("");
   const [smtpPass, setSmtpPass] = useState("");
-  const [smtpHost, setSmtpHost] = useState("smtp.qq.com");
   const [city, setCity] = useState("");
   const [lat, setLat] = useState("");
   const [lon, setLon] = useState("");
@@ -363,7 +362,6 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
       setEmailInput((s.user_email as string) || "");
       setSmtpUser((s.smtp_user as string) || "");
       setSmtpPass((s.smtp_pass as string) || "");
-      setSmtpHost((s.smtp_host as string) || "smtp.qq.com");
       setCity((s.user_city as string) || "");
       setLat((s.user_lat as string) || "");
       setLon((s.user_lon as string) || "");
@@ -389,16 +387,25 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
         /* ignore */
       }
     }
+    const inferSmtpHost = (email: string) => {
+      if (!email.includes("@")) return "";
+      if (email.includes("@qq.com")) return "smtp.qq.com";
+      if (email.includes("@163.com")) return "smtp.163.com";
+      if (email.includes("@126.com")) return "smtp.126.com";
+      if (email.includes("@gmail.com")) return "smtp.gmail.com";
+      if (email.includes("@outlook.com") || email.includes("@hotmail.com")) return "smtp.office365.com";
+      return "smtp." + email.split("@")[1];
+    };
     await saveSettings({
       news_enabled: newsEnabled,
       mcp_enabled: mcpEnabled,
       moments_enabled: momentsEnabled,
       scene_enabled: scheduleEnabled,
-      user_email: emailInput,
       smtp_user: smtpUser,
       smtp_pass: smtpPass,
-      smtp_host: smtpHost,
+      smtp_host: inferSmtpHost(smtpUser),
       smtp_port: 465,
+      user_email: emailInput,
       user_city: city,
       user_lat: saveLat,
       user_lon: saveLon,
@@ -478,12 +485,6 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
             value={smtpPass}
             onChange={(e) => setSmtpPass(e.target.value)}
             placeholder="SMTP授权码"
-            className="flex h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <input
-            value={smtpHost}
-            onChange={(e) => setSmtpHost(e.target.value)}
-            placeholder="SMTP服务器（如 smtp.qq.com）"
             className="flex h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
