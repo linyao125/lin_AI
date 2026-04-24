@@ -49603,7 +49603,10 @@ function TypingDots() {
       ` })
   ] });
 }
-function ChatMessages({ messages, onRetry, onEdit }) {
+function ChatMessages({ messages, activeKey, onRetry, onEdit }) {
+  const bottomRef = reactExports.useRef(null);
+  const containerRef = reactExports.useRef(null);
+  const prevLengthRef = reactExports.useRef(0);
   const [hoveredId, setHoveredId] = reactExports.useState(null);
   const [bgStyle, setBgStyle] = reactExports.useState({});
   const [copiedId, setCopiedId] = reactExports.useState(null);
@@ -49616,6 +49619,24 @@ function ChatMessages({ messages, onRetry, onEdit }) {
   const [aiBubbleMode, setAiBubbleMode] = reactExports.useState(
     () => window.__aiBubbleMode || "bubble"
   );
+  reactExports.useEffect(() => {
+    if (messages.length === 0) return;
+    requestAnimationFrame(() => {
+      var _a3;
+      (_a3 = bottomRef.current) == null ? void 0 : _a3.scrollIntoView({ behavior: "instant" });
+    });
+    prevLengthRef.current = messages.length;
+  }, [activeKey]);
+  reactExports.useEffect(() => {
+    if (messages.length === 0) return;
+    if (messages.length > prevLengthRef.current) {
+      prevLengthRef.current = messages.length;
+      requestAnimationFrame(() => {
+        var _a3;
+        (_a3 = bottomRef.current) == null ? void 0 : _a3.scrollIntoView({ behavior: "smooth" });
+      });
+    }
+  }, [messages]);
   reactExports.useEffect(() => {
     const applyBg = (bg2, bgImage) => {
       if (!bg2 || bg2 === "default") {
@@ -49696,25 +49717,114 @@ function ChatMessages({ messages, onRetry, onEdit }) {
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-xl font-semibold text-foreground", children: "How can I help you today?" })
     ] }) });
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 overflow-y-auto scrollbar-thin relative", style: bgStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mx-auto max-w-3xl px-4 py-6 md:px-6 relative z-[1]", children: messages.map((msg) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-    "div",
-    {
-      className: "mb-6",
-      onMouseEnter: () => setHoveredId(msg.id),
-      onMouseLeave: () => setHoveredId(null),
-      children: msg.role === "assistant" ? (
-        // ── AI 消息 ──────────────────────────────────────
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground/10", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Bot, { size: 14, className: "text-foreground" }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
-            aiBubbleMode === "flat" ? (
-              // 平铺模式：无背景，颜色作字体色
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { ref: containerRef, className: "flex-1 overflow-y-auto scrollbar-thin relative", style: bgStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mx-auto max-w-3xl px-4 py-6 md:px-6 relative z-[1]", children: [
+    messages.map((msg) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        className: "mb-6",
+        onMouseEnter: () => setHoveredId(msg.id),
+        onMouseLeave: () => setHoveredId(null),
+        children: msg.role === "assistant" ? (
+          // ── AI 消息 ──────────────────────────────────────
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground/10", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Bot, { size: 14, className: "text-foreground" }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
+              aiBubbleMode === "flat" ? (
+                // 平铺模式：无背景，颜色作字体色
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "div",
+                  {
+                    className: `text-sm leading-relaxed whitespace-pre-wrap ${msg.content ? "px-1 py-1" : "px-1 py-1"}`,
+                    style: { color: getFlatTextColor("--chat-ai-bg") },
+                    children: msg.content || /* @__PURE__ */ jsxRuntimeExports.jsx(TypingDots, {})
+                  }
+                )
+              ) : (
+                // 气泡模式
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "div",
+                  {
+                    className: `inline-block rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.content ? "px-4 py-3" : "px-3 py-2"}`,
+                    style: {
+                      background: `hsl(var(--chat-ai-bg, var(--muted)))`,
+                      color: getBubbleTextColor("--chat-ai-bg")
+                    },
+                    children: msg.content || /* @__PURE__ */ jsxRuntimeExports.jsx(TypingDots, {})
+                  }
+                )
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `mt-2 flex gap-1 transition-opacity duration-200 ${hoveredId === msg.id ? "opacity-100" : "opacity-0"}`, children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: () => handleCopy(msg.id, msg.content),
+                    className: "rounded-md p-1.5 hover:bg-accent transition-colors",
+                    title: "复制",
+                    children: copiedId === msg.id ? /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { size: 14, className: "text-green-500" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Copy, { size: 14, className: "text-muted-foreground hover:text-foreground" })
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: () => onRetry == null ? void 0 : onRetry(msg.id),
+                    className: "rounded-md p-1.5 hover:bg-accent transition-colors",
+                    title: "重新生成",
+                    children: /* @__PURE__ */ jsxRuntimeExports.jsx(RotateCcw, { size: 14, className: "text-muted-foreground hover:text-foreground" })
+                  }
+                )
+              ] })
+            ] })
+          ] })
+        ) : (
+          // ── 用户消息 ──────────────────────────────────────
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex justify-end", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-[85%] w-full", children: editingId === msg.id ? (
+            // 编辑模式
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "textarea",
+                {
+                  ref: editRef,
+                  value: editContent,
+                  onChange: (e) => setEditContent(e.target.value),
+                  onKeyDown: (e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      submitEdit(msg.id);
+                    }
+                    if (e.key === "Escape") cancelEdit();
+                  },
+                  className: "w-full rounded-2xl px-4 py-3 text-sm leading-relaxed resize-none border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring",
+                  rows: 1
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-end gap-2", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: cancelEdit,
+                    className: "px-3 py-1.5 text-xs rounded-lg text-muted-foreground hover:bg-accent transition-colors",
+                    children: "取消"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: () => submitEdit(msg.id),
+                    className: "px-3 py-1.5 text-xs rounded-lg bg-foreground text-background hover:opacity-80 transition-opacity",
+                    children: "发送"
+                  }
+                )
+              ] })
+            ] })
+          ) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-end", children: [
+            userBubbleMode === "flat" ? (
+              // 平铺模式：无背景，颜色作字体色，右对齐
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "div",
                 {
-                  className: `text-sm leading-relaxed whitespace-pre-wrap ${msg.content ? "px-1 py-1" : "px-1 py-1"}`,
-                  style: { color: getFlatTextColor("--chat-ai-bg") },
-                  children: msg.content || /* @__PURE__ */ jsxRuntimeExports.jsx(TypingDots, {})
+                  className: "px-1 py-1 text-sm leading-relaxed whitespace-pre-wrap text-right",
+                  style: { color: getFlatTextColor("--chat-user-bg") },
+                  children: msg.content
                 }
               )
             ) : (
@@ -49722,16 +49832,16 @@ function ChatMessages({ messages, onRetry, onEdit }) {
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "div",
                 {
-                  className: `inline-block rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.content ? "px-4 py-3" : "px-3 py-2"}`,
+                  className: "rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap max-w-full",
                   style: {
-                    background: `hsl(var(--chat-ai-bg, var(--muted)))`,
-                    color: getBubbleTextColor("--chat-ai-bg")
+                    background: `hsl(var(--chat-user-bg, var(--secondary)))`,
+                    color: getBubbleTextColor("--chat-user-bg")
                   },
-                  children: msg.content || /* @__PURE__ */ jsxRuntimeExports.jsx(TypingDots, {})
+                  children: msg.content
                 }
               )
             ),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `mt-2 flex gap-1 transition-opacity duration-200 ${hoveredId === msg.id ? "opacity-100" : "opacity-0"}`, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `mt-1.5 flex justify-end gap-1 transition-opacity duration-200 ${hoveredId === msg.id ? "opacity-100" : "opacity-0"}`, children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "button",
                 {
@@ -49744,106 +49854,20 @@ function ChatMessages({ messages, onRetry, onEdit }) {
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "button",
                 {
-                  onClick: () => onRetry == null ? void 0 : onRetry(msg.id),
+                  onClick: () => startEdit(msg),
                   className: "rounded-md p-1.5 hover:bg-accent transition-colors",
-                  title: "重新生成",
-                  children: /* @__PURE__ */ jsxRuntimeExports.jsx(RotateCcw, { size: 14, className: "text-muted-foreground hover:text-foreground" })
+                  title: "编辑",
+                  children: /* @__PURE__ */ jsxRuntimeExports.jsx(Pencil, { size: 14, className: "text-muted-foreground hover:text-foreground" })
                 }
               )
             ] })
-          ] })
-        ] })
-      ) : (
-        // ── 用户消息 ──────────────────────────────────────
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex justify-end", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-[85%] w-full", children: editingId === msg.id ? (
-          // 编辑模式
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "textarea",
-              {
-                ref: editRef,
-                value: editContent,
-                onChange: (e) => setEditContent(e.target.value),
-                onKeyDown: (e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    submitEdit(msg.id);
-                  }
-                  if (e.key === "Escape") cancelEdit();
-                },
-                className: "w-full rounded-2xl px-4 py-3 text-sm leading-relaxed resize-none border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring",
-                rows: 1
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-end gap-2", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  onClick: cancelEdit,
-                  className: "px-3 py-1.5 text-xs rounded-lg text-muted-foreground hover:bg-accent transition-colors",
-                  children: "取消"
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  onClick: () => submitEdit(msg.id),
-                  className: "px-3 py-1.5 text-xs rounded-lg bg-foreground text-background hover:opacity-80 transition-opacity",
-                  children: "发送"
-                }
-              )
-            ] })
-          ] })
-        ) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-end", children: [
-          userBubbleMode === "flat" ? (
-            // 平铺模式：无背景，颜色作字体色，右对齐
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "div",
-              {
-                className: "px-1 py-1 text-sm leading-relaxed whitespace-pre-wrap text-right",
-                style: { color: getFlatTextColor("--chat-user-bg") },
-                children: msg.content
-              }
-            )
-          ) : (
-            // 气泡模式
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "div",
-              {
-                className: "rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap max-w-full",
-                style: {
-                  background: `hsl(var(--chat-user-bg, var(--secondary)))`,
-                  color: getBubbleTextColor("--chat-user-bg")
-                },
-                children: msg.content
-              }
-            )
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `mt-1.5 flex justify-end gap-1 transition-opacity duration-200 ${hoveredId === msg.id ? "opacity-100" : "opacity-0"}`, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                onClick: () => handleCopy(msg.id, msg.content),
-                className: "rounded-md p-1.5 hover:bg-accent transition-colors",
-                title: "复制",
-                children: copiedId === msg.id ? /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { size: 14, className: "text-green-500" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Copy, { size: 14, className: "text-muted-foreground hover:text-foreground" })
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                onClick: () => startEdit(msg),
-                className: "rounded-md p-1.5 hover:bg-accent transition-colors",
-                title: "编辑",
-                children: /* @__PURE__ */ jsxRuntimeExports.jsx(Pencil, { size: 14, className: "text-muted-foreground hover:text-foreground" })
-              }
-            )
-          ] })
-        ] }) }) })
-      )
-    },
-    msg.id
-  )) }) });
+          ] }) }) })
+        )
+      },
+      msg.id
+    )),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { ref: bottomRef })
+  ] }) });
 }
 function clamp$1(value, [min2, max2]) {
   return Math.min(max2, Math.max(min2, value));
@@ -51794,7 +51818,7 @@ const TTS_VOICES = [
   { value: "nova", label: "Nova（女声）" },
   { value: "shimmer", label: "Shimmer（轻柔）" }
 ];
-function APISettings() {
+const APISettings = reactExports.forwardRef(function APISettings2(_2, ref) {
   const [genOpen, setGenOpen] = reactExports.useState(false);
   const [vpnOpen, setVpnOpen] = reactExports.useState(false);
   const [apiKey, setApiKey] = reactExports.useState("");
@@ -51806,7 +51830,6 @@ function APISettings() {
   const [ttsEnabled, setTtsEnabled] = reactExports.useState(false);
   const [imageType, setImageType] = reactExports.useState("realistic");
   const [ttsVoice, setTtsVoice] = reactExports.useState("nova");
-  const [saving, setSaving] = reactExports.useState(false);
   const [nodes, setNodes] = reactExports.useState([]);
   const [currentNode, setCurrentNode] = reactExports.useState("");
   const [loadingNodes, setLoadingNodes] = reactExports.useState(false);
@@ -51854,7 +51877,6 @@ function APISettings() {
     setSelectingNode("");
   };
   const handleSave = async () => {
-    setSaving(true);
     await saveSettings({
       api_key: apiKey,
       linai_server_url: serverUrl,
@@ -51875,8 +51897,8 @@ function APISettings() {
       setVpnOpen(true);
       await fetchNodes();
     }
-    setSaving(false);
   };
+  reactExports.useImperativeHandle(ref, () => ({ save: handleSave }));
   const delayColor = (delay) => {
     if (delay < 200) return "text-green-500";
     if (delay < 500) return "text-yellow-500";
@@ -52039,19 +52061,9 @@ function APISettings() {
           ] })
         ] })
       ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "button",
-      {
-        type: "button",
-        onClick: () => void handleSave(),
-        disabled: saving,
-        className: "mt-4 w-full py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity",
-        children: saving ? "保存中..." : "保存设置"
-      }
-    )
+    ] })
   ] });
-}
+});
 function FeatureToggle({ label, children, enabled: externalEnabled, onToggle }) {
   const [internalEnabled, setInternalEnabled] = reactExports.useState(false);
   const enabled = externalEnabled !== void 0 ? externalEnabled : internalEnabled;
@@ -52064,7 +52076,7 @@ function FeatureToggle({ label, children, enabled: externalEnabled, onToggle }) 
     enabled && children && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pb-3 px-1 animate-in fade-in slide-in-from-top-1 duration-200", children })
   ] });
 }
-function FeaturesSettings() {
+const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, ref) {
   const [logoPreview, setLogoPreview] = reactExports.useState(null);
   const [newsEnabled, setNewsEnabled] = reactExports.useState(false);
   const [mcpEnabled, setMcpEnabled] = reactExports.useState(false);
@@ -52075,7 +52087,6 @@ function FeaturesSettings() {
   const [lat, setLat] = reactExports.useState("");
   const [lon, setLon] = reactExports.useState("");
   const [locating, setLocating] = reactExports.useState(false);
-  const [saving, setSaving] = reactExports.useState(false);
   reactExports.useEffect(() => {
     loadSettings().then((s) => {
       setNewsEnabled(!!s.news_enabled);
@@ -52090,7 +52101,6 @@ function FeaturesSettings() {
     });
   }, []);
   const handleSave = async () => {
-    setSaving(true);
     let saveLat = lat;
     let saveLon = lon;
     if (city) {
@@ -52116,8 +52126,8 @@ function FeaturesSettings() {
       user_lat: saveLat,
       user_lon: saveLon
     });
-    setSaving(false);
   };
+  reactExports.useImperativeHandle(ref, () => ({ save: handleSave }));
   const handleLogoUpload = (e) => {
     var _a3;
     const file = (_a3 = e.target.files) == null ? void 0 : _a3[0];
@@ -52206,19 +52216,9 @@ function FeaturesSettings() {
     ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "新闻推送", enabled: newsEnabled, onToggle: setNewsEnabled }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "小红书使用", enabled: momentsEnabled, onToggle: setMomentsEnabled }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "日程提醒", enabled: scheduleEnabled, onToggle: setScheduleEnabled }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "button",
-      {
-        type: "button",
-        onClick: handleSave,
-        disabled: saving,
-        className: "mt-4 w-full py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity",
-        children: saving ? "保存中..." : "保存设置"
-      }
-    )
+    /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "日程提醒", enabled: scheduleEnabled, onToggle: setScheduleEnabled })
   ] });
-}
+});
 function DataSettings() {
   const handleExport = (fmt) => {
     window.location.href = `/api/data/export?fmt=${fmt}`;
@@ -52263,8 +52263,19 @@ function DataSettings() {
 }
 function SystemSettingsModal({ open, onClose }) {
   const [activeSection, setActiveSection] = reactExports.useState("api");
+  const apiRef = reactExports.useRef(null);
+  const featuresRef = reactExports.useRef(null);
+  const handleClose = async () => {
+    var _a3, _b3;
+    try {
+      await ((_a3 = apiRef.current) == null ? void 0 : _a3.save());
+      await ((_b3 = featuresRef.current) == null ? void 0 : _b3.save());
+    } catch {
+    }
+    onClose();
+  };
   if (!open) return null;
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "fixed inset-0 z-[100] flex items-center justify-center", onClick: onClose, children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "fixed inset-0 z-[100] flex items-center justify-center", onClick: () => void handleClose(), children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute inset-0 bg-black/60 backdrop-blur-sm" }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs(
       "div",
@@ -52275,7 +52286,8 @@ function SystemSettingsModal({ open, onClose }) {
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
-              onClick: onClose,
+              type: "button",
+              onClick: () => void handleClose(),
               className: "absolute top-3 left-3 z-30 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
               children: /* @__PURE__ */ jsxRuntimeExports.jsx(X$1, { size: 18 })
             }
@@ -52290,8 +52302,8 @@ function SystemSettingsModal({ open, onClose }) {
             s.id
           )) }) }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-[70%] p-5 pt-14 overflow-y-auto scrollbar-thin", children: [
-            activeSection === "api" && /* @__PURE__ */ jsxRuntimeExports.jsx(APISettings, {}),
-            activeSection === "features" && /* @__PURE__ */ jsxRuntimeExports.jsx(FeaturesSettings, {}),
+            activeSection === "api" && /* @__PURE__ */ jsxRuntimeExports.jsx(APISettings, { ref: apiRef }),
+            activeSection === "features" && /* @__PURE__ */ jsxRuntimeExports.jsx(FeaturesSettings, { ref: featuresRef }),
             activeSection === "data" && /* @__PURE__ */ jsxRuntimeExports.jsx(DataSettings, {})
           ] })
         ]
@@ -92571,11 +92583,6 @@ const Index = () => {
   const [weatherConfig, setWeatherConfig] = reactExports.useState(defaultWeather);
   const [isLightScene, setIsLightScene] = reactExports.useState(false);
   const activeConversation = conversations.find((c) => c.id === activeId);
-  const createNew = reactExports.useCallback(() => {
-    const id2 = uuid();
-    setConversations((prev) => [{ id: id2, title: "New Chat", messages: [] }, ...prev]);
-    setActiveId(id2);
-  }, []);
   const [convId, setConvId] = reactExports.useState("new");
   reactExports.useEffect(() => {
     if (activeId) {
@@ -92584,6 +92591,10 @@ const Index = () => {
       setConvId("new");
     }
   }, [activeId]);
+  const createNew = reactExports.useCallback(() => {
+    setActiveId(null);
+    setConvId("new");
+  }, []);
   const [isLoading, setIsLoading] = reactExports.useState(false);
   const handleSend = reactExports.useCallback(async (content) => {
     if (isLoading) return;
@@ -92650,26 +92661,66 @@ const Index = () => {
       setIsLoading(false);
     }
   }, [activeId, convId, isLoading]);
-  const handleRetry = reactExports.useCallback((aiMsgId) => {
+  const handleRetry = reactExports.useCallback(async (aiMsgId) => {
+    if (isLoading) return;
     const conv = conversations.find((c) => c.id === activeId);
     if (!conv) return;
     const idx = conv.messages.findIndex((m2) => m2.id === aiMsgId);
     if (idx <= 0) return;
-    let userMsg = null;
+    let userContent = "";
     for (let i2 = idx - 1; i2 >= 0; i2--) {
       if (conv.messages[i2].role === "user") {
-        userMsg = conv.messages[i2];
+        userContent = conv.messages[i2].content;
         break;
       }
     }
-    if (!userMsg) return;
+    if (!userContent) return;
+    const newAiMsgId = aiMsgId;
     setConversations(
       (prev) => prev.map(
-        (c) => c.id === activeId ? { ...c, messages: c.messages.filter((m2) => m2.id !== aiMsgId) } : c
+        (c) => c.id === activeId ? { ...c, messages: c.messages.map((m2) => m2.id === aiMsgId ? { ...m2, content: "" } : m2) } : c
       )
     );
-    handleSend(userMsg.content);
-  }, [conversations, activeId, handleSend]);
+    setIsLoading(true);
+    try {
+      const { streamChat: streamChat2 } = await __vitePreload(async () => {
+        const { streamChat: streamChat3 } = await Promise.resolve().then(() => linai);
+        return { streamChat: streamChat3 };
+      }, true ? void 0 : void 0);
+      let fullText = "";
+      let serverConvId = convId;
+      for await (const chunk of streamChat2(userContent, convId)) {
+        fullText += chunk.text;
+        serverConvId = chunk.convId;
+        setConversations(
+          (prev) => prev.map((c) => {
+            if (c.id !== activeId) return c;
+            return {
+              ...c,
+              messages: c.messages.map(
+                (m2) => m2.id === newAiMsgId ? { ...m2, content: fullText } : m2
+              )
+            };
+          })
+        );
+      }
+      setConvId(serverConvId);
+    } catch {
+      setConversations(
+        (prev) => prev.map((c) => {
+          if (c.id !== activeId) return c;
+          return {
+            ...c,
+            messages: c.messages.map(
+              (m2) => m2.id === newAiMsgId ? { ...m2, content: "连接失败，请检查服务器" } : m2
+            )
+          };
+        })
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [conversations, activeId, convId, isLoading]);
   const handleEdit = reactExports.useCallback((userMsgId, newContent) => {
     const conv = conversations.find((c) => c.id === activeId);
     if (!conv) return;
@@ -92751,6 +92802,7 @@ const Index = () => {
         ChatMessages,
         {
           messages: (activeConversation == null ? void 0 : activeConversation.messages) ?? [],
+          activeKey: activeId ?? "none",
           onRetry: handleRetry,
           onEdit: handleEdit
         }

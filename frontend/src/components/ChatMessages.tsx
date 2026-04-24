@@ -9,6 +9,7 @@ export interface Message {
 
 interface ChatMessagesProps {
   messages: Message[];
+  activeKey?: string;
   onRetry?: (msgId: string) => void;
   onEdit?: (msgId: string, newContent: string) => void;
 }
@@ -60,7 +61,10 @@ function TypingDots() {
   );
 }
 
-export function ChatMessages({ messages, onRetry, onEdit }: ChatMessagesProps) {
+export function ChatMessages({ messages, activeKey, onRetry, onEdit }: ChatMessagesProps) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevLengthRef = useRef(0);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [bgStyle, setBgStyle] = useState<React.CSSProperties>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -75,6 +79,26 @@ export function ChatMessages({ messages, onRetry, onEdit }: ChatMessagesProps) {
   const [aiBubbleMode, setAiBubbleMode] = useState<string>(
     () => (window as any).__aiBubbleMode || "bubble"
   );
+
+  // 问题4：窗口打开/切换对话时，立即定位到底部
+  useEffect(() => {
+    if (messages.length === 0) return;
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "instant" });
+    });
+    prevLengthRef.current = messages.length;
+  }, [activeKey]);
+
+  // 问题3：发新消息时平滑滚动到底部，不要跳动
+  useEffect(() => {
+    if (messages.length === 0) return;
+    if (messages.length > prevLengthRef.current) {
+      prevLengthRef.current = messages.length;
+      requestAnimationFrame(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      });
+    }
+  }, [messages]);
 
   useEffect(() => {
     // 背景
@@ -176,7 +200,7 @@ export function ChatMessages({ messages, onRetry, onEdit }: ChatMessagesProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto scrollbar-thin relative" style={bgStyle}>
+    <div ref={containerRef} className="flex-1 overflow-y-auto scrollbar-thin relative" style={bgStyle}>
       <div className="mx-auto max-w-3xl px-4 py-6 md:px-6 relative z-[1]">
         {messages.map((msg) => (
           <div
@@ -321,6 +345,7 @@ export function ChatMessages({ messages, onRetry, onEdit }: ChatMessagesProps) {
             )}
           </div>
         ))}
+        <div ref={bottomRef} />
       </div>
     </div>
   );

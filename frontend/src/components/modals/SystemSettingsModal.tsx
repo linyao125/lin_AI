@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { X, ChevronDown, Upload, Mail, MapPin } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
@@ -47,7 +47,7 @@ const TTS_VOICES = [
   { value: "shimmer", label: "Shimmer（轻柔）" },
 ];
 
-function APISettings() {
+const APISettings = forwardRef<{ save: () => Promise<void> }>(function APISettings(_, ref) {
   const [genOpen, setGenOpen] = useState(false);
   const [vpnOpen, setVpnOpen] = useState(false);
   const [apiKey, setApiKey] = useState("");
@@ -59,7 +59,6 @@ function APISettings() {
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [imageType, setImageType] = useState("realistic");
   const [ttsVoice, setTtsVoice] = useState("nova");
-  const [saving, setSaving] = useState(false);
   const [nodes, setNodes] = useState<{ name: string; type: string; delay: number }[]>([]);
   const [currentNode, setCurrentNode] = useState("");
   const [loadingNodes, setLoadingNodes] = useState(false);
@@ -112,7 +111,6 @@ function APISettings() {
   };
 
   const handleSave = async () => {
-    setSaving(true);
     await saveSettings({
       api_key: apiKey,
       linai_server_url: serverUrl,
@@ -133,8 +131,9 @@ function APISettings() {
       setVpnOpen(true);
       await fetchNodes();
     }
-    setSaving(false);
   };
+
+  useImperativeHandle(ref, () => ({ save: handleSave }));
 
   const delayColor = (delay: number) => {
     if (delay < 200) return "text-green-500";
@@ -311,18 +310,9 @@ function APISettings() {
           </div>
         )}
       </div>
-
-      <button
-        type="button"
-        onClick={() => void handleSave()}
-        disabled={saving}
-        className="mt-4 w-full py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-      >
-        {saving ? "保存中..." : "保存设置"}
-      </button>
     </div>
   );
-}
+});
 
 interface FeatureToggleProps {
   label: string;
@@ -351,7 +341,7 @@ function FeatureToggle({ label, children, enabled: externalEnabled, onToggle }: 
   );
 }
 
-function FeaturesSettings() {
+const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function FeaturesSettings(_, ref) {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [newsEnabled, setNewsEnabled] = useState(false);
   const [mcpEnabled, setMcpEnabled] = useState(false);
@@ -362,7 +352,6 @@ function FeaturesSettings() {
   const [lat, setLat] = useState("");
   const [lon, setLon] = useState("");
   const [locating, setLocating] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadSettings().then((s) => {
@@ -379,7 +368,6 @@ function FeaturesSettings() {
   }, []);
 
   const handleSave = async () => {
-    setSaving(true);
     let saveLat = lat;
     let saveLon = lon;
     // 有城市名则调后端 geocode 更新经纬度
@@ -407,8 +395,9 @@ function FeaturesSettings() {
       user_lat: saveLat,
       user_lon: saveLon,
     });
-    setSaving(false);
   };
+
+  useImperativeHandle(ref, () => ({ save: handleSave }));
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -503,18 +492,9 @@ function FeaturesSettings() {
       <FeatureToggle label="新闻推送" enabled={newsEnabled} onToggle={setNewsEnabled} />
       <FeatureToggle label="小红书使用" enabled={momentsEnabled} onToggle={setMomentsEnabled} />
       <FeatureToggle label="日程提醒" enabled={scheduleEnabled} onToggle={setScheduleEnabled} />
-
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={saving}
-        className="mt-4 w-full py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-      >
-        {saving ? "保存中..." : "保存设置"}
-      </button>
     </div>
   );
-}
+});
 
 function DataSettings() {
   const handleExport = (fmt: string) => {
@@ -560,18 +540,29 @@ function DataSettings() {
 
 export function SystemSettingsModal({ open, onClose }: SystemSettingsModalProps) {
   const [activeSection, setActiveSection] = useState<SectionId>("api");
+  const apiRef = useRef<{ save: () => Promise<void> }>(null);
+  const featuresRef = useRef<{ save: () => Promise<void> }>(null);
+
+  const handleClose = async () => {
+    try {
+      await apiRef.current?.save();
+      await featuresRef.current?.save();
+    } catch {}
+    onClose();
+  };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center" onClick={() => void handleClose()}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         className="relative z-10 w-full max-w-2xl h-[80vh] rounded-2xl bg-popover border border-border overflow-hidden flex"
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          onClick={onClose}
+          type="button"
+          onClick={() => void handleClose()}
           className="absolute top-3 left-3 z-30 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         >
           <X size={18} />
@@ -598,8 +589,8 @@ export function SystemSettingsModal({ open, onClose }: SystemSettingsModalProps)
 
         {/* Right panel */}
         <div className="w-[70%] p-5 pt-14 overflow-y-auto scrollbar-thin">
-          {activeSection === "api" && <APISettings />}
-          {activeSection === "features" && <FeaturesSettings />}
+          {activeSection === "api" && <APISettings ref={apiRef} />}
+          {activeSection === "features" && <FeaturesSettings ref={featuresRef} />}
           {activeSection === "data" && <DataSettings />}
         </div>
       </div>

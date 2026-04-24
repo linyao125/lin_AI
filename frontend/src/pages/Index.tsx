@@ -75,12 +75,6 @@ const Index = () => {
 
   const activeConversation = conversations.find((c) => c.id === activeId);
 
-  const createNew = useCallback(() => {
-    const id = uuid();
-    setConversations((prev) => [{ id, title: "New Chat", messages: [] }, ...prev]);
-    setActiveId(id);
-  }, []);
-
   const [convId, setConvId] = useState<string>("new");
 
   useEffect(() => {
@@ -90,6 +84,11 @@ const Index = () => {
       setConvId("new");
     }
   }, [activeId]);
+
+  const createNew = useCallback(() => {
+    setActiveId(null);
+    setConvId("new");
+  }, []);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -158,31 +157,70 @@ const Index = () => {
     }
   }, [activeId, convId, isLoading]);
 
-  // 重试：找到 AI 消息前的最后一条用户消息，重新发送
-  const handleRetry = useCallback((aiMsgId: string) => {
+  const handleRetry = useCallback(async (aiMsgId: string) => {
+    if (isLoading) return;
     const conv = conversations.find((c) => c.id === activeId);
     if (!conv) return;
     const idx = conv.messages.findIndex((m) => m.id === aiMsgId);
     if (idx <= 0) return;
-    // 找该 AI 消息之前的最后一条用户消息
-    let userMsg: Message | null = null;
+
+    // 找该AI消息之前的最后一条用户消息内容
+    let userContent = "";
     for (let i = idx - 1; i >= 0; i--) {
       if (conv.messages[i].role === "user") {
-        userMsg = conv.messages[i];
+        userContent = conv.messages[i].content;
         break;
       }
     }
-    if (!userMsg) return;
-    // 删除这条 AI 消息，重新发送用户消息
+    if (!userContent) return;
+
+    // 只替换这条AI消息内容为空（重新生成），不动用户消息
+    const newAiMsgId = aiMsgId; // 复用同一个id
     setConversations((prev) =>
       prev.map((c) =>
         c.id === activeId
-          ? { ...c, messages: c.messages.filter((m) => m.id !== aiMsgId) }
+          ? { ...c, messages: c.messages.map((m) => (m.id === aiMsgId ? { ...m, content: "" } : m)) }
           : c
       )
     );
-    handleSend(userMsg.content);
-  }, [conversations, activeId, handleSend]);
+    setIsLoading(true);
+
+    try {
+      const { streamChat } = await import("@/lib/linai");
+      let fullText = "";
+      let serverConvId = convId;
+      for await (const chunk of streamChat(userContent, convId)) {
+        fullText += chunk.text;
+        serverConvId = chunk.convId;
+        setConversations((prev) =>
+          prev.map((c) => {
+            if (c.id !== activeId) return c;
+            return {
+              ...c,
+              messages: c.messages.map((m) =>
+                m.id === newAiMsgId ? { ...m, content: fullText } : m
+              ),
+            };
+          })
+        );
+      }
+      setConvId(serverConvId);
+    } catch {
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== activeId) return c;
+          return {
+            ...c,
+            messages: c.messages.map((m) =>
+              m.id === newAiMsgId ? { ...m, content: "连接失败，请检查服务器" } : m
+            ),
+          };
+        })
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [conversations, activeId, convId, isLoading]);
 
   // 编辑：删除该用户消息之后的所有消息，用新内容重新发送
   const handleEdit = useCallback((userMsgId: string, newContent: string) => {
@@ -268,6 +306,7 @@ const Index = () => {
         <ChatHeader onMenuClick={() => setSidebarOpen(true)} />
         <ChatMessages
           messages={activeConversation?.messages ?? []}
+          activeKey={activeId ?? "none"}
           onRetry={handleRetry}
           onEdit={handleEdit}
         />
