@@ -1,109 +1,37 @@
-"""
-语音合成服务
-- 官方 OpenAI → OpenAI TTS
-- 其他（OpenRouter等）→ Fish Audio
-"""
-from __future__ import annotations
-import logging
 import httpx
+import edge_tts
+import asyncio
+import tempfile
+import os
 
-logger = logging.getLogger(__name__)
+async def openai_tts(text: str, voice: str, api_key: str, proxy_url: str = None) -> bytes:
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    payload = {"model": "tts-1", "input": text, "voice": voice}
+    transport = httpx.AsyncHTTPTransport(proxy=proxy_url) if proxy_url else None
+    async with httpx.AsyncClient(transport=transport, timeout=30) as client:
+        r = await client.post("https://api.openai.com/v1/audio/speech", json=payload, headers=headers)
+        r.raise_for_status()
+        return r.content
 
-OPENAI_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
-FISH_AUDIO_URL = "https://api.fish.audio/v1/tts"
-
-
-def _is_official_openai(api_base: str) -> bool:
-    return "api.openai.com" in (api_base or "")
-
-
-class TTSService:
-
-    def synthesize(
-        self,
-        text: str,
-        api_key: str,
-        api_base: str = "",
-        voice: str = "",
-        tts_api_key: str = "",
-        tts_provider: str = "auto",
-        speed: float = 1.0,
-    ) -> bytes | None:
-        if not text or not text.strip():
-            return None
-
-        try:
-            # 手动指定优先，auto才做判断
-            if tts_provider == "openai":
-                return self._openai_tts(text, api_key, api_base, voice, speed)
-            elif tts_provider == "fish":
-                fish_key = tts_api_key or api_key
-                return self._fish_audio_tts(text, fish_key, voice, speed)
-            else:
-                # auto：看api_base判断
-                if _is_official_openai(api_base):
-                    return self._openai_tts(text, api_key, api_base, voice, speed)
-                else:
-                    fish_key = tts_api_key or api_key
-                    return self._fish_audio_tts(text, fish_key, voice, speed)
-        except Exception as e:
-            logger.error(f"[tts] 合成失败: {e}")
-            return None
-
-    def _openai_tts(
-        self,
-        text: str,
-        api_key: str,
-        api_base: str,
-        voice: str,
-        speed: float,
-    ) -> bytes:
-        v = voice if voice in OPENAI_VOICES else "nova"
-        resp = httpx.post(
-            f"{api_base.rstrip('/')}/v1/audio/speech",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "tts-1",
-                "input": text,
-                "voice": v,
-                "speed": max(0.25, min(4.0, speed)),
-                "response_format": "mp3",
-            },
-            timeout=30,
-        )
-        resp.raise_for_status()
-        return resp.content
-
-    def _fish_audio_tts(
-        self,
-        text: str,
-        api_key: str,
-        voice: str,
-        speed: float,
-    ) -> bytes:
-        # Fish Audio 默认中文女声 reference_id
-        # 用户可在设置里填自己的voice id
-        reference_id = voice or "54a5170264694bfc8e9ad98df7bd89c3"  # 默认：温柔中文女声
-        resp = httpx.post(
-            FISH_AUDIO_URL,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "text": text,
-                "reference_id": reference_id,
-                "format": "mp3",
-                "latency": "normal",
-                "normalize": True,
-            },
-            timeout=30,
-        )
-        resp.raise_for_status()
-        return resp.content
-
-
-tts_service = TTSService()
+async def edge_tts_generate(text: str, voice: str, rate: str, pitch: str, volume: str, style: str = None) -> bytes:
+    if style and style != "general":
+        ssml = f"""<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis'
+            xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='zh-CN'>
+            <voice name='{voice}'>
+                <mstts:express-as style='{style}'>
+                    <prosody rate='{rate}' pitch='{pitch}' volume='{volume}'>{text}</prosody>
+                </mstts:express-as>
+            </voice></speak>"""
+        communicate = edge_tts.Communicate(text="", voice=voice)
+        communicate.ssml = ssml
+    else:
+        communicate = edge_tts.Communicate(text=text, voice=voice, rate=rate, pitch=pitch, volume=volume)
+    
+    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+        tmp_path = f.name
+    try:
+        await communicate.save(tmp_path)
+        with open(tmp_path, "rb") as f:
+            return f.read()
+    finally:
+        os.unlink(tmp_path)

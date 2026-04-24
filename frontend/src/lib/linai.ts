@@ -121,3 +121,22 @@ export async function saveChatBg(chatBg: string, chatBgImage?: string) {
 ;(window as any)._bg = function (bg: string, img?: string) {
   saveChatBg(bg, img)
 }
+
+export async function synthesizeTTS(params: {
+  text: string
+  mode: string
+  voice?: string
+  rate?: string
+  pitch?: string
+  volume?: string
+  style?: string
+}): Promise<string> {
+  const res = await fetch(`${LINAI_BASE}/tts/synthesize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  })
+  if (!res.ok) throw new Error("TTS failed")
+  const blob = await res.blob()
+  return URL.createObjectURL(blob)
+}

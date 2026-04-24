@@ -25,6 +25,7 @@ interface SystemSettingsModalProps {
 
 const SECTIONS = [
   { id: "api", label: "API 设置" },
+  { id: "voice", label: "语音" },
   { id: "features", label: "功能" },
   { id: "data", label: "数据管理" },
 ] as const;
@@ -498,6 +499,183 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
   );
 });
 
+function edgePercentToInt(s: string | undefined): number {
+  if (s == null || s === "") return 0;
+  const m = String(s).match(/(-?\d+)/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+function intToEdgePercent(n: number): string {
+  return (n >= 0 ? `+${n}` : String(n)) + "%";
+}
+
+type VoiceForm = {
+  tts_enabled: boolean;
+  tts_mode: "official" | "edge";
+  tts_voice: string;
+  edge_voice: string;
+  edge_rate: string;
+  edge_pitch: string;
+  edge_volume: string;
+  edge_style: string;
+  primary_model: string;
+};
+
+function VoiceSettings() {
+  const [form, setForm] = useState<VoiceForm>({
+    tts_enabled: false,
+    tts_mode: "edge",
+    tts_voice: "alloy",
+    edge_voice: "zh-CN-XiaoxiaoNeural",
+    edge_rate: "+0%",
+    edge_pitch: "+0%",
+    edge_volume: "+0%",
+    edge_style: "general",
+    primary_model: "",
+  });
+
+  useEffect(() => {
+    void loadSettings().then((s) => {
+      const m = (s.tts_mode as string) || "edge";
+      setForm({
+        tts_enabled: !!s.tts_enabled,
+        tts_mode: m === "official" || m === "edge" ? (m as "official" | "edge") : "edge",
+        tts_voice: (s.tts_voice as string) || "alloy",
+        edge_voice: (s.edge_voice as string) || "zh-CN-XiaoxiaoNeural",
+        edge_rate: (s.edge_rate as string) || "+0%",
+        edge_pitch: (s.edge_pitch as string) || "+0%",
+        edge_volume: (s.edge_volume as string) || "+0%",
+        edge_style: (s.edge_style as string) || "general",
+        primary_model: (s.primary_model as string) || "",
+      });
+    });
+  }, []);
+
+  const saveSingle = async (key: string, value: unknown) => {
+    await saveSettings({ [key]: value });
+    setForm((prev) => ({ ...prev, [key]: value } as VoiceForm));
+  };
+
+  const detectedTTSProvider = () => {
+    const model = form.primary_model || "";
+    if (model.includes("openai")) return "gpt-4o → OpenAI TTS";
+    if (model.includes("anthropic")) return "claude → 暂不支持";
+    if (model.includes("google")) return "gemini → Google TTS";
+    return "未识别模型";
+  };
+
+  return (
+    <div className="space-y-4 animate-in fade-in duration-200">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium">语音输出</p>
+          <p className="text-xs text-muted-foreground">AI回复后可点击朗读</p>
+        </div>
+        <Switch
+          checked={form.tts_enabled}
+          onCheckedChange={(v) => {
+            void saveSingle("tts_enabled", v);
+          }}
+        />
+      </div>
+
+      {form.tts_enabled ? (
+        <div className="flex gap-3">
+          <div
+            className={`flex-1 border rounded-xl p-4 cursor-pointer transition-opacity ${
+              form.tts_mode === "official" ? "border-primary" : "opacity-40"
+            }`}
+            onClick={() => void saveSingle("tts_mode", "official")}
+          >
+            <p className="text-xs font-medium mb-1">官方 TTS</p>
+            <p className="text-xs text-muted-foreground mb-3">{detectedTTSProvider()}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {["alloy", "echo", "fable", "onyx", "nova", "shimmer"].map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${
+                    form.tts_voice === v
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border"
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void saveSingle("tts_voice", v);
+                  }}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div
+            className={`flex-1 border rounded-xl p-4 cursor-pointer transition-opacity ${
+              form.tts_mode === "edge" ? "border-primary" : "opacity-40"
+            }`}
+            onClick={() => void saveSingle("tts_mode", "edge")}
+          >
+            <p className="text-xs font-medium mb-1">
+              Edge TTS <span className="text-green-600 text-xs">免费</span>
+            </p>
+            <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+              <select
+                className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                value={form.edge_voice}
+                onChange={(e) => void saveSingle("edge_voice", e.target.value)}
+              >
+                <option value="zh-CN-XiaoxiaoNeural">晓晓 · 女 · 活泼</option>
+                <option value="zh-CN-YunxiNeural">云希 · 男 · 轻松</option>
+                <option value="zh-CN-XiaoyiNeural">晓伊 · 女 · 温柔</option>
+                <option value="zh-CN-YunjianNeural">云健 · 男 · 磁性</option>
+                <option value="zh-CN-XiaoshuangNeural">晓双 · 女 · 青年</option>
+                <option value="zh-CN-YunxiaNeural">云夏 · 男 · 阳光</option>
+              </select>
+              {(
+                [
+                  { label: "语速", key: "edge_rate" as const, id: "er" },
+                  { label: "音调", key: "edge_pitch" as const, id: "ep" },
+                  { label: "音量", key: "edge_volume" as const, id: "ev" },
+                ] as const
+              ).map(({ label, key, id }) => (
+                <div key={id} className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground w-6">{label}</span>
+                  <input
+                    type="range"
+                    min={-50}
+                    max={50}
+                    step={5}
+                    value={edgePercentToInt(form[key])}
+                    onChange={(e) => {
+                      const n = Number(e.target.value);
+                      void saveSingle(key, intToEdgePercent(n));
+                    }}
+                    className="flex-1 h-1"
+                  />
+                  <span className="text-xs w-8 text-right">{form[key] || "+0%"}</span>
+                </div>
+              ))}
+              <select
+                className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                value={form.edge_style}
+                onChange={(e) => void saveSingle("edge_style", e.target.value)}
+              >
+                <option value="general">通用</option>
+                <option value="cheerful">开朗活泼</option>
+                <option value="calm">平静舒缓</option>
+                <option value="newscast">播音腔</option>
+                <option value="affectionate">温柔亲切</option>
+                <option value="lyrical">诗意抒情</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function DataSettings() {
   const handleExport = (fmt: string) => {
     window.location.href = `/api/data/export?fmt=${fmt}`;
@@ -592,6 +770,7 @@ export function SystemSettingsModal({ open, onClose }: SystemSettingsModalProps)
         {/* Right panel */}
         <div className="w-[70%] p-5 pt-14 overflow-y-auto scrollbar-thin">
           {activeSection === "api" && <APISettings ref={apiRef} />}
+          {activeSection === "voice" && <VoiceSettings />}
           {activeSection === "features" && <FeaturesSettings ref={featuresRef} />}
           {activeSection === "data" && <DataSettings />}
         </div>

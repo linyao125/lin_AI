@@ -739,3 +739,38 @@ async def update_scene():
 
     scene = await update_scene()
     return {"ok": bool(scene), "data": scene}
+
+
+@api_router.post("/tts/synthesize")
+async def tts_synthesize(request: Request):
+    from app.services.tts import openai_tts, edge_tts_generate
+
+    body = await request.json()
+    text = body.get("text", "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text is empty")
+
+    s = settings_service.get_frontend_settings()
+    mode = body.get("mode") or s.get("tts_mode", "edge")
+
+    try:
+        if mode == "official":
+            api_key = s.get("api_key", "")
+            if not api_key:
+                raise HTTPException(status_code=400, detail="no api_key")
+            voice = body.get("voice") or s.get("tts_voice", "alloy")
+            proxy_url = s.get("proxy_url")
+            audio = await openai_tts(text, voice, api_key, proxy_url)
+        else:
+            voice = body.get("voice") or s.get("edge_voice", "zh-CN-XiaoxiaoNeural")
+            rate = body.get("rate") or s.get("edge_rate", "+0%")
+            pitch = body.get("pitch") or s.get("edge_pitch", "+0%")
+            volume = body.get("volume") or s.get("edge_volume", "+0%")
+            style = body.get("style") or s.get("edge_style", "general")
+            audio = await edge_tts_generate(text, voice, rate, pitch, volume, style)
+
+        return Response(content=audio, media_type="audio/mpeg")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

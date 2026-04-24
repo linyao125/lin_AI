@@ -93,10 +93,17 @@ class FrontendSettingsPayload(BaseModel):
     api_key: str = ""
     image_provider: str = "dalle"
     image_api_key: str = ""
+    tts_enabled: bool = False
+    tts_mode: str = "edge"
     tts_voice: str = ""
     tts_api_key: str = ""
     tts_speed: float = 1.0
     tts_provider: str = "auto"
+    edge_voice: str = "zh-CN-XiaoxiaoNeural"
+    edge_rate: str = "+0%"
+    edge_pitch: str = "+0%"
+    edge_volume: str = "+0%"
+    edge_style: str = "general"
     primary_model: str = "openai/gpt-4o"
     summary_model: str = "openai/gpt-4o-mini"
     system_goal: str = "Be warm, steady, memory-aware, and context-anchored for one dedicated user."

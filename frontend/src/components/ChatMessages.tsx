@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Copy, RotateCcw, Bot, Heart, Pencil, Check } from "lucide-react";
+import { synthesizeTTS } from "@/lib/linai";
 
 export interface Message {
   id: string;
@@ -62,6 +63,8 @@ function TypingDots() {
 }
 
 export function ChatMessages({ messages, activeKey, onRetry, onEdit }: ChatMessagesProps) {
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(0);
@@ -186,6 +189,28 @@ export function ChatMessages({ messages, activeKey, onRetry, onEdit }: ChatMessa
     setEditContent("");
   };
 
+  const handleSpeak = async (msgId: string, text: string) => {
+    if (playingId === msgId) {
+      audioRef.current?.pause();
+      setPlayingId(null);
+      return;
+    }
+    // 去掉常见 markdown 符号
+    const clean = text.replace(/[\u0023\u002A\u0060_~\u005B\u005D\\]/g, "").trim();
+    if (!clean) return;
+    audioRef.current?.pause();
+    setPlayingId(msgId);
+    try {
+      const url = await synthesizeTTS({ text: clean, mode: "edge" });
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => setPlayingId(null);
+      void audio.play();
+    } catch {
+      setPlayingId(null);
+    }
+  };
+
   if (messages.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center relative" style={bgStyle}>
@@ -250,6 +275,18 @@ export function ChatMessages({ messages, activeKey, onRetry, onEdit }: ChatMessa
                         ? <Check size={14} className="text-green-500" />
                         : <Copy size={14} className="text-muted-foreground hover:text-foreground" />
                       }
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleSpeak(msg.id, msg.content)}
+                      className="p-1 rounded hover:bg-muted transition-colors"
+                      title="朗读"
+                    >
+                      {playingId === msg.id ? (
+                        <span className="text-xs animate-spin inline-block">◌</span>
+                      ) : (
+                        <span className="text-xs">🔊</span>
+                      )}
                     </button>
                     <button
                       onClick={() => onRetry?.(msg.id)}
