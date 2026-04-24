@@ -92640,9 +92640,13 @@ const Index = () => {
       }
       setConvId(serverConvId);
       if (currentId !== serverConvId) {
-        setConversations(
-          (prev) => prev.map((c) => c.id === currentId ? { ...c, id: serverConvId } : c)
-        );
+        setConversations((prev) => {
+          const exists = prev.some((c) => c.id === serverConvId);
+          if (exists) {
+            return prev.filter((c) => c.id !== currentId);
+          }
+          return prev.map((c) => c.id === currentId ? { ...c, id: serverConvId } : c);
+        });
         setActiveId(serverConvId);
       }
     } catch (e) {

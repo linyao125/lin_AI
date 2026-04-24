@@ -135,9 +135,14 @@ const Index = () => {
       }
       setConvId(serverConvId);
       if (currentId !== serverConvId) {
-        setConversations((prev) =>
-          prev.map((c) => (c.id === currentId ? { ...c, id: serverConvId } : c))
-        );
+        setConversations((prev) => {
+          // 防止重复：如果serverConvId已存在就删掉临时的，否则替换id
+          const exists = prev.some((c) => c.id === serverConvId);
+          if (exists) {
+            return prev.filter((c) => c.id !== currentId);
+          }
+          return prev.map((c) => (c.id === currentId ? { ...c, id: serverConvId } : c));
+        });
         setActiveId(serverConvId);
       }
     } catch (e) {
