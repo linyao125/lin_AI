@@ -52086,7 +52086,6 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
   const [city, setCity] = reactExports.useState("");
   const [lat, setLat] = reactExports.useState("");
   const [lon, setLon] = reactExports.useState("");
-  const [locating, setLocating] = reactExports.useState(false);
   reactExports.useEffect(() => {
     loadSettings().then((s) => {
       setNewsEnabled(!!s.news_enabled);
@@ -52147,40 +52146,7 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
           /* @__PURE__ */ jsxRuntimeExports.jsx(MapPin, { size: 14 }),
           "所在城市"
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "button",
-          {
-            type: "button",
-            onClick: () => {
-              if (!navigator.geolocation) return;
-              setLocating(true);
-              navigator.geolocation.getCurrentPosition(
-                async (pos) => {
-                  const { latitude, longitude } = pos.coords;
-                  try {
-                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=zh`);
-                    const data2 = await res.json();
-                    const addr = data2.address;
-                    const location = [addr.city || addr.town || addr.county, addr.state].filter(Boolean).join("，");
-                    setCity(location);
-                    setLat(latitude.toString());
-                    setLon(longitude.toString());
-                  } catch {
-                    setCity(`${pos.coords.latitude.toFixed(2)},${pos.coords.longitude.toFixed(2)}`);
-                  }
-                  setLocating(false);
-                },
-                () => setLocating(false)
-              );
-            },
-            disabled: locating,
-            className: "flex items-center justify-center gap-1 rounded-lg border border-border/60 px-3 h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-50",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(MapPin, { size: 11 }),
-              locating ? "获取中..." : "自动获取"
-            ]
-          }
-        )
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-muted-foreground", children: "手动输入城市名即可" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         "input",
@@ -52265,14 +52231,14 @@ function SystemSettingsModal({ open, onClose }) {
   const [activeSection, setActiveSection] = reactExports.useState("api");
   const apiRef = reactExports.useRef(null);
   const featuresRef = reactExports.useRef(null);
-  const handleClose = async () => {
+  const handleClose = () => {
     var _a3, _b3;
+    onClose();
     try {
-      await ((_a3 = apiRef.current) == null ? void 0 : _a3.save());
-      await ((_b3 = featuresRef.current) == null ? void 0 : _b3.save());
+      void ((_a3 = apiRef.current) == null ? void 0 : _a3.save());
+      void ((_b3 = featuresRef.current) == null ? void 0 : _b3.save());
     } catch {
     }
-    onClose();
   };
   if (!open) return null;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "fixed inset-0 z-[100] flex items-center justify-center", onClick: () => void handleClose(), children: [
@@ -92638,6 +92604,11 @@ const Index = () => {
           })
         );
       }
+      setConversations((prev) => {
+        const target = prev.find((c) => c.id === serverConvId || c.id === currentId);
+        if (!target) return prev;
+        return [target, ...prev.filter((c) => c.id !== serverConvId && c.id !== currentId)];
+      });
       setConvId(serverConvId);
       if (currentId !== serverConvId) {
         setConversations((prev) => {

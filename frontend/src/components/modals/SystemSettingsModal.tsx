@@ -351,8 +351,6 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
   const [city, setCity] = useState("");
   const [lat, setLat] = useState("");
   const [lon, setLon] = useState("");
-  const [locating, setLocating] = useState(false);
-
   useEffect(() => {
     loadSettings().then((s) => {
       setNewsEnabled(!!s.news_enabled);
@@ -420,36 +418,7 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
             <MapPin size={14} />
             所在城市
           </label>
-          <button
-            type="button"
-            onClick={() => {
-              if (!navigator.geolocation) return;
-              setLocating(true);
-              navigator.geolocation.getCurrentPosition(
-                async (pos) => {
-                  const { latitude, longitude } = pos.coords;
-                  try {
-                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=zh`);
-                    const data = await res.json();
-                    const addr = data.address;
-                    const location = [addr.city || addr.town || addr.county, addr.state].filter(Boolean).join("，");
-                    setCity(location);
-                    setLat(latitude.toString());
-                    setLon(longitude.toString());
-                  } catch {
-                    setCity(`${pos.coords.latitude.toFixed(2)},${pos.coords.longitude.toFixed(2)}`);
-                  }
-                  setLocating(false);
-                },
-                () => setLocating(false)
-              );
-            }}
-            disabled={locating}
-            className="flex items-center justify-center gap-1 rounded-lg border border-border/60 px-3 h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-50"
-          >
-            <MapPin size={11} />
-            {locating ? "获取中..." : "自动获取"}
-          </button>
+          <span className="text-xs text-muted-foreground">手动输入城市名即可</span>
         </div>
         <input
           value={city}
@@ -543,12 +512,12 @@ export function SystemSettingsModal({ open, onClose }: SystemSettingsModalProps)
   const apiRef = useRef<{ save: () => Promise<void> }>(null);
   const featuresRef = useRef<{ save: () => Promise<void> }>(null);
 
-  const handleClose = async () => {
+  const handleClose = () => {
+    onClose(); // 先关闭，后台静默保存
     try {
-      await apiRef.current?.save();
-      await featuresRef.current?.save();
+      void apiRef.current?.save();
+      void featuresRef.current?.save();
     } catch {}
-    onClose();
   };
 
   if (!open) return null;

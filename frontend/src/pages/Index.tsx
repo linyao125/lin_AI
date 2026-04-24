@@ -133,6 +133,12 @@ const Index = () => {
           })
         );
       }
+      // 把当前对话提到列表最前面
+      setConversations((prev) => {
+        const target = prev.find((c) => c.id === serverConvId || c.id === currentId);
+        if (!target) return prev;
+        return [target, ...prev.filter((c) => c.id !== serverConvId && c.id !== currentId)];
+      });
       setConvId(serverConvId);
       if (currentId !== serverConvId) {
         setConversations((prev) => {
