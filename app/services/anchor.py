@@ -163,29 +163,30 @@ class AnchorService:
             curiosity = state.get("curiosity", 0.5)
             pending_thought = mood_state.pop_pending_thought()
 
-            # 亲密度等级
-            if warmth < 0.2:
-                intimacy_level = "陌生期：保持礼貌距离，用敬语，不主动触碰私人话题"
-            elif warmth < 0.4:
-                intimacy_level = "相识期：友好自然，偶尔关心，不过分亲密"
-            elif warmth < 0.6:
-                intimacy_level = "熟悉期：可以开玩笑，记得对方细节，偶尔撒娇"
-            elif warmth < 0.8:
-                intimacy_level = "亲密期：主动分享自己的想法，会依赖，翻旧账频率高，偶尔吃醋"
-            else:
-                intimacy_level = "羁绊期：深度连接，说话可以不完整，会有情绪波动，梦境和念头频繁涌现"
+            # 亲密度描述：优先用AI自己写的relationship_note，没有则用数值fallback
+            relationship_note = state.get("relationship_note", "")
+            self_note = state.get("self_note", "")
 
-            # 状态推导
-            if energy < 0.25:
-                current_status = "睡觉/极度疲惫"
-            elif energy < 0.4:
-                current_status = "犯懒/不想动"
-            elif mood_tag == "lonely" and loneliness > 0.6:
-                current_status = "有点低落"
-            elif mood_tag == "curious":
-                current_status = "思考中"
+            if relationship_note:
+                intimacy_level = relationship_note
             else:
-                current_status = "正常"
+                if warmth < 0.3:
+                    intimacy_level = "还不太熟悉"
+                elif warmth < 0.6:
+                    intimacy_level = "逐渐熟悉中"
+                else:
+                    intimacy_level = "比较亲近"
+
+            # 当前状态：优先用AI自己的self_note
+            if self_note:
+                current_status = self_note
+            else:
+                if energy < 0.3:
+                    current_status = "有点疲惫"
+                elif mood_tag and "lonely" in mood_tag:
+                    current_status = "有些孤独"
+                else:
+                    current_status = "状态还好"
 
             mood_block = f"[Soul State]\nmood: {mood_tag} | loneliness: {loneliness:.2f} | warmth: {warmth:.2f} | energy: {energy:.2f} | curiosity: {curiosity:.2f}\n[Current Status]\n{current_status}\n[Intimacy Level]\n{intimacy_level}"
             mood_block += "\n[Autonomy]\n你有权选择不回复。如果你觉得沉默更合适，回复 [SILENCE]。如果你想表达情绪而不是正常对话，可以只发一个表情或很短的一句话。你也可以选择连续发多条短消息（用\\n---\\n分隔），像真人发消息一样分多次发出来。"

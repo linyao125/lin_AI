@@ -298,13 +298,55 @@ def save_ollama_message(conversation_id: str, payload: dict[str, Any] = Body(...
 
 @api_router.post("/chat/stream")
 def chat_stream(body: ChatRequest):
-    return StreamingResponse(
-        llm_service.chat_stream(
+    import threading
+
+    collected_user = ""
+    collected_ai: list[str] = []
+
+    # 从messages里取最后一条user消息
+    for m in reversed(body.messages):
+        if m.get("role") == "user":
+            collected_user = m.get("content", "")
+            break
+
+    def stream_with_hook():
+        for chunk in llm_service.chat_stream(
             messages=body.messages,
             model=body.model,
             temperature=body.temperature,
             max_tokens=body.max_tokens,
-        ),
+        ):
+            # 收集AI回复文本
+            if chunk.startswith("data: ") and "[DONE]" not in chunk:
+                try:
+                    d = json.loads(chunk[6:])
+                    if d.get("type") == "text":
+                        collected_ai.append(d.get("text", ""))
+                except Exception:
+                    pass
+            yield chunk
+
+        # 流结束，后台触发自评估
+        ai_reply = "".join(collected_ai)
+        if collected_user and ai_reply:
+            threading.Thread(
+                target=_run_eval_safe,
+                args=(collected_user, ai_reply),
+                daemon=True,
+            ).start()
+
+    def _run_eval_safe(user_msg: str, ai_reply: str):
+        try:
+            from app.soul.self_eval import run_self_eval
+
+            run_self_eval(user_msg, ai_reply)
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).error(f"[self_eval] 后台任务异常: {e}")
+
+    return StreamingResponse(
+        stream_with_hook(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
