@@ -52287,12 +52287,13 @@ function intToEdgePercent(n2) {
   return (n2 >= 0 ? `+${n2}` : String(n2)) + "%";
 }
 function intToEdgeHz(n2) {
-  return (n2 >= 0 ? `+${n2}` : String(n2)) + "Hz";
+  const v2 = Math.max(0, n2);
+  return `+${v2}Hz`;
 }
 function normalizeEdgePitchValue(raw) {
   if (raw == null || raw === "") return "+0Hz";
   const s = String(raw);
-  if (s.includes("Hz")) return s;
+  if (s.includes("Hz")) return intToEdgeHz(edgePercentToInt(s));
   if (s.includes("%")) return intToEdgeHz(edgePercentToInt(s));
   return "+0Hz";
 }
@@ -52489,10 +52490,10 @@ function VoiceSettings() {
                   "input",
                   {
                     type: "range",
-                    min: -50,
+                    min: unit === "hz" ? 0 : -50,
                     max: 50,
                     step: 5,
-                    value: edgePercentToInt(form[key]),
+                    value: unit === "hz" ? Math.max(0, edgePercentToInt(form[key])) : edgePercentToInt(form[key]),
                     onChange: (e) => {
                       const n2 = Number(e.target.value);
                       if (unit === "hz") {

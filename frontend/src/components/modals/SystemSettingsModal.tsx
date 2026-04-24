@@ -525,30 +525,24 @@ function normalizeEdgePitchValue(raw: string | undefined): string {
   return "+0Hz";
 }
 
-const EDGE_TTS_VOICES: Record<"female" | "male", { value: string; label: string }[]> = {
+const edgeVoices: Record<"female" | "male", { value: string; label: string }[]> = {
   female: [
     { value: "zh-CN-XiaoxiaoNeural", label: "晓晓 · 温柔" },
     { value: "zh-CN-XiaoyiNeural", label: "晓伊 · 活泼" },
-    { value: "zh-CN-XiaohanNeural", label: "晓涵 · 知性" },
     { value: "zh-CN-XiaomoNeural", label: "晓墨 · 平静" },
     { value: "zh-CN-XiaoxuanNeural", label: "晓萱 · 理性" },
-    { value: "zh-CN-XiaoruiNeural", label: "晓睿 · 轻柔" },
-    { value: "zh-CN-XiaozhenNeural", label: "晓甄 · 激情" },
-    { value: "zh-CN-XiaoshuangNeural", label: "晓双 · 青年" },
   ],
   male: [
     { value: "zh-CN-YunxiNeural", label: "云希 · 轻松" },
     { value: "zh-CN-YunjianNeural", label: "云健 · 磁性" },
     { value: "zh-CN-YunxiaNeural", label: "云夏 · 阳光" },
     { value: "zh-CN-YunyangNeural", label: "云扬 · 播音" },
-    { value: "zh-CN-YunfengNeural", label: "云枫 · 激昂" },
-    { value: "zh-CN-YunhaoNeural", label: "云皓 · 活力" },
   ],
 };
 
 function voiceToEdgeGender(voice: string): "female" | "male" {
-  if (EDGE_TTS_VOICES.female.some((x) => x.value === voice)) return "female";
-  if (EDGE_TTS_VOICES.male.some((x) => x.value === voice)) return "male";
+  if (edgeVoices.female.some((x) => x.value === voice)) return "female";
+  if (edgeVoices.male.some((x) => x.value === voice)) return "male";
   return "female";
 }
 
@@ -627,7 +621,7 @@ function VoiceSettings() {
         style: form.edge_style,
       });
       new Audio(url).play();
-    }, 800);
+    }, 300);
   };
 
   const detectedTTSProvider = () => {
@@ -718,9 +712,9 @@ function VoiceSettings() {
                       e.stopPropagation();
                       if (g === edgeGender) return;
                       setEdgeGender(g);
-                      const inGroup = EDGE_TTS_VOICES[g].some((v) => v.value === form.edge_voice);
+                      const inGroup = edgeVoices[g].some((v) => v.value === form.edge_voice);
                       if (!inGroup) {
-                        void saveSingle("edge_voice", EDGE_TTS_VOICES[g][0].value);
+                        void saveSingle("edge_voice", edgeVoices[g][0].value);
                       }
                     }}
                   >
@@ -733,7 +727,7 @@ function VoiceSettings() {
                 value={form.edge_voice}
                 onChange={(e) => void saveSingle("edge_voice", e.target.value)}
               >
-                {EDGE_TTS_VOICES[edgeGender].map((v) => (
+                {edgeVoices[edgeGender].map((v) => (
                   <option key={v.value} value={v.value}>
                     {v.label}
                   </option>
