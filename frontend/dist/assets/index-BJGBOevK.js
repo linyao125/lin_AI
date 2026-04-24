@@ -52051,6 +52051,8 @@ function FeaturesSettings() {
   const [scheduleEnabled, setScheduleEnabled] = reactExports.useState(false);
   const [emailInput, setEmailInput] = reactExports.useState("");
   const [city, setCity] = reactExports.useState("");
+  const [lat, setLat] = reactExports.useState("");
+  const [lon, setLon] = reactExports.useState("");
   const [locating, setLocating] = reactExports.useState(false);
   const [saving, setSaving] = reactExports.useState(false);
   reactExports.useEffect(() => {
@@ -52061,18 +52063,37 @@ function FeaturesSettings() {
       setScheduleEnabled(!!s.scene_enabled);
       setEmailInput(s.user_email || "");
       setCity(s.user_city || "");
+      setLat(s.user_lat || "");
+      setLon(s.user_lon || "");
       if (s.custom_logo) setLogoPreview(s.custom_logo);
     });
   }, []);
   const handleSave = async () => {
     setSaving(true);
+    let saveLat = lat;
+    let saveLon = lon;
+    if (city) {
+      try {
+        const geo = await fetch(`${API}/geo/city?city=${encodeURIComponent(city)}`);
+        const geoData = await geo.json();
+        if (geoData.lat) {
+          saveLat = geoData.lat;
+          saveLon = geoData.lon;
+          setLat(saveLat);
+          setLon(saveLon);
+        }
+      } catch {
+      }
+    }
     await saveSettings({
       news_enabled: newsEnabled,
       mcp_enabled: mcpEnabled,
       moments_enabled: momentsEnabled,
       scene_enabled: scheduleEnabled,
       user_email: emailInput,
-      user_city: city
+      user_city: city,
+      user_lat: saveLat,
+      user_lon: saveLon
     });
     setSaving(false);
   };
@@ -52111,6 +52132,8 @@ function FeaturesSettings() {
                     const addr = data2.address;
                     const location = [addr.city || addr.town || addr.county, addr.state].filter(Boolean).join("，");
                     setCity(location);
+                    setLat(latitude.toString());
+                    setLon(longitude.toString());
                   } catch {
                     setCity(`${pos.coords.latitude.toFixed(2)},${pos.coords.longitude.toFixed(2)}`);
                   }

@@ -380,6 +380,23 @@ function FeaturesSettings() {
 
   const handleSave = async () => {
     setSaving(true);
+    let saveLat = lat;
+    let saveLon = lon;
+    // 有城市名则调后端 geocode 更新经纬度
+    if (city) {
+      try {
+        const geo = await fetch(`${API}/geo/city?city=${encodeURIComponent(city)}`);
+        const geoData = await geo.json();
+        if (geoData.lat) {
+          saveLat = geoData.lat;
+          saveLon = geoData.lon;
+          setLat(saveLat);
+          setLon(saveLon);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
     await saveSettings({
       news_enabled: newsEnabled,
       mcp_enabled: mcpEnabled,
@@ -387,8 +404,8 @@ function FeaturesSettings() {
       scene_enabled: scheduleEnabled,
       user_email: emailInput,
       user_city: city,
-      user_lat: lat,
-      user_lon: lon,
+      user_lat: saveLat,
+      user_lon: saveLon,
     });
     setSaving(false);
   };

@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.responses import Response, StreamingResponse
 from app.core.config import get_runtime
 from app.models.schemas import (
@@ -40,6 +40,29 @@ def health():
         "app": runtime.yaml.app.name,
         "model": runtime.settings.llm_primary_model,
     }
+
+
+@api_router.get("/geo/city")
+def geo_city(city: str = Query(default="")):
+    """将城市名解析为经纬度（Nominatim，服务端代查）。"""
+    if not (city and city.strip()):
+        return {"lat": "", "lon": ""}
+    import httpx
+
+    try:
+        with httpx.Client(timeout=10) as client:
+            resp = client.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={"q": city.strip(), "format": "json", "limit": 1, "accept-language": "zh"},
+                headers={"User-Agent": "linAI/1.0; +https://github.com/ (city geocode)"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        if data and data[0].get("lat") and data[0].get("lon"):
+            return {"lat": str(data[0]["lat"]), "lon": str(data[0]["lon"])}
+    except Exception:
+        pass
+    return {"lat": "", "lon": ""}
 
 
 @api_router.post("/auth/login")
