@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle, type ReactNode } from "react";
 import { X, ChevronDown, Upload, Mail, MapPin } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { synthesizeTTS } from "@/lib/linai";
@@ -25,8 +25,8 @@ interface SystemSettingsModalProps {
 }
 
 const SECTIONS = [
-  { id: "api", label: "生成服务" },
-  { id: "voice", label: "语音" },
+  { id: "api", label: "API 设置" },
+  { id: "voice", label: "生成服务" },
   { id: "features", label: "功能" },
   { id: "data", label: "数据管理" },
 ] as const;
@@ -548,7 +548,7 @@ function voiceToEdgeGender(voice: string): "female" | "male" {
 
 type VoiceForm = {
   tts_enabled: boolean;
-  tts_mode: "official" | "edge";
+  tts_mode: "official" | "edge" | "fish";
   tts_voice: string;
   tts_base_url: string;
   edge_voice: string;
@@ -590,7 +590,7 @@ function VoiceSettings() {
       const ev = (s.edge_voice as string) || "zh-CN-XiaoxiaoNeural";
       setForm({
         tts_enabled: !!s.tts_enabled,
-        tts_mode: m === "official" || m === "edge" ? (m as "official" | "edge") : "edge",
+        tts_mode: m === "official" || m === "edge" || m === "fish" ? (m as "official" | "edge" | "fish") : "edge",
         tts_voice: (s.tts_voice as string) || "alloy",
         tts_base_url: (s.tts_base_url as string) || "https://api.openai.com",
         edge_voice: ev,
@@ -653,182 +653,239 @@ function VoiceSettings() {
 
       {form.tts_enabled
         ? (() => {
-            const pm = form.primary_model || "";
-            const autoProvider = pm.startsWith("openai/")
-              ? form.openai_tts_key?.trim()
-                ? "openai"
-                : "edge"
-              : pm.startsWith("fish/")
-                ? form.fish_tts_key?.trim()
-                  ? "fish"
-                  : "edge"
-                : "edge";
-            const providerLabel =
-              autoProvider === "openai"
-                ? "OpenAI TTS"
-                : autoProvider === "fish"
-                  ? "Fish Audio"
-                  : "Edge TTS（免费）";
+            const apiKey = form.openai_tts_key || "";
+            const isNativeOpenAI = apiKey.startsWith("sk-") && !apiKey.includes("or-v1");
+            const activePanel = form.tts_mode as "official" | "edge" | "fish";
+
+            const PanelHeader = ({
+              id,
+              title,
+              badge,
+              active,
+            }: {
+              id: "official" | "edge" | "fish";
+              title: string;
+              badge?: ReactNode;
+              active: boolean;
+            }) => (
+              <button
+                type="button"
+                className={`w-full flex items-center justify-between px-4 py-3 transition-colors rounded-t-xl ${
+                  active ? "bg-primary/5" : "hover:bg-muted/50"
+                }`}
+                onClick={() => void saveSingle("tts_mode", id)}
+              >
+                <span className="text-xs font-medium flex items-center gap-2">
+                  {title}
+                  {badge}
+                </span>
+                <span className="text-xs text-muted-foreground">{active ? "▾" : "▸"}</span>
+              </button>
+            );
 
             return (
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  当前模型 <span className="text-foreground font-medium">{pm}</span>，自动使用{" "}
-                  <span className="text-primary font-medium">{providerLabel}</span>
-                </p>
-
-                {/* OpenAI TTS — 仅openai/模型时高亮 */}
+              <div className="flex gap-2">
+                {/* 官方TTS */}
                 <div
-                  className={`border rounded-xl p-4 transition-opacity ${
-                    pm.startsWith("openai/") ? "border-primary" : "opacity-40"
+                  className={`flex-1 border rounded-xl overflow-hidden transition-all duration-200 ${
+                    activePanel === "official" ? "flex-[2]" : "flex-[0.6] opacity-60"
                   }`}
                 >
-                  <p className="text-xs font-medium mb-2">OpenAI TTS Key</p>
-                  <p className="text-xs text-muted-foreground mb-2">填入后自动启用，不填则回落Edge</p>
-                  <input
-                    type="password"
-                    className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
-                    placeholder="sk-..."
-                    value={form.openai_tts_key || ""}
-                    onChange={(e) => void saveSingle("openai_tts_key", e.target.value)}
-                  />
-                  {pm.startsWith("openai/") && form.openai_tts_key?.trim() && (
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {["alloy", "echo", "fable", "onyx", "nova", "shimmer"].map((v) => (
-                        <button
-                          key={v}
-                          type="button"
-                          className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${
-                            form.tts_voice === v
-                              ? "bg-primary text-primary-foreground border-primary"
-                              : "border-border"
-                          }`}
-                          onClick={() => void saveSingle("tts_voice", v)}
-                        >
-                          {v}
-                        </button>
-                      ))}
+                  <PanelHeader id="official" title="官方 TTS" active={activePanel === "official"} />
+                  {activePanel === "official" && (
+                    <div className="px-4 pb-4 space-y-3">
+                      {isNativeOpenAI ? (
+                        <>
+                          <p className="text-xs text-muted-foreground">已检测到 OpenAI 原生 Key</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {["alloy", "echo", "fable", "onyx", "nova", "shimmer"].map((v) => (
+                              <button
+                                key={v}
+                                type="button"
+                                className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${
+                                  form.tts_voice === v
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "border-border"
+                                }`}
+                                onClick={() => void saveSingle("tts_voice", v)}
+                              >
+                                {v}
+                              </button>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            className="w-full text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors"
+                            onClick={() => {
+                              void synthesizeTTS({
+                                text: "你好，我是叮咚，很高兴认识你。",
+                                mode: "official",
+                                voice: form.tts_voice,
+                              }).then((url) => new Audio(url).play());
+                            }}
+                          >
+                            ▷ 试听
+                          </button>
+                        </>
+                      ) : (
+                        <p className="text-xs text-muted-foreground py-2">
+                          当前 API Key 不支持官方 TTS，请填入 OpenAI 原生 Key（sk- 开头）
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {/* Fish Audio — 仅fish/模型时高亮 */}
+                {/* 免费TTS */}
                 <div
-                  className={`border rounded-xl p-4 transition-opacity ${
-                    pm.startsWith("fish/") ? "border-primary" : "opacity-40"
+                  className={`flex-1 border rounded-xl overflow-hidden transition-all duration-200 ${
+                    activePanel === "edge" ? "flex-[2]" : "flex-[0.6] opacity-60"
                   }`}
                 >
-                  <p className="text-xs font-medium mb-2">Fish Audio</p>
-                  <input
-                    type="password"
-                    className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2 mb-2"
-                    placeholder="Fish Audio API Key"
-                    value={form.fish_tts_key || ""}
-                    onChange={(e) => void saveSingle("fish_tts_key", e.target.value)}
+                  <PanelHeader
+                    id="edge"
+                    title="免费 TTS"
+                    badge={<span className="text-green-600 text-xs">Edge</span>}
+                    active={activePanel === "edge"}
                   />
-                  <input
-                    type="text"
-                    className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
-                    placeholder="Model ID（留空用默认）"
-                    value={form.fish_model_id || ""}
-                    onChange={(e) => void saveSingle("fish_model_id", e.target.value)}
-                  />
+                  {activePanel === "edge" && (
+                    <div className="px-4 pb-4 space-y-2">
+                      <button
+                        type="button"
+                        className="w-full text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors"
+                        onClick={() => handlePreview("你好，我是叮咚，很高兴认识你。")}
+                      >
+                        ▷ 试听
+                      </button>
+                      <div className="flex gap-1">
+                        {(["female", "male"] as const).map((g) => (
+                          <button
+                            key={g}
+                            type="button"
+                            className={`flex-1 text-xs py-1 rounded-lg border transition-colors ${
+                              edgeGender === g
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border text-muted-foreground"
+                            }`}
+                            onClick={() => {
+                              if (g === edgeGender) return;
+                              setEdgeGender(g);
+                              const inGroup = edgeVoices[g].some((v) => v.value === form.edge_voice);
+                              if (!inGroup) void saveSingle("edge_voice", edgeVoices[g][0].value);
+                            }}
+                          >
+                            {g === "female" ? "女声" : "男声"}
+                          </button>
+                        ))}
+                      </div>
+                      <select
+                        className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                        value={form.edge_voice}
+                        onChange={(e) => void saveSingle("edge_voice", e.target.value)}
+                      >
+                        {edgeVoices[edgeGender].map((v) => (
+                          <option key={v.value} value={v.value}>
+                            {v.label}
+                          </option>
+                        ))}
+                      </select>
+                      {(
+                        [
+                          { label: "语速", key: "edge_rate" as const, id: "er", unit: "percent" as const },
+                          { label: "音调", key: "edge_pitch" as const, id: "ep", unit: "hz" as const },
+                          { label: "音量", key: "edge_volume" as const, id: "ev", unit: "percent" as const },
+                        ] as const
+                      ).map(({ label, key, id, unit }) => (
+                        <div key={id} className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground w-6">{label}</span>
+                          <input
+                            type="range"
+                            min={unit === "hz" ? 0 : -50}
+                            max={50}
+                            step={5}
+                            value={
+                              unit === "hz" ? Math.max(0, edgePercentToInt(form[key])) : edgePercentToInt(form[key])
+                            }
+                            onChange={(e) => {
+                              const n = Number(e.target.value);
+                              void saveSingle(key, unit === "hz" ? intToEdgeHz(n) : intToEdgePercent(n));
+                            }}
+                            className="flex-1 h-1"
+                          />
+                          <span className="text-xs w-10 shrink-0 text-right tabular-nums">
+                            {form[key] || (unit === "hz" ? "+0Hz" : "+0%")}
+                          </span>
+                        </div>
+                      ))}
+                      <select
+                        className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                        value={form.edge_style}
+                        onChange={(e) => void saveSingle("edge_style", e.target.value)}
+                      >
+                        <option value="general">通用</option>
+                        <option value="cheerful">开朗活泼</option>
+                        <option value="calm">平静舒缓</option>
+                        <option value="newscast">播音腔</option>
+                        <option value="affectionate">温柔亲切</option>
+                        <option value="lyrical">诗意抒情</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
 
-                {/* Edge TTS — 永远显示，是fallback */}
+                {/* 自设TTS - Fish Audio */}
                 <div
-                  className={`border rounded-xl p-4 transition-opacity ${
-                    autoProvider === "edge" ? "border-primary" : "border-border"
+                  className={`flex-1 border rounded-xl overflow-hidden transition-all duration-200 ${
+                    activePanel === "fish" ? "flex-[2]" : "flex-[0.6] opacity-60"
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-medium">
-                      Edge TTS <span className="text-green-600">免费 · 兜底</span>
-                    </p>
-                    <button
-                      type="button"
-                      className="text-xs h-7 px-3 rounded-lg border border-border hover:bg-muted transition-colors"
-                      onClick={() => handlePreview("你好，我是叮咚，很高兴认识你。")}
-                    >
-                      ▷ 试听
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex gap-1">
-                      {(["female", "male"] as const).map((g) => (
-                        <button
-                          key={g}
-                          type="button"
-                          className={`flex-1 text-xs py-1 rounded-lg border transition-colors ${
-                            edgeGender === g
-                              ? "border-primary bg-primary/10 text-primary"
-                              : "border-border text-muted-foreground"
-                          }`}
-                          onClick={() => {
-                            if (g === edgeGender) return;
-                            setEdgeGender(g);
-                            const inGroup = edgeVoices[g].some((v) => v.value === form.edge_voice);
-                            if (!inGroup) void saveSingle("edge_voice", edgeVoices[g][0].value);
-                          }}
-                        >
-                          {g === "female" ? "女声" : "男声"}
-                        </button>
-                      ))}
-                    </div>
-                    <select
-                      className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
-                      value={form.edge_voice}
-                      onChange={(e) => void saveSingle("edge_voice", e.target.value)}
-                    >
-                      {edgeVoices[edgeGender].map((v) => (
-                        <option key={v.value} value={v.value}>
-                          {v.label}
-                        </option>
-                      ))}
-                    </select>
-                    {(
-                      [
-                        { label: "语速", key: "edge_rate" as const, id: "er", unit: "percent" as const },
-                        { label: "音调", key: "edge_pitch" as const, id: "ep", unit: "hz" as const },
-                        { label: "音量", key: "edge_volume" as const, id: "ev", unit: "percent" as const },
-                      ] as const
-                    ).map(({ label, key, id, unit }) => (
-                      <div key={id} className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground w-6">{label}</span>
+                  <PanelHeader id="fish" title="自设 TTS" active={activePanel === "fish"} />
+                  {activePanel === "fish" && (
+                    <div className="px-4 pb-4 space-y-2">
+                      <p className="text-xs text-muted-foreground">Fish Audio 自定义声音</p>
+                      <input
+                        type="password"
+                        className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                        placeholder="Fish Audio API Key"
+                        value={form.fish_tts_key || ""}
+                        onChange={(e) => void saveSingle("fish_tts_key", e.target.value)}
+                      />
+                      <input
+                        type="text"
+                        className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                        placeholder="声音模型 ID（留空用默认）"
+                        value={form.fish_model_id || ""}
+                        onChange={(e) => void saveSingle("fish_model_id", e.target.value)}
+                      />
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-6">语速</span>
                         <input
                           type="range"
-                          min={unit === "hz" ? 0 : -50}
-                          max={50}
-                          step={5}
-                          value={
-                            unit === "hz"
-                              ? Math.max(0, edgePercentToInt(form[key]))
-                              : edgePercentToInt(form[key])
-                          }
-                          onChange={(e) => {
-                            const n = Number(e.target.value);
-                            void saveSingle(key, unit === "hz" ? intToEdgeHz(n) : intToEdgePercent(n));
-                          }}
+                          min={50}
+                          max={200}
+                          step={10}
+                          value={Math.round((form.fish_speed || 1) * 100)}
+                          onChange={(e) => void saveSingle("fish_speed", Number(e.target.value) / 100)}
                           className="flex-1 h-1"
                         />
                         <span className="text-xs w-10 shrink-0 text-right tabular-nums">
-                          {form[key] || (unit === "hz" ? "+0Hz" : "+0%")}
+                          {(form.fish_speed || 1).toFixed(1)}x
                         </span>
                       </div>
-                    ))}
-                    <select
-                      className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
-                      value={form.edge_style}
-                      onChange={(e) => void saveSingle("edge_style", e.target.value)}
-                    >
-                      <option value="general">通用</option>
-                      <option value="cheerful">开朗活泼</option>
-                      <option value="calm">平静舒缓</option>
-                      <option value="newscast">播音腔</option>
-                      <option value="affectionate">温柔亲切</option>
-                      <option value="lyrical">诗意抒情</option>
-                    </select>
-                  </div>
+                      <button
+                        type="button"
+                        className="w-full text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors"
+                        onClick={() => {
+                          if (!form.fish_tts_key?.trim()) return;
+                          void synthesizeTTS({ text: "你好，我是叮咚，很高兴认识你。", mode: "fish" }).then((url) =>
+                            new Audio(url).play(),
+                          );
+                        }}
+                      >
+                        ▷ 试听
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );

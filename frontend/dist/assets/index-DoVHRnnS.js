@@ -51851,8 +51851,8 @@ async function saveSettings(data2) {
   });
 }
 const SECTIONS = [
-  { id: "api", label: "生成服务" },
-  { id: "voice", label: "语音" },
+  { id: "api", label: "API 设置" },
+  { id: "voice", label: "生成服务" },
   { id: "features", label: "功能" },
   { id: "data", label: "数据管理" }
 ];
@@ -52330,7 +52330,11 @@ function VoiceSettings() {
     edge_pitch: "+0Hz",
     edge_volume: "+0%",
     edge_style: "general",
-    primary_model: ""
+    primary_model: "",
+    openai_tts_key: "",
+    fish_tts_key: "",
+    fish_model_id: "",
+    fish_speed: 1
   });
   reactExports.useEffect(() => {
     void loadSettings().then((s) => {
@@ -52338,7 +52342,7 @@ function VoiceSettings() {
       const ev = s.edge_voice || "zh-CN-XiaoxiaoNeural";
       setForm({
         tts_enabled: !!s.tts_enabled,
-        tts_mode: m2 === "official" || m2 === "edge" ? m2 : "edge",
+        tts_mode: m2 === "official" || m2 === "edge" || m2 === "fish" ? m2 : "edge",
         tts_voice: s.tts_voice || "alloy",
         tts_base_url: s.tts_base_url || "https://api.openai.com",
         edge_voice: ev,
@@ -52346,7 +52350,11 @@ function VoiceSettings() {
         edge_pitch: normalizeEdgePitchValue(s.edge_pitch),
         edge_volume: s.edge_volume || "+0%",
         edge_style: s.edge_style || "general",
-        primary_model: s.primary_model || ""
+        primary_model: s.primary_model || "",
+        openai_tts_key: s.openai_tts_key || "",
+        fish_tts_key: s.fish_tts_key || "",
+        fish_model_id: s.fish_model_id || "",
+        fish_speed: typeof s.fish_speed === "number" ? s.fish_speed : Number(s.fish_speed) || 1
       });
       setEdgeGender(voiceToEdgeGender(ev));
     });
@@ -52366,8 +52374,8 @@ function VoiceSettings() {
     speakTimerRef.current = setTimeout(async () => {
       const url = await synthesizeTTS({
         text,
-        mode: form.tts_mode,
-        voice: form.tts_mode === "official" ? form.tts_voice : form.edge_voice,
+        mode: "edge",
+        voice: form.edge_voice,
         rate: form.edge_rate,
         pitch: form.edge_pitch,
         volume: form.edge_volume,
@@ -52375,13 +52383,6 @@ function VoiceSettings() {
       });
       new Audio(url).play();
     }, 300);
-  };
-  const detectedTTSProvider = () => {
-    const model = form.primary_model || "";
-    if (model.includes("openai")) return "gpt-4o → OpenAI TTS";
-    if (model.includes("anthropic")) return "claude → 暂不支持";
-    if (model.includes("google")) return "gemini → Google TTS";
-    return "未识别模型";
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: voiceSettingsPanelRef, className: "space-y-4 animate-in fade-in duration-200", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
@@ -52399,129 +52400,227 @@ function VoiceSettings() {
         }
       )
     ] }),
-    form.tts_enabled ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "div",
+    form.tts_enabled ? (() => {
+      const apiKey = form.openai_tts_key || "";
+      const isNativeOpenAI = apiKey.startsWith("sk-") && !apiKey.includes("or-v1");
+      const activePanel = form.tts_mode;
+      const PanelHeader = ({
+        id: id2,
+        title,
+        badge,
+        active
+      }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
         {
-          className: `flex-1 border rounded-xl p-4 cursor-pointer transition-opacity ${form.tts_mode === "official" ? "border-primary" : "opacity-40"}`,
-          onClick: () => void saveSingle("tts_mode", "official"),
+          type: "button",
+          className: `w-full flex items-center justify-between px-4 py-3 transition-colors rounded-t-xl ${active ? "bg-primary/5" : "hover:bg-muted/50"}`,
+          onClick: () => void saveSingle("tts_mode", id2),
           children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs font-medium mb-1", children: "官方 TTS" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground mb-3", children: detectedTTSProvider() }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1.5", children: ["alloy", "echo", "fable", "onyx", "nova", "shimmer"].map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                type: "button",
-                className: `px-2.5 py-1 rounded-lg text-xs border transition-colors ${form.tts_voice === v2 ? "bg-primary text-primary-foreground border-primary" : "border-border"}`,
-                onClick: (e) => {
-                  e.stopPropagation();
-                  void saveSingle("tts_voice", v2);
-                },
-                children: v2
-              },
-              v2
-            )) })
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs font-medium flex items-center gap-2", children: [
+              title,
+              badge
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-muted-foreground", children: active ? "▾" : "▸" })
           ]
         }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "div",
-        {
-          className: `flex-1 border rounded-xl p-4 cursor-pointer transition-opacity ${form.tts_mode === "edge" ? "border-primary" : "opacity-40"}`,
-          onClick: () => void saveSingle("tts_mode", "edge"),
-          children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs font-medium", children: [
-              "Edge TTS ",
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-green-600 text-xs", children: "免费" })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                type: "button",
-                className: "w-full mt-3 text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors",
-                onClick: (e) => {
-                  e.stopPropagation();
-                  handlePreview("你好，我是叮咚，很高兴认识你。");
-                },
-                children: "▷ 试听"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2 mt-2", onClick: (e) => e.stopPropagation(), children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1 mb-2", children: ["female", "male"].map((g2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  type: "button",
-                  className: `flex-1 text-xs py-1 rounded-lg border transition-colors ${edgeGender === g2 ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`,
-                  onClick: (e) => {
-                    e.stopPropagation();
-                    if (g2 === edgeGender) return;
-                    setEdgeGender(g2);
-                    const inGroup = edgeVoices[g2].some((v2) => v2.value === form.edge_voice);
-                    if (!inGroup) {
-                      void saveSingle("edge_voice", edgeVoices[g2][0].value);
-                    }
+      );
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: `flex-1 border rounded-xl overflow-hidden transition-all duration-200 ${activePanel === "official" ? "flex-[2]" : "flex-[0.6] opacity-60"}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(PanelHeader, { id: "official", title: "官方 TTS", active: activePanel === "official" }),
+              activePanel === "official" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-4 pb-4 space-y-3", children: isNativeOpenAI ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground", children: "已检测到 OpenAI 原生 Key" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1.5", children: ["alloy", "echo", "fable", "onyx", "nova", "shimmer"].map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    className: `px-2.5 py-1 rounded-lg text-xs border transition-colors ${form.tts_voice === v2 ? "bg-primary text-primary-foreground border-primary" : "border-border"}`,
+                    onClick: () => void saveSingle("tts_voice", v2),
+                    children: v2
                   },
-                  children: g2 === "female" ? "女声" : "男声"
-                },
-                g2
-              )) }),
+                  v2
+                )) }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    className: "w-full text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors",
+                    onClick: () => {
+                      void synthesizeTTS({
+                        text: "你好，我是叮咚，很高兴认识你。",
+                        mode: "official",
+                        voice: form.tts_voice
+                      }).then((url) => new Audio(url).play());
+                    },
+                    children: "▷ 试听"
+                  }
+                )
+              ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground py-2", children: "当前 API Key 不支持官方 TTS，请填入 OpenAI 原生 Key（sk- 开头）" }) })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: `flex-1 border rounded-xl overflow-hidden transition-all duration-200 ${activePanel === "edge" ? "flex-[2]" : "flex-[0.6] opacity-60"}`,
+            children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "select",
+                PanelHeader,
                 {
-                  className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
-                  value: form.edge_voice,
-                  onChange: (e) => void saveSingle("edge_voice", e.target.value),
-                  children: edgeVoices[edgeGender].map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2.value, children: v2.label }, v2.value))
+                  id: "edge",
+                  title: "免费 TTS",
+                  badge: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-green-600 text-xs", children: "Edge" }),
+                  active: activePanel === "edge"
                 }
               ),
-              [
-                { label: "语速", key: "edge_rate", id: "er", unit: "percent" },
-                { label: "音调", key: "edge_pitch", id: "ep", unit: "hz" },
-                { label: "音量", key: "edge_volume", id: "ev", unit: "percent" }
-              ].map(({ label, key, id: id2, unit }) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-muted-foreground w-6", children: label }),
+              activePanel === "edge" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 pb-4 space-y-2", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    className: "w-full text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors",
+                    onClick: () => handlePreview("你好，我是叮咚，很高兴认识你。"),
+                    children: "▷ 试听"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1", children: ["female", "male"].map((g2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    className: `flex-1 text-xs py-1 rounded-lg border transition-colors ${edgeGender === g2 ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`,
+                    onClick: () => {
+                      if (g2 === edgeGender) return;
+                      setEdgeGender(g2);
+                      const inGroup = edgeVoices[g2].some((v2) => v2.value === form.edge_voice);
+                      if (!inGroup) void saveSingle("edge_voice", edgeVoices[g2][0].value);
+                    },
+                    children: g2 === "female" ? "女声" : "男声"
+                  },
+                  g2
+                )) }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "select",
+                  {
+                    className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                    value: form.edge_voice,
+                    onChange: (e) => void saveSingle("edge_voice", e.target.value),
+                    children: edgeVoices[edgeGender].map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2.value, children: v2.label }, v2.value))
+                  }
+                ),
+                [
+                  { label: "语速", key: "edge_rate", id: "er", unit: "percent" },
+                  { label: "音调", key: "edge_pitch", id: "ep", unit: "hz" },
+                  { label: "音量", key: "edge_volume", id: "ev", unit: "percent" }
+                ].map(({ label, key, id: id2, unit }) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-muted-foreground w-6", children: label }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "input",
+                    {
+                      type: "range",
+                      min: unit === "hz" ? 0 : -50,
+                      max: 50,
+                      step: 5,
+                      value: unit === "hz" ? Math.max(0, edgePercentToInt(form[key])) : edgePercentToInt(form[key]),
+                      onChange: (e) => {
+                        const n2 = Number(e.target.value);
+                        void saveSingle(key, unit === "hz" ? intToEdgeHz(n2) : intToEdgePercent(n2));
+                      },
+                      className: "flex-1 h-1"
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs w-10 shrink-0 text-right tabular-nums", children: form[key] || (unit === "hz" ? "+0Hz" : "+0%") })
+                ] }, id2)),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "select",
+                  {
+                    className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                    value: form.edge_style,
+                    onChange: (e) => void saveSingle("edge_style", e.target.value),
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "general", children: "通用" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "cheerful", children: "开朗活泼" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "calm", children: "平静舒缓" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "newscast", children: "播音腔" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "affectionate", children: "温柔亲切" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "lyrical", children: "诗意抒情" })
+                    ]
+                  }
+                )
+              ] })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: `flex-1 border rounded-xl overflow-hidden transition-all duration-200 ${activePanel === "fish" ? "flex-[2]" : "flex-[0.6] opacity-60"}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(PanelHeader, { id: "fish", title: "自设 TTS", active: activePanel === "fish" }),
+              activePanel === "fish" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 pb-4 space-y-2", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground", children: "Fish Audio 自定义声音" }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx(
                   "input",
                   {
-                    type: "range",
-                    min: unit === "hz" ? 0 : -50,
-                    max: 50,
-                    step: 5,
-                    value: unit === "hz" ? Math.max(0, edgePercentToInt(form[key])) : edgePercentToInt(form[key]),
-                    onChange: (e) => {
-                      const n2 = Number(e.target.value);
-                      if (unit === "hz") {
-                        void saveSingle(key, intToEdgeHz(n2));
-                      } else {
-                        void saveSingle(key, intToEdgePercent(n2));
-                      }
-                    },
-                    className: "flex-1 h-1"
+                    type: "password",
+                    className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                    placeholder: "Fish Audio API Key",
+                    value: form.fish_tts_key || "",
+                    onChange: (e) => void saveSingle("fish_tts_key", e.target.value)
                   }
                 ),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs w-10 shrink-0 text-right tabular-nums", children: form[key] || (unit === "hz" ? "+0Hz" : "+0%") })
-              ] }, id2)),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                "select",
-                {
-                  className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
-                  value: form.edge_style,
-                  onChange: (e) => void saveSingle("edge_style", e.target.value),
-                  children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "general", children: "通用" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "cheerful", children: "开朗活泼" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "calm", children: "平静舒缓" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "newscast", children: "播音腔" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "affectionate", children: "温柔亲切" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "lyrical", children: "诗意抒情" })
-                  ]
-                }
-              )
-            ] })
-          ]
-        }
-      )
-    ] }) : null,
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    type: "text",
+                    className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                    placeholder: "声音模型 ID（留空用默认）",
+                    value: form.fish_model_id || "",
+                    onChange: (e) => void saveSingle("fish_model_id", e.target.value)
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-muted-foreground w-6", children: "语速" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "input",
+                    {
+                      type: "range",
+                      min: 50,
+                      max: 200,
+                      step: 10,
+                      value: Math.round((form.fish_speed || 1) * 100),
+                      onChange: (e) => void saveSingle("fish_speed", Number(e.target.value) / 100),
+                      className: "flex-1 h-1"
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs w-10 shrink-0 text-right tabular-nums", children: [
+                    (form.fish_speed || 1).toFixed(1),
+                    "x"
+                  ] })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    className: "w-full text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors",
+                    onClick: () => {
+                      var _a3;
+                      if (!((_a3 = form.fish_tts_key) == null ? void 0 : _a3.trim())) return;
+                      void synthesizeTTS({ text: "你好，我是叮咚，很高兴认识你。", mode: "fish" }).then(
+                        (url) => new Audio(url).play()
+                      );
+                    },
+                    children: "▷ 试听"
+                  }
+                )
+              ] })
+            ]
+          }
+        )
+      ] });
+    })() : null,
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-6", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-3", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
