@@ -556,7 +556,11 @@ type VoiceForm = {
   edge_pitch: string;
   edge_volume: string;
   edge_style: string;
-  primary_model: string;
+  openai_tts_key?: string;
+  fish_tts_key?: string;
+  fish_model_id?: string;
+  fish_speed?: number;
+  primary_model?: string;
 };
 
 function VoiceSettings() {
@@ -574,6 +578,10 @@ function VoiceSettings() {
     edge_volume: "+0%",
     edge_style: "general",
     primary_model: "",
+    openai_tts_key: "",
+    fish_tts_key: "",
+    fish_model_id: "",
+    fish_speed: 1,
   });
 
   useEffect(() => {
@@ -591,6 +599,10 @@ function VoiceSettings() {
         edge_volume: (s.edge_volume as string) || "+0%",
         edge_style: (s.edge_style as string) || "general",
         primary_model: (s.primary_model as string) || "",
+        openai_tts_key: (s.openai_tts_key as string) || "",
+        fish_tts_key: (s.fish_tts_key as string) || "",
+        fish_model_id: (s.fish_model_id as string) || "",
+        fish_speed: typeof s.fish_speed === "number" ? s.fish_speed : Number(s.fish_speed) || 1,
       });
       setEdgeGender(voiceToEdgeGender(ev));
     });
@@ -613,8 +625,8 @@ function VoiceSettings() {
     speakTimerRef.current = setTimeout(async () => {
       const url = await synthesizeTTS({
         text,
-        mode: form.tts_mode,
-        voice: form.tts_mode === "official" ? form.tts_voice : form.edge_voice,
+        mode: "edge",
+        voice: form.edge_voice,
         rate: form.edge_rate,
         pitch: form.edge_pitch,
         volume: form.edge_volume,
@@ -622,14 +634,6 @@ function VoiceSettings() {
       });
       new Audio(url).play();
     }, 300);
-  };
-
-  const detectedTTSProvider = () => {
-    const model = form.primary_model || "";
-    if (model.includes("openai")) return "gpt-4o → OpenAI TTS";
-    if (model.includes("anthropic")) return "claude → 暂不支持";
-    if (model.includes("google")) return "gemini → Google TTS";
-    return "未识别模型";
   };
 
   return (
@@ -647,142 +651,189 @@ function VoiceSettings() {
         />
       </div>
 
-      {form.tts_enabled ? (
-        <div className="flex gap-3">
-          <div
-            className={`flex-1 border rounded-xl p-4 cursor-pointer transition-opacity ${
-              form.tts_mode === "official" ? "border-primary" : "opacity-40"
-            }`}
-            onClick={() => void saveSingle("tts_mode", "official")}
-          >
-            <p className="text-xs font-medium mb-1">官方 TTS</p>
-            <p className="text-xs text-muted-foreground mb-3">{detectedTTSProvider()}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {["alloy", "echo", "fable", "onyx", "nova", "shimmer"].map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${
-                    form.tts_voice === v
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border"
-                  }`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void saveSingle("tts_voice", v);
-                  }}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-          </div>
+      {form.tts_enabled
+        ? (() => {
+            const pm = form.primary_model || "";
+            const autoProvider = pm.startsWith("openai/")
+              ? form.openai_tts_key?.trim()
+                ? "openai"
+                : "edge"
+              : pm.startsWith("fish/")
+                ? form.fish_tts_key?.trim()
+                  ? "fish"
+                  : "edge"
+                : "edge";
+            const providerLabel =
+              autoProvider === "openai"
+                ? "OpenAI TTS"
+                : autoProvider === "fish"
+                  ? "Fish Audio"
+                  : "Edge TTS（免费）";
 
-          <div
-            className={`flex-1 border rounded-xl p-4 cursor-pointer transition-opacity ${
-              form.tts_mode === "edge" ? "border-primary" : "opacity-40"
-            }`}
-            onClick={() => void saveSingle("tts_mode", "edge")}
-          >
-            <p className="text-xs font-medium">
-              Edge TTS <span className="text-green-600 text-xs">免费</span>
-            </p>
-            <button
-              type="button"
-              className="w-full mt-3 text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                handlePreview("你好，我是叮咚，很高兴认识你。");
-              }}
-            >
-              ▷ 试听
-            </button>
-            <div className="space-y-2 mt-2" onClick={(e) => e.stopPropagation()}>
-              <div className="flex gap-1 mb-2">
-                {(["female", "male"] as const).map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    className={`flex-1 text-xs py-1 rounded-lg border transition-colors ${
-                      edgeGender === g
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border text-muted-foreground"
-                    }`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (g === edgeGender) return;
-                      setEdgeGender(g);
-                      const inGroup = edgeVoices[g].some((v) => v.value === form.edge_voice);
-                      if (!inGroup) {
-                        void saveSingle("edge_voice", edgeVoices[g][0].value);
-                      }
-                    }}
-                  >
-                    {g === "female" ? "女声" : "男声"}
-                  </button>
-                ))}
-              </div>
-              <select
-                className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
-                value={form.edge_voice}
-                onChange={(e) => void saveSingle("edge_voice", e.target.value)}
-              >
-                {edgeVoices[edgeGender].map((v) => (
-                  <option key={v.value} value={v.value}>
-                    {v.label}
-                  </option>
-                ))}
-              </select>
-              {(
-                [
-                  { label: "语速", key: "edge_rate" as const, id: "er", unit: "percent" as const },
-                  { label: "音调", key: "edge_pitch" as const, id: "ep", unit: "hz" as const },
-                  { label: "音量", key: "edge_volume" as const, id: "ev", unit: "percent" as const },
-                ] as const
-              ).map(({ label, key, id, unit }) => (
-                <div key={id} className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-6">{label}</span>
+            return (
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  当前模型 <span className="text-foreground font-medium">{pm}</span>，自动使用{" "}
+                  <span className="text-primary font-medium">{providerLabel}</span>
+                </p>
+
+                {/* OpenAI TTS — 仅openai/模型时高亮 */}
+                <div
+                  className={`border rounded-xl p-4 transition-opacity ${
+                    pm.startsWith("openai/") ? "border-primary" : "opacity-40"
+                  }`}
+                >
+                  <p className="text-xs font-medium mb-2">OpenAI TTS Key</p>
+                  <p className="text-xs text-muted-foreground mb-2">填入后自动启用，不填则回落Edge</p>
                   <input
-                    type="range"
-                    min={unit === "hz" ? 0 : -50}
-                    max={50}
-                    step={5}
-                    value={
-                      unit === "hz"
-                        ? Math.max(0, edgePercentToInt(form[key]))
-                        : edgePercentToInt(form[key])
-                    }
-                    onChange={(e) => {
-                      const n = Number(e.target.value);
-                      if (unit === "hz") {
-                        void saveSingle(key, intToEdgeHz(n));
-                      } else {
-                        void saveSingle(key, intToEdgePercent(n));
-                      }
-                    }}
-                    className="flex-1 h-1"
+                    type="password"
+                    className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                    placeholder="sk-..."
+                    value={form.openai_tts_key || ""}
+                    onChange={(e) => void saveSingle("openai_tts_key", e.target.value)}
                   />
-                  <span className="text-xs w-10 shrink-0 text-right tabular-nums">
-                    {form[key] || (unit === "hz" ? "+0Hz" : "+0%")}
-                  </span>
+                  {pm.startsWith("openai/") && form.openai_tts_key?.trim() && (
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      {["alloy", "echo", "fable", "onyx", "nova", "shimmer"].map((v) => (
+                        <button
+                          key={v}
+                          type="button"
+                          className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${
+                            form.tts_voice === v
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "border-border"
+                          }`}
+                          onClick={() => void saveSingle("tts_voice", v)}
+                        >
+                          {v}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
-              <select
-                className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
-                value={form.edge_style}
-                onChange={(e) => void saveSingle("edge_style", e.target.value)}
-              >
-                <option value="general">通用</option>
-                <option value="cheerful">开朗活泼</option>
-                <option value="calm">平静舒缓</option>
-                <option value="newscast">播音腔</option>
-                <option value="affectionate">温柔亲切</option>
-                <option value="lyrical">诗意抒情</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      ) : null}
+
+                {/* Fish Audio — 仅fish/模型时高亮 */}
+                <div
+                  className={`border rounded-xl p-4 transition-opacity ${
+                    pm.startsWith("fish/") ? "border-primary" : "opacity-40"
+                  }`}
+                >
+                  <p className="text-xs font-medium mb-2">Fish Audio</p>
+                  <input
+                    type="password"
+                    className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2 mb-2"
+                    placeholder="Fish Audio API Key"
+                    value={form.fish_tts_key || ""}
+                    onChange={(e) => void saveSingle("fish_tts_key", e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                    placeholder="Model ID（留空用默认）"
+                    value={form.fish_model_id || ""}
+                    onChange={(e) => void saveSingle("fish_model_id", e.target.value)}
+                  />
+                </div>
+
+                {/* Edge TTS — 永远显示，是fallback */}
+                <div
+                  className={`border rounded-xl p-4 transition-opacity ${
+                    autoProvider === "edge" ? "border-primary" : "border-border"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium">
+                      Edge TTS <span className="text-green-600">免费 · 兜底</span>
+                    </p>
+                    <button
+                      type="button"
+                      className="text-xs h-7 px-3 rounded-lg border border-border hover:bg-muted transition-colors"
+                      onClick={() => handlePreview("你好，我是叮咚，很高兴认识你。")}
+                    >
+                      ▷ 试听
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex gap-1">
+                      {(["female", "male"] as const).map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          className={`flex-1 text-xs py-1 rounded-lg border transition-colors ${
+                            edgeGender === g
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border text-muted-foreground"
+                          }`}
+                          onClick={() => {
+                            if (g === edgeGender) return;
+                            setEdgeGender(g);
+                            const inGroup = edgeVoices[g].some((v) => v.value === form.edge_voice);
+                            if (!inGroup) void saveSingle("edge_voice", edgeVoices[g][0].value);
+                          }}
+                        >
+                          {g === "female" ? "女声" : "男声"}
+                        </button>
+                      ))}
+                    </div>
+                    <select
+                      className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                      value={form.edge_voice}
+                      onChange={(e) => void saveSingle("edge_voice", e.target.value)}
+                    >
+                      {edgeVoices[edgeGender].map((v) => (
+                        <option key={v.value} value={v.value}>
+                          {v.label}
+                        </option>
+                      ))}
+                    </select>
+                    {(
+                      [
+                        { label: "语速", key: "edge_rate" as const, id: "er", unit: "percent" as const },
+                        { label: "音调", key: "edge_pitch" as const, id: "ep", unit: "hz" as const },
+                        { label: "音量", key: "edge_volume" as const, id: "ev", unit: "percent" as const },
+                      ] as const
+                    ).map(({ label, key, id, unit }) => (
+                      <div key={id} className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-6">{label}</span>
+                        <input
+                          type="range"
+                          min={unit === "hz" ? 0 : -50}
+                          max={50}
+                          step={5}
+                          value={
+                            unit === "hz"
+                              ? Math.max(0, edgePercentToInt(form[key]))
+                              : edgePercentToInt(form[key])
+                          }
+                          onChange={(e) => {
+                            const n = Number(e.target.value);
+                            void saveSingle(key, unit === "hz" ? intToEdgeHz(n) : intToEdgePercent(n));
+                          }}
+                          className="flex-1 h-1"
+                        />
+                        <span className="text-xs w-10 shrink-0 text-right tabular-nums">
+                          {form[key] || (unit === "hz" ? "+0Hz" : "+0%")}
+                        </span>
+                      </div>
+                    ))}
+                    <select
+                      className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                      value={form.edge_style}
+                      onChange={(e) => void saveSingle("edge_style", e.target.value)}
+                    >
+                      <option value="general">通用</option>
+                      <option value="cheerful">开朗活泼</option>
+                      <option value="calm">平静舒缓</option>
+                      <option value="newscast">播音腔</option>
+                      <option value="affectionate">温柔亲切</option>
+                      <option value="lyrical">诗意抒情</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            );
+          })()
+        : null}
 
       {/* 图片生成区块，结构同语音 */}
       <div className="mt-6">

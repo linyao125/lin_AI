@@ -41,6 +41,10 @@ class SettingsService:
             "edge_volume": "+0%",
             "edge_style": "general",
             "tts_base_url": "https://api.openai.com",
+            "openai_tts_key": "",
+            "fish_tts_key": "",
+            "fish_model_id": "",
+            "fish_speed": 1.0,
             "primary_model": runtime.settings.llm_primary_model,
             "summary_model": runtime.settings.llm_summary_model,
             "system_goal": runtime.yaml.assistant.system_goal,
@@ -98,6 +102,7 @@ class SettingsService:
         current = self.get_frontend_settings()
         protected = {
             "api_key", "image_api_key", "tts_api_key", "news_api_key",
+            "openai_tts_key", "fish_tts_key",
             "vpn_subscription", "access_token",
             "chat_bg_image",
         }

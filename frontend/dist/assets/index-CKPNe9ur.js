@@ -52297,29 +52297,23 @@ function normalizeEdgePitchValue(raw) {
   if (s.includes("%")) return intToEdgeHz(edgePercentToInt(s));
   return "+0Hz";
 }
-const EDGE_TTS_VOICES = {
+const edgeVoices = {
   female: [
     { value: "zh-CN-XiaoxiaoNeural", label: "晓晓 · 温柔" },
     { value: "zh-CN-XiaoyiNeural", label: "晓伊 · 活泼" },
-    { value: "zh-CN-XiaohanNeural", label: "晓涵 · 知性" },
     { value: "zh-CN-XiaomoNeural", label: "晓墨 · 平静" },
-    { value: "zh-CN-XiaoxuanNeural", label: "晓萱 · 理性" },
-    { value: "zh-CN-XiaoruiNeural", label: "晓睿 · 轻柔" },
-    { value: "zh-CN-XiaozhenNeural", label: "晓甄 · 激情" },
-    { value: "zh-CN-XiaoshuangNeural", label: "晓双 · 青年" }
+    { value: "zh-CN-XiaoxuanNeural", label: "晓萱 · 理性" }
   ],
   male: [
     { value: "zh-CN-YunxiNeural", label: "云希 · 轻松" },
     { value: "zh-CN-YunjianNeural", label: "云健 · 磁性" },
     { value: "zh-CN-YunxiaNeural", label: "云夏 · 阳光" },
-    { value: "zh-CN-YunyangNeural", label: "云扬 · 播音" },
-    { value: "zh-CN-YunfengNeural", label: "云枫 · 激昂" },
-    { value: "zh-CN-YunhaoNeural", label: "云皓 · 活力" }
+    { value: "zh-CN-YunyangNeural", label: "云扬 · 播音" }
   ]
 };
 function voiceToEdgeGender(voice) {
-  if (EDGE_TTS_VOICES.female.some((x2) => x2.value === voice)) return "female";
-  if (EDGE_TTS_VOICES.male.some((x2) => x2.value === voice)) return "male";
+  if (edgeVoices.female.some((x2) => x2.value === voice)) return "female";
+  if (edgeVoices.male.some((x2) => x2.value === voice)) return "male";
   return "female";
 }
 function VoiceSettings() {
@@ -52380,7 +52374,7 @@ function VoiceSettings() {
         style: form.edge_style
       });
       new Audio(url).play();
-    }, 800);
+    }, 300);
   };
   const detectedTTSProvider = () => {
     const model = form.primary_model || "";
@@ -52462,9 +52456,9 @@ function VoiceSettings() {
                     e.stopPropagation();
                     if (g2 === edgeGender) return;
                     setEdgeGender(g2);
-                    const inGroup = EDGE_TTS_VOICES[g2].some((v2) => v2.value === form.edge_voice);
+                    const inGroup = edgeVoices[g2].some((v2) => v2.value === form.edge_voice);
                     if (!inGroup) {
-                      void saveSingle("edge_voice", EDGE_TTS_VOICES[g2][0].value);
+                      void saveSingle("edge_voice", edgeVoices[g2][0].value);
                     }
                   },
                   children: g2 === "female" ? "女声" : "男声"
@@ -52477,7 +52471,7 @@ function VoiceSettings() {
                   className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
                   value: form.edge_voice,
                   onChange: (e) => void saveSingle("edge_voice", e.target.value),
-                  children: EDGE_TTS_VOICES[edgeGender].map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2.value, children: v2.label }, v2.value))
+                  children: edgeVoices[edgeGender].map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2.value, children: v2.label }, v2.value))
                 }
               ),
               [

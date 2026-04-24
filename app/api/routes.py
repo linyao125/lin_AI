@@ -743,7 +743,7 @@ async def update_scene():
 
 @api_router.post("/tts/synthesize")
 async def tts_synthesize(request: Request):
-    from app.services.tts import openai_tts, edge_tts_generate
+    from app.services.tts import openai_tts, edge_tts_generate, fish_tts
 
     body = await request.json()
     text = body.get("text", "").strip()
@@ -751,17 +751,36 @@ async def tts_synthesize(request: Request):
         raise HTTPException(status_code=400, detail="text is empty")
 
     s = settings_service.get_frontend_settings()
-    mode = body.get("mode") or s.get("tts_mode", "edge")
+    primary_model = s.get("primary_model", "")
+
+    # 根据primary_model判断provider
+    if primary_model.startswith("openai/"):
+        provider = "openai"
+    elif primary_model.startswith("fish/"):
+        provider = "fish"
+    else:
+        provider = "edge"
+
+    # openai provider但没有独立key → fallback edge
+    if provider == "openai" and not s.get("openai_tts_key", "").strip():
+        provider = "edge"
+
+    # fish provider但没有key → fallback edge
+    if provider == "fish" and not s.get("fish_tts_key", "").strip():
+        provider = "edge"
 
     try:
-        if mode == "official":
-            api_key = s.get("api_key", "")
-            if not api_key:
-                raise HTTPException(status_code=400, detail="no api_key")
+        if provider == "openai":
+            api_key = (s.get("openai_tts_key") or "").strip()
             voice = body.get("voice") or s.get("tts_voice", "alloy")
-            base_url = s.get("tts_base_url", "https://api.openai.com")
-            proxy_url = s.get("proxy_url")
-            audio = await openai_tts(text, voice, api_key, base_url, proxy_url)
+            audio = await openai_tts(
+                text, voice, api_key, "https://api.openai.com", s.get("proxy_url")
+            )
+        elif provider == "fish":
+            api_key = (s.get("fish_tts_key") or "").strip()
+            model_id = s.get("fish_model_id", "")
+            speed = float(s.get("fish_speed", 1.0))
+            audio = await fish_tts(text, api_key, model_id, speed)
         else:
             voice = body.get("voice") or s.get("edge_voice", "zh-CN-XiaoxiaoNeural")
             rate = body.get("rate") or s.get("edge_rate", "+0%")
