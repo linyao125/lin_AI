@@ -73,7 +73,7 @@ class LLMService:
 
     def _client_kwargs(self) -> dict:
         _settings = settings_service.get_frontend_settings()
-        _proxy = _settings.get("proxy_url") or os.environ.get("HTTP_PROXY") or ""
+        _proxy = _settings.get("proxy_url") or os.environ.get("LINAI_PROXY") or ""
         kwargs = {"timeout": httpx.Timeout(120.0, connect=10.0)}
         if _proxy:
             kwargs["proxy"] = _proxy

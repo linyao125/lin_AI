@@ -52286,6 +52286,16 @@ function edgePercentToInt(s) {
 function intToEdgePercent(n2) {
   return (n2 >= 0 ? `+${n2}` : String(n2)) + "%";
 }
+function intToEdgeHz(n2) {
+  return (n2 >= 0 ? `+${n2}` : String(n2)) + "Hz";
+}
+function normalizeEdgePitchValue(raw) {
+  if (raw == null || raw === "") return "+0Hz";
+  const s = String(raw);
+  if (s.includes("Hz")) return s;
+  if (s.includes("%")) return intToEdgeHz(edgePercentToInt(s));
+  return "+0Hz";
+}
 const EDGE_TTS_VOICES = {
   female: [
     { value: "zh-CN-XiaoxiaoNeural", label: "晓晓 · 温柔" },
@@ -52323,7 +52333,7 @@ function VoiceSettings() {
     tts_base_url: "https://api.openai.com",
     edge_voice: "zh-CN-XiaoxiaoNeural",
     edge_rate: "+0%",
-    edge_pitch: "+0%",
+    edge_pitch: "+0Hz",
     edge_volume: "+0%",
     edge_style: "general",
     primary_model: ""
@@ -52339,7 +52349,7 @@ function VoiceSettings() {
         tts_base_url: s.tts_base_url || "https://api.openai.com",
         edge_voice: ev,
         edge_rate: s.edge_rate || "+0%",
-        edge_pitch: s.edge_pitch || "+0%",
+        edge_pitch: normalizeEdgePitchValue(s.edge_pitch),
         edge_volume: s.edge_volume || "+0%",
         edge_style: s.edge_style || "general",
         primary_model: s.primary_model || ""
@@ -52471,10 +52481,10 @@ function VoiceSettings() {
                 }
               ),
               [
-                { label: "语速", key: "edge_rate", id: "er" },
-                { label: "音调", key: "edge_pitch", id: "ep" },
-                { label: "音量", key: "edge_volume", id: "ev" }
-              ].map(({ label, key, id: id2 }) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+                { label: "语速", key: "edge_rate", id: "er", unit: "percent" },
+                { label: "音调", key: "edge_pitch", id: "ep", unit: "hz" },
+                { label: "音量", key: "edge_volume", id: "ev", unit: "percent" }
+              ].map(({ label, key, id: id2, unit }) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-muted-foreground w-6", children: label }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx(
                   "input",
@@ -52486,12 +52496,16 @@ function VoiceSettings() {
                     value: edgePercentToInt(form[key]),
                     onChange: (e) => {
                       const n2 = Number(e.target.value);
-                      void saveSingle(key, intToEdgePercent(n2));
+                      if (unit === "hz") {
+                        void saveSingle(key, intToEdgeHz(n2));
+                      } else {
+                        void saveSingle(key, intToEdgePercent(n2));
+                      }
                     },
                     className: "flex-1 h-1"
                   }
                 ),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs w-8 text-right", children: form[key] || "+0%" })
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs w-10 shrink-0 text-right tabular-nums", children: form[key] || (unit === "hz" ? "+0Hz" : "+0%") })
               ] }, id2)),
               /* @__PURE__ */ jsxRuntimeExports.jsxs(
                 "select",
