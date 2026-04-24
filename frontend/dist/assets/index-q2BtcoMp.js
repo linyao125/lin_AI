@@ -52097,10 +52097,13 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
   const [city, setCity] = reactExports.useState("");
   const [lat, setLat] = reactExports.useState("");
   const [lon, setLon] = reactExports.useState("");
+  const subEnabled = emailEnabled || newsEnabled || momentsEnabled || scheduleEnabled;
+  const effectiveMcp = mcpEnabled || subEnabled;
   reactExports.useEffect(() => {
     loadSettings().then((s) => {
       setNewsEnabled(!!s.news_enabled);
-      setMcpEnabled(!!s.mcp_enabled);
+      const subFromS = !!(s.email_enabled || s.news_enabled || s.moments_enabled || s.scene_enabled);
+      setMcpEnabled(!!s.mcp_enabled && !subFromS);
       setMomentsEnabled(!!s.moments_enabled);
       setScheduleEnabled(!!s.scene_enabled);
       setEmailEnabled(!!s.email_enabled);
@@ -52129,7 +52132,7 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
     }
     await saveSettings({
       news_enabled: newsEnabled,
-      mcp_enabled: mcpEnabled,
+      mcp_enabled: effectiveMcp,
       moments_enabled: momentsEnabled,
       scene_enabled: scheduleEnabled,
       email_enabled: emailEnabled,
@@ -52148,7 +52151,8 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
     emailInput,
     city,
     lat,
-    lon
+    lon,
+    effectiveMcp
   ]);
   const handleLogoUpload = (e) => {
     var _a3;
@@ -52189,23 +52193,79 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
         /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "file", accept: "image/*", className: "hidden", onChange: handleLogoUpload })
       ] })
     ] }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "MCP 工具", enabled: mcpEnabled, onToggle: setMcpEnabled }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "邮件发送", enabled: emailEnabled, onToggle: setEmailEnabled, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Mail, { size: 14, className: "text-muted-foreground shrink-0" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "input",
-        {
-          type: "email",
-          value: emailInput,
-          onChange: (e) => setEmailInput(e.target.value),
-          placeholder: "你的收件邮箱",
-          className: "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      FeatureToggle,
+      {
+        label: "MCP 工具",
+        enabled: effectiveMcp,
+        onToggle: (v2) => {
+          setMcpEnabled(v2);
+          if (!v2) {
+            setEmailEnabled(false);
+            setNewsEnabled(false);
+            setMomentsEnabled(false);
+            setScheduleEnabled(false);
+          }
         }
-      )
-    ] }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "新闻推送", enabled: newsEnabled, onToggle: setNewsEnabled }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "小红书使用", enabled: momentsEnabled, onToggle: setMomentsEnabled }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "日程提醒", enabled: scheduleEnabled, onToggle: setScheduleEnabled })
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      FeatureToggle,
+      {
+        label: "邮件发送",
+        enabled: emailEnabled,
+        onToggle: (v2) => {
+          setEmailEnabled(v2);
+          if (v2) setMcpEnabled(true);
+        },
+        children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Mail, { size: 14, className: "text-muted-foreground shrink-0" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "email",
+              value: emailInput,
+              onChange: (e) => setEmailInput(e.target.value),
+              placeholder: "你的收件邮箱",
+              className: "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            }
+          )
+        ] })
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      FeatureToggle,
+      {
+        label: "新闻推送",
+        enabled: newsEnabled,
+        onToggle: (v2) => {
+          setNewsEnabled(v2);
+          if (v2) setMcpEnabled(true);
+        }
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      FeatureToggle,
+      {
+        label: "小红书使用",
+        enabled: momentsEnabled,
+        onToggle: (v2) => {
+          setMomentsEnabled(v2);
+          if (v2) setMcpEnabled(true);
+        }
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      FeatureToggle,
+      {
+        label: "日程提醒",
+        enabled: scheduleEnabled,
+        onToggle: (v2) => {
+          setScheduleEnabled(v2);
+          if (v2) setMcpEnabled(true);
+        }
+      }
+    )
   ] });
 });
 function DataSettings() {

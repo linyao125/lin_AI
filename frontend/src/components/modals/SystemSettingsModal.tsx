@@ -355,10 +355,19 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
   const [city, setCity] = useState("");
   const [lat, setLat] = useState("");
   const [lon, setLon] = useState("");
+  // MCP由子功能驱动，任意子功能开启则MCP自动开启
+  const subEnabled = emailEnabled || newsEnabled || momentsEnabled || scheduleEnabled;
+  const effectiveMcp = mcpEnabled || subEnabled;
   useEffect(() => {
     loadSettings().then((s) => {
       setNewsEnabled(!!s.news_enabled);
-      setMcpEnabled(!!s.mcp_enabled);
+      const subFromS = !!(
+        s.email_enabled ||
+        s.news_enabled ||
+        s.moments_enabled ||
+        s.scene_enabled
+      );
+      setMcpEnabled(!!s.mcp_enabled && !subFromS);
       setMomentsEnabled(!!s.moments_enabled);
       setScheduleEnabled(!!s.scene_enabled);
       setEmailEnabled(!!s.email_enabled);
@@ -390,7 +399,7 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
     }
     await saveSettings({
       news_enabled: newsEnabled,
-      mcp_enabled: mcpEnabled,
+      mcp_enabled: effectiveMcp,
       moments_enabled: momentsEnabled,
       scene_enabled: scheduleEnabled,
       email_enabled: emailEnabled,
@@ -403,7 +412,7 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
 
   useImperativeHandle(ref, () => ({ save: handleSave }), [
     newsEnabled, mcpEnabled, momentsEnabled, scheduleEnabled,
-    emailEnabled, emailInput, city, lat, lon
+    emailEnabled, emailInput, city, lat, lon, effectiveMcp
   ]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -452,9 +461,29 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
         </div>
       </FeatureToggle>
 
-      <FeatureToggle label="MCP 工具" enabled={mcpEnabled} onToggle={setMcpEnabled} />
+      <FeatureToggle
+        label="MCP 工具"
+        enabled={effectiveMcp}
+        onToggle={(v) => {
+          setMcpEnabled(v);
+          // 关闭MCP时同时关闭所有子功能
+          if (!v) {
+            setEmailEnabled(false);
+            setNewsEnabled(false);
+            setMomentsEnabled(false);
+            setScheduleEnabled(false);
+          }
+        }}
+      />
 
-      <FeatureToggle label="邮件发送" enabled={emailEnabled} onToggle={setEmailEnabled}>
+      <FeatureToggle
+        label="邮件发送"
+        enabled={emailEnabled}
+        onToggle={(v) => {
+          setEmailEnabled(v);
+          if (v) setMcpEnabled(true);
+        }}
+      >
         <div className="flex items-center gap-2">
           <Mail size={14} className="text-muted-foreground shrink-0" />
           <input
@@ -467,9 +496,30 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
         </div>
       </FeatureToggle>
 
-      <FeatureToggle label="新闻推送" enabled={newsEnabled} onToggle={setNewsEnabled} />
-      <FeatureToggle label="小红书使用" enabled={momentsEnabled} onToggle={setMomentsEnabled} />
-      <FeatureToggle label="日程提醒" enabled={scheduleEnabled} onToggle={setScheduleEnabled} />
+      <FeatureToggle
+        label="新闻推送"
+        enabled={newsEnabled}
+        onToggle={(v) => {
+          setNewsEnabled(v);
+          if (v) setMcpEnabled(true);
+        }}
+      />
+      <FeatureToggle
+        label="小红书使用"
+        enabled={momentsEnabled}
+        onToggle={(v) => {
+          setMomentsEnabled(v);
+          if (v) setMcpEnabled(true);
+        }}
+      />
+      <FeatureToggle
+        label="日程提醒"
+        enabled={scheduleEnabled}
+        onToggle={(v) => {
+          setScheduleEnabled(v);
+          if (v) setMcpEnabled(true);
+        }}
+      />
     </div>
   );
 });
