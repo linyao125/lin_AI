@@ -359,6 +359,8 @@ function FeaturesSettings() {
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [city, setCity] = useState("");
+  const [lat, setLat] = useState("");
+  const [lon, setLon] = useState("");
   const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -370,6 +372,8 @@ function FeaturesSettings() {
       setScheduleEnabled(!!s.scene_enabled);
       setEmailInput((s.user_email as string) || "");
       setCity((s.user_city as string) || "");
+      setLat((s.user_lat as string) || "");
+      setLon((s.user_lon as string) || "");
       if (s.custom_logo) setLogoPreview(s.custom_logo as string);
     });
   }, []);
@@ -383,6 +387,8 @@ function FeaturesSettings() {
       scene_enabled: scheduleEnabled,
       user_email: emailInput,
       user_city: city,
+      user_lat: lat,
+      user_lon: lon,
     });
     setSaving(false);
   };
@@ -422,6 +428,8 @@ function FeaturesSettings() {
                     const addr = data.address;
                     const location = [addr.city || addr.town || addr.county, addr.state].filter(Boolean).join("，");
                     setCity(location);
+                    setLat(latitude.toString());
+                    setLon(longitude.toString());
                   } catch {
                     setCity(`${pos.coords.latitude.toFixed(2)},${pos.coords.longitude.toFixed(2)}`);
                   }
