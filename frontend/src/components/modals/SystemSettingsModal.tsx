@@ -49,6 +49,7 @@ const TTS_VOICES = [
 
 function APISettings() {
   const [genOpen, setGenOpen] = useState(false);
+  const [vpnOpen, setVpnOpen] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [serverUrl, setServerUrl] = useState("");
   const [vpn, setVpn] = useState("");
@@ -59,6 +60,23 @@ function APISettings() {
   const [imageType, setImageType] = useState("realistic");
   const [ttsVoice, setTtsVoice] = useState("nova");
   const [saving, setSaving] = useState(false);
+  const [nodes, setNodes] = useState<{ name: string; type: string; delay: number }[]>([]);
+  const [currentNode, setCurrentNode] = useState("");
+  const [loadingNodes, setLoadingNodes] = useState(false);
+  const [selectingNode, setSelectingNode] = useState("");
+
+  const fetchNodes = async () => {
+    setLoadingNodes(true);
+    try {
+      const r = await fetch(`${API}/proxy/nodes`);
+      const data = await r.json();
+      setNodes(data.nodes || []);
+      setCurrentNode(data.current || "");
+    } catch {
+      setNodes([]);
+    }
+    setLoadingNodes(false);
+  };
 
   useEffect(() => {
     loadSettings().then((s) => {
@@ -71,8 +89,27 @@ function APISettings() {
       setTtsEnabled(!!s.tts_enabled);
       setImageType((s.image_type as string) || "realistic");
       setTtsVoice((s.tts_voice as string) || "nova");
+      if (s.vpn_subscription) {
+        setVpnOpen(true);
+        void fetchNodes();
+      }
     });
   }, []);
+
+  const selectNode = async (name: string) => {
+    setSelectingNode(name);
+    try {
+      await fetch(`${API}/proxy/select`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      setCurrentNode(name);
+    } catch {
+      /* ignore */
+    }
+    setSelectingNode("");
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -87,7 +124,22 @@ function APISettings() {
       image_type: imageType,
       tts_voice: ttsVoice,
     });
+    if (vpn) {
+      await fetch(`${API}/proxy/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription_url: vpn }),
+      });
+      setVpnOpen(true);
+      await fetchNodes();
+    }
     setSaving(false);
+  };
+
+  const delayColor = (delay: number) => {
+    if (delay < 200) return "text-green-500";
+    if (delay < 500) return "text-yellow-500";
+    return "text-orange-500";
   };
 
   return (
@@ -111,14 +163,68 @@ function APISettings() {
           className="mt-1.5 flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
       </div>
-      <div>
+
+      <div className="space-y-2">
         <label className="text-sm font-medium text-foreground">VPN 订阅</label>
         <input
           value={vpn}
           onChange={(e) => setVpn(e.target.value)}
           placeholder="订阅链接..."
-          className="mt-1.5 flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
+        {vpn && (
+          <div className="border border-border/60 rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => {
+                setVpnOpen(!vpnOpen);
+                if (!vpnOpen) void fetchNodes();
+              }}
+              className="flex w-full items-center justify-between p-3 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                节点选择
+                {currentNode && (
+                  <span className="text-xs text-muted-foreground font-normal truncate max-w-[140px]">
+                    · {currentNode}
+                  </span>
+                )}
+              </span>
+              <ChevronDown
+                size={16}
+                className={`transition-transform duration-200 shrink-0 ${vpnOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            {vpnOpen && (
+              <div className="border-t border-border/60 p-2 space-y-1 max-h-48 overflow-y-auto scrollbar-thin">
+                {loadingNodes ? (
+                  <p className="text-xs text-muted-foreground text-center py-3">加载节点中...</p>
+                ) : nodes.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-3">暂无可用节点</p>
+                ) : (
+                  nodes.map((node) => (
+                    <button
+                      key={node.name}
+                      type="button"
+                      onClick={() => void selectNode(node.name)}
+                      disabled={selectingNode === node.name}
+                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
+                        currentNode === node.name
+                          ? "bg-accent text-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                      }`}
+                    >
+                      <span className="truncate text-left">{node.name}</span>
+                      <span className={`text-xs shrink-0 ml-2 ${delayColor(node.delay)}`}>
+                        {selectingNode === node.name ? "切换中..." : `${node.delay}ms`}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="border border-border/60 rounded-xl overflow-hidden">
@@ -132,7 +238,6 @@ function APISettings() {
         </button>
         {genOpen && (
           <div className="border-t border-border/60 p-3 space-y-4">
-            {/* 图片生成 */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">图片生成</span>
@@ -170,7 +275,6 @@ function APISettings() {
               )}
             </div>
 
-            {/* 语音服务 */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">语音服务</span>
@@ -210,9 +314,9 @@ function APISettings() {
 
       <button
         type="button"
-        onClick={handleSave}
+        onClick={() => void handleSave()}
         disabled={saving}
-        className="w-full py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+        className="mt-4 w-full py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
       >
         {saving ? "保存中..." : "保存设置"}
       </button>

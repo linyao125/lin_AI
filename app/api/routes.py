@@ -13,7 +13,6 @@ from app.models.schemas import (
     ChatMessageOut,
     ChatRequest,
     ConversationOut,
-    FrontendSettingsOut,
     LoginPayload,
     MemoryCreatePayload,
     MemoryOut,
@@ -56,6 +55,62 @@ async def proxy_apply(request: Request):
     return result
 
 
+@api_router.get("/proxy/nodes")
+def proxy_nodes():
+    import httpx
+
+    MIHOMO_API = "http://127.0.0.1:9090"
+    try:
+        with httpx.Client(timeout=5) as client:
+            resp = client.get(f"{MIHOMO_API}/proxies")
+            resp.raise_for_status()
+            data = resp.json()
+            nodes = []
+            skip_types = {"Selector", "URLTest", "Fallback", "Direct", "Reject", "RejectDrop", "Pass", "Compatible"}
+            skip_names = ["剩余流量", "套餐到期", "距离下次重置", "故障转移", "自动选择", "New Web", "dash."]
+            for name, info in data.get("proxies", {}).items():
+                if info.get("type") in skip_types:
+                    continue
+                if any(s in name for s in skip_names):
+                    continue
+                history = info.get("history", [])
+                delay = history[-1].get("delay", 0) if history else 0
+                if delay == 0 or delay > 3000:
+                    continue
+                nodes.append({"name": name, "type": info.get("type", ""), "delay": delay})
+            nodes.sort(key=lambda x: x["delay"])
+            current = ""
+            try:
+                r2 = client.get(f"{MIHOMO_API}/proxies/LyNvX")
+                current = r2.json().get("now", "")
+            except Exception:
+                pass
+        return {"nodes": nodes, "current": current}
+    except Exception as e:
+        return {"nodes": [], "current": "", "error": str(e)}
+
+
+@api_router.post("/proxy/select")
+async def proxy_select(request: Request):
+    import httpx
+
+    body = await request.json()
+    node_name = body.get("name", "")
+    if not node_name:
+        return {"ok": False, "message": "节点名为空"}
+    MIHOMO_API = "http://127.0.0.1:9090"
+    try:
+        with httpx.Client(timeout=5) as client:
+            client.put(
+                f"{MIHOMO_API}/proxies/LyNvX",
+                json={"name": node_name},
+                headers={"Content-Type": "application/json"},
+            )
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "message": str(e)}
+
+
 @api_router.post("/tts")
 async def text_to_speech(request: Request):
     from app.services.tts import tts_service
@@ -89,7 +144,7 @@ def runtime_info():
     return settings_service.get_public_runtime()
 
 
-@api_router.get("/settings/form", response_model=FrontendSettingsOut)
+@api_router.get("/settings/form")
 def get_frontend_settings():
     return {
         "ok": True,

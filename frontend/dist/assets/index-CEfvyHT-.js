@@ -51775,6 +51775,7 @@ const TTS_VOICES = [
 ];
 function APISettings() {
   const [genOpen, setGenOpen] = reactExports.useState(false);
+  const [vpnOpen, setVpnOpen] = reactExports.useState(false);
   const [apiKey, setApiKey] = reactExports.useState("");
   const [serverUrl, setServerUrl] = reactExports.useState("");
   const [vpn, setVpn] = reactExports.useState("");
@@ -51785,6 +51786,22 @@ function APISettings() {
   const [imageType, setImageType] = reactExports.useState("realistic");
   const [ttsVoice, setTtsVoice] = reactExports.useState("nova");
   const [saving, setSaving] = reactExports.useState(false);
+  const [nodes, setNodes] = reactExports.useState([]);
+  const [currentNode, setCurrentNode] = reactExports.useState("");
+  const [loadingNodes, setLoadingNodes] = reactExports.useState(false);
+  const [selectingNode, setSelectingNode] = reactExports.useState("");
+  const fetchNodes = async () => {
+    setLoadingNodes(true);
+    try {
+      const r2 = await fetch(`${API}/proxy/nodes`);
+      const data2 = await r2.json();
+      setNodes(data2.nodes || []);
+      setCurrentNode(data2.current || "");
+    } catch {
+      setNodes([]);
+    }
+    setLoadingNodes(false);
+  };
   reactExports.useEffect(() => {
     loadSettings().then((s) => {
       setApiKey(s.api_key || "");
@@ -51796,8 +51813,25 @@ function APISettings() {
       setTtsEnabled(!!s.tts_enabled);
       setImageType(s.image_type || "realistic");
       setTtsVoice(s.tts_voice || "nova");
+      if (s.vpn_subscription) {
+        setVpnOpen(true);
+        void fetchNodes();
+      }
     });
   }, []);
+  const selectNode = async (name) => {
+    setSelectingNode(name);
+    try {
+      await fetch(`${API}/proxy/select`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+      setCurrentNode(name);
+    } catch {
+    }
+    setSelectingNode("");
+  };
   const handleSave = async () => {
     setSaving(true);
     await saveSettings({
@@ -51811,7 +51845,21 @@ function APISettings() {
       image_type: imageType,
       tts_voice: ttsVoice
     });
+    if (vpn) {
+      await fetch(`${API}/proxy/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription_url: vpn })
+      });
+      setVpnOpen(true);
+      await fetchNodes();
+    }
     setSaving(false);
+  };
+  const delayColor = (delay) => {
+    if (delay < 200) return "text-green-500";
+    if (delay < 500) return "text-yellow-500";
+    return "text-orange-500";
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4 animate-in fade-in duration-200", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
@@ -51839,7 +51887,7 @@ function APISettings() {
         }
       )
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "text-sm font-medium text-foreground", children: "VPN 订阅" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         "input",
@@ -51847,9 +51895,52 @@ function APISettings() {
           value: vpn,
           onChange: (e) => setVpn(e.target.value),
           placeholder: "订阅链接...",
-          className: "mt-1.5 flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className: "flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         }
-      )
+      ),
+      vpn && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-border/60 rounded-xl overflow-hidden", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            type: "button",
+            onClick: () => {
+              setVpnOpen(!vpnOpen);
+              if (!vpnOpen) void fetchNodes();
+            },
+            className: "flex w-full items-center justify-between p-3 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-2", children: [
+                "节点选择",
+                currentNode && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-muted-foreground font-normal truncate max-w-[140px]", children: [
+                  "· ",
+                  currentNode
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                ChevronDown,
+                {
+                  size: 16,
+                  className: `transition-transform duration-200 shrink-0 ${vpnOpen ? "rotate-180" : ""}`
+                }
+              )
+            ]
+          }
+        ),
+        vpnOpen && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "border-t border-border/60 p-2 space-y-1 max-h-48 overflow-y-auto scrollbar-thin", children: loadingNodes ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground text-center py-3", children: "加载节点中..." }) : nodes.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground text-center py-3", children: "暂无可用节点" }) : nodes.map((node) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            type: "button",
+            onClick: () => void selectNode(node.name),
+            disabled: selectingNode === node.name,
+            className: `flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${currentNode === node.name ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "truncate text-left", children: node.name }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs shrink-0 ml-2 ${delayColor(node.delay)}`, children: selectingNode === node.name ? "切换中..." : `${node.delay}ms` })
+            ]
+          },
+          node.name
+        )) })
+      ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-border/60 rounded-xl overflow-hidden", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs(
@@ -51932,9 +52023,9 @@ function APISettings() {
       "button",
       {
         type: "button",
-        onClick: handleSave,
+        onClick: () => void handleSave(),
         disabled: saving,
-        className: "w-full py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity",
+        className: "mt-4 w-full py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity",
         children: saving ? "保存中..." : "保存设置"
       }
     )
