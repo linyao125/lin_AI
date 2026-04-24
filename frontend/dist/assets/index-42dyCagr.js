@@ -49582,6 +49582,27 @@ function getFlatTextColor(cssVar) {
     return "var(--foreground)";
   }
 }
+function TypingDots() {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 px-1 py-2", children: [
+    [0, 1, 2].map((i2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "span",
+      {
+        className: "block h-1.5 w-1.5 rounded-full bg-current opacity-40",
+        style: {
+          animation: "typing-bounce 1.2s ease-in-out infinite",
+          animationDelay: `${i2 * 0.2}s`
+        }
+      },
+      i2
+    )),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("style", { children: `
+        @keyframes typing-bounce {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+          30% { transform: translateY(-4px); opacity: 1; }
+        }
+      ` })
+  ] });
+}
 function ChatMessages({ messages, onRetry, onEdit }) {
   const [hoveredId, setHoveredId] = reactExports.useState(null);
   const [bgStyle, setBgStyle] = reactExports.useState({});
@@ -49691,9 +49712,9 @@ function ChatMessages({ messages, onRetry, onEdit }) {
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "div",
                 {
-                  className: "px-1 py-1 text-sm leading-relaxed whitespace-pre-wrap",
+                  className: `text-sm leading-relaxed whitespace-pre-wrap ${msg.content ? "px-1 py-1" : "px-1 py-1"}`,
                   style: { color: getFlatTextColor("--chat-ai-bg") },
-                  children: msg.content
+                  children: msg.content || /* @__PURE__ */ jsxRuntimeExports.jsx(TypingDots, {})
                 }
               )
             ) : (
@@ -49701,12 +49722,12 @@ function ChatMessages({ messages, onRetry, onEdit }) {
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "div",
                 {
-                  className: "rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
+                  className: `inline-block rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.content ? "px-4 py-3" : "px-3 py-2"}`,
                   style: {
                     background: `hsl(var(--chat-ai-bg, var(--muted)))`,
                     color: getBubbleTextColor("--chat-ai-bg")
                   },
-                  children: msg.content
+                  children: msg.content || /* @__PURE__ */ jsxRuntimeExports.jsx(TypingDots, {})
                 }
               )
             ),

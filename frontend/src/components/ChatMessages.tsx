@@ -37,6 +37,29 @@ function getFlatTextColor(cssVar: string): string {
   }
 }
 
+function TypingDots() {
+  return (
+    <div className="flex items-center gap-1 px-1 py-2">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="block h-1.5 w-1.5 rounded-full bg-current opacity-40"
+          style={{
+            animation: "typing-bounce 1.2s ease-in-out infinite",
+            animationDelay: `${i * 0.2}s`,
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes typing-bounce {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+          30% { transform: translateY(-4px); opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 export function ChatMessages({ messages, onRetry, onEdit }: ChatMessagesProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [bgStyle, setBgStyle] = useState<React.CSSProperties>({});
@@ -172,21 +195,25 @@ export function ChatMessages({ messages, onRetry, onEdit }: ChatMessagesProps) {
                   {aiBubbleMode === "flat" ? (
                     // 平铺模式：无背景，颜色作字体色
                     <div
-                      className="px-1 py-1 text-sm leading-relaxed whitespace-pre-wrap"
+                      className={`text-sm leading-relaxed whitespace-pre-wrap ${
+                        msg.content ? "px-1 py-1" : "px-1 py-1"
+                      }`}
                       style={{ color: getFlatTextColor("--chat-ai-bg") }}
                     >
-                      {msg.content}
+                      {msg.content || <TypingDots />}
                     </div>
                   ) : (
                     // 气泡模式
                     <div
-                      className="rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap"
+                      className={`inline-block rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+                        msg.content ? "px-4 py-3" : "px-3 py-2"
+                      }`}
                       style={{
                         background: `hsl(var(--chat-ai-bg, var(--muted)))`,
                         color: getBubbleTextColor("--chat-ai-bg"),
                       }}
                     >
-                      {msg.content}
+                      {msg.content || <TypingDots />}
                     </div>
                   )}
                   <div className={`mt-2 flex gap-1 transition-opacity duration-200 ${hoveredId === msg.id ? "opacity-100" : "opacity-0"}`}>

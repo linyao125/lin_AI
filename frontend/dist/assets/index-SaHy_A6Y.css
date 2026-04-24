@@ -802,6 +802,9 @@ video {
 .block {
   display: block;
 }
+.inline-block {
+  display: inline-block;
+}
 .flex {
   display: flex;
 }
@@ -940,6 +943,9 @@ video {
 }
 .w-1 {
   width: 0.25rem;
+}
+.w-1\.5 {
+  width: 0.375rem;
 }
 .w-10 {
   width: 2.5rem;
@@ -1479,6 +1485,9 @@ video {
 }
 .bg-card {
   background-color: hsl(var(--card));
+}
+.bg-current {
+  background-color: currentColor;
 }
 .bg-destructive {
   background-color: hsl(var(--destructive));
