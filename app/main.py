@@ -89,11 +89,11 @@ def _get_index_html() -> str:
     with open(html_path, "r") as f:
         content = f.read()
 
-    # 注入全局工具函数：主题/_bc气泡/_bg背景
     ts_script = """<script>
 window._ts=function(h,s,l){fetch('/api/settings/form',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({theme_hue:h,theme_sat:s,theme_light:l})});};
 window._bc=function(uc,ac){fetch('/api/settings/form',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_bubble_color:uc,ai_bubble_color:ac})});};
 window._bg=function(bg,img){var body={chat_bg:bg};if(img!==undefined)body.chat_bg_image=img;fetch('/api/settings/form',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});};
+window._bm=function(um,am){fetch('/api/settings/form',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_bubble_mode:um,ai_bubble_mode:am})});};
 </script>"""
     content = content.replace("</head>", ts_script + "</head>")
 
@@ -101,30 +101,30 @@ window._bg=function(bg,img){var body={chat_bg:bg};if(img!==undefined)body.chat_b
         from app.services.settings import settings_service
         s = settings_service.get_frontend_settings()
 
-        # ── 1. CSS 变量注入（主题色 + 气泡色）──────────────────
+        # ── 1. CSS 变量注入 ──────────────────────────────────
         css_vars = _build_css_vars(s)
         css_js_lines = []
         if css_vars:
             for k, v in css_vars.items():
                 css_js_lines.append(f'r.setProperty("{k}","{v}")')
 
-        # ── 2. 聊天背景注入到全局变量（零闪烁）────────────────
+        # ── 2. 聊天背景注入 ──────────────────────────────────
         chat_bg = s.get("chat_bg", "default")
         chat_bg_image = s.get("chat_bg_image", "")
-
         bg_js = f'window.__chatBg={json.dumps(chat_bg)};'
         if chat_bg == "custom-image" and chat_bg_image:
-            # base64 图片直接内联，刷新不二次请求
             bg_js += f'window.__chatBgImage={json.dumps(chat_bg_image)};'
 
-        # ── 3. 气泡联动标志注入 ─────────────────────────────────
-        bubble_linked = s.get("bubble_linked", False)
-        bubble_js = f'window.__bubbleLinked={json.dumps(bool(bubble_linked))};'
-        bubble_js += f'window.__userBubbleColor={json.dumps(s.get("user_bubble_color",""))};'
-        bubble_js += f'window.__aiBubbleColor={json.dumps(s.get("ai_bubble_color",""))};'
+        # ── 3. 气泡联动 + 颜色 + 模式 注入 ──────────────────
+        bubble_js = (
+            f'window.__bubbleLinked={json.dumps(bool(s.get("bubble_linked", False)))};'
+            f'window.__userBubbleColor={json.dumps(s.get("user_bubble_color",""))};'
+            f'window.__aiBubbleColor={json.dumps(s.get("ai_bubble_color",""))};'
+            f'window.__userBubbleMode={json.dumps(s.get("user_bubble_mode","bubble"))};'
+            f'window.__aiBubbleMode={json.dumps(s.get("ai_bubble_mode","bubble"))};'
+        )
 
-        # ── 组合注入 script ────────────────────────────────────
-        early_js = bg_js + bubble_js  # 这部分在 DOMContentLoaded 之前执行，供组件初始化用
+        early_js = bg_js + bubble_js
         dom_js = ""
         if css_js_lines:
             dom_js = "var r=document.documentElement.style;" + ";".join(css_js_lines)

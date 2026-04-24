@@ -93,7 +93,6 @@ function applyTheme(hue: number, sat: number, light: number) {
   root.style.setProperty("--sidebar-accent-foreground", fg);
   root.style.setProperty("--sidebar-border", `${hue} ${Math.min(sat, 20)}% ${light + (isLightTheme ? -12 : 3)}%`);
 
-  // 不再写 localStorage，只存后端
   if ((window as any)._ts) (window as any)._ts(hue, sat, light);
 }
 
@@ -104,12 +103,15 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
   const [themeHue, setThemeHue] = useState(0);
   const [themeSat, setThemeSat] = useState(0);
   const [themeLight, setThemeLight] = useState(13);
-  // 背景：初始值从后端注入的全局变量读（main.py 注入了 window.__chatBg）
   const [chatBg, setChatBg] = useState<string>(() => (window as any).__chatBg || "default");
-  const [userBubble, setUserBubble] = useState("bubble");
-  const [aiBubble, setAiBubble] = useState("flat");
+  // 气泡模式从全局变量读初始值
+  const [userBubble, setUserBubble] = useState<string>(
+    () => (window as any).__userBubbleMode || "bubble"
+  );
+  const [aiBubble, setAiBubble] = useState<string>(
+    () => (window as any).__aiBubbleMode || "bubble"
+  );
 
-  // 打开弹窗时从后端加载最新设置
   useEffect(() => {
     if (!open) return;
     loadSettings().then((s) => {
@@ -119,26 +121,37 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
       if (s.theme_sat !== undefined) setThemeSat(Number(s.theme_sat));
       if (s.theme_light !== undefined && s.theme_light !== null) setThemeLight(Number(s.theme_light));
       if (s.chat_bg) setChatBg(s.chat_bg as string);
+      if (s.user_bubble_mode) setUserBubble(s.user_bubble_mode as string);
+      if (s.ai_bubble_mode) setAiBubble(s.ai_bubble_mode as string);
     });
   }, [open]);
 
   const handleClose = async () => {
     setSaving(true);
-    // 只保存用户名/生日/主题，背景已在选择时实时保存
     await saveSettings({
       user_display_name: userName,
       user_birthday: userBirthday,
       theme_hue: themeHue,
       theme_sat: themeSat,
       theme_light: themeLight,
+      // 气泡模式也在关闭时保存一次（BubbleStylePanel 已实时保存，这里兜底）
+      user_bubble_mode: userBubble,
+      ai_bubble_mode: aiBubble,
     });
     setSaving(false);
-    window.dispatchEvent(
-      new CustomEvent("profile-updated", {
-        detail: { userName },
-      }),
-    );
+    window.dispatchEvent(new CustomEvent("profile-updated", { detail: { userName } }));
     onClose();
+  };
+
+  const handleBubbleModeChange = (side: "user" | "ai", mode: string) => {
+    if (side === "user") {
+      setUserBubble(mode);
+      // 同步全局变量
+      (window as any).__userBubbleMode = mode;
+    } else {
+      setAiBubble(mode);
+      (window as any).__aiBubbleMode = mode;
+    }
   };
 
   const handleBgImage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,16 +161,12 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
     reader.onload = async () => {
       const result = reader.result as string;
       setChatBg("custom-image");
-      // 保存到后端（图片 base64 存 chat_bg_image）
       await saveChatBg("custom-image", result);
-      // 更新全局变量，让其他窗口/刷新后也能读到
       (window as any).__chatBg = "custom-image";
       (window as any).__chatBgImage = result;
-      window.dispatchEvent(
-        new CustomEvent("chat-bg-changed", {
-          detail: { bg: "custom-image", bgImage: result },
-        }),
-      );
+      window.dispatchEvent(new CustomEvent("chat-bg-changed", {
+        detail: { bg: "custom-image", bgImage: result },
+      }));
     };
     reader.readAsDataURL(file);
   };
@@ -250,8 +259,8 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                     <BubbleStylePanel
                       userBubble={userBubble}
                       aiBubble={aiBubble}
-                      onUserBubbleChange={(v) => setUserBubble(v)}
-                      onAiBubbleChange={(v) => setAiBubble(v)}
+                      onUserBubbleChange={(v) => handleBubbleModeChange("user", v)}
+                      onAiBubbleChange={(v) => handleBubbleModeChange("ai", v)}
                     />
                   </AccordionContent>
                 </AccordionItem>
@@ -263,22 +272,17 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                   <AccordionContent>
                     <div className="space-y-3 pt-1">
                       <div className="flex flex-wrap gap-2">
-                        {/* 默认背景 */}
                         <button
                           onClick={async () => {
                             setChatBg("default");
                             await saveChatBg("default");
                             (window as any).__chatBg = "default";
-                            window.dispatchEvent(
-                              new CustomEvent("chat-bg-changed", { detail: { bg: "default" } }),
-                            );
+                            window.dispatchEvent(new CustomEvent("chat-bg-changed", { detail: { bg: "default" } }));
                           }}
                           className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${chatBg === "default" ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50"}`}
                         >
                           默认
                         </button>
-
-                        {/* 渐变预设 */}
                         {GRADIENT_PRESETS.map((g) => (
                           <button
                             key={g.name}
@@ -286,9 +290,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                               setChatBg(g.value);
                               await saveChatBg(g.value);
                               (window as any).__chatBg = g.value;
-                              window.dispatchEvent(
-                                new CustomEvent("chat-bg-changed", { detail: { bg: g.value } }),
-                              );
+                              window.dispatchEvent(new CustomEvent("chat-bg-changed", { detail: { bg: g.value } }));
                             }}
                             className="flex flex-col items-center gap-1"
                           >
@@ -300,8 +302,6 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                           </button>
                         ))}
                       </div>
-
-                      {/* 自定义图片上传 */}
                       <div>
                         <label className="flex items-center justify-center w-full py-2.5 rounded-lg border border-dashed border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-border cursor-pointer transition-colors">
                           上传自定义背景图片

@@ -33,7 +33,6 @@ export function BubbleStylePanel({
   onUserBubbleChange,
   onAiBubbleChange,
 }: BubbleStylePanelProps) {
-  // 初始值从后端注入的全局变量读取（main.py 在 HTML 里注入了这三个变量）
   const [linked, setLinked] = useState<boolean>(
     () => !!(window as any).__bubbleLinked
   );
@@ -45,7 +44,6 @@ export function BubbleStylePanel({
   );
   const [rippleKey, setRippleKey] = useState(0);
 
-  // linked 状态变化时同步到后端
   useEffect(() => {
     fetch("/api/settings/form", {
       method: "PUT",
@@ -65,7 +63,6 @@ export function BubbleStylePanel({
         document.documentElement.style.setProperty("--chat-ai-bg", newAi);
         setRippleKey((k) => k + 1);
       }
-      // 一次性保存到后端
       if ((window as any)._bc) (window as any)._bc(newUser, newAi);
     } else {
       const newAi = hsl;
@@ -82,6 +79,9 @@ export function BubbleStylePanel({
   };
 
   const handleModeChange = (side: "user" | "ai", mode: string) => {
+    const newUserMode = side === "user" ? mode : (linked ? mode : userBubble);
+    const newAiMode = side === "ai" ? mode : (linked ? mode : aiBubble);
+
     if (side === "user") {
       onUserBubbleChange(mode);
       if (linked) onAiBubbleChange(mode);
@@ -89,17 +89,26 @@ export function BubbleStylePanel({
       onAiBubbleChange(mode);
       if (linked) onUserBubbleChange(mode);
     }
+
+    // 保存到后端，同时触发全局事件通知 ChatMessages 更新
+    if ((window as any)._bm) (window as any)._bm(newUserMode, newAiMode);
+    window.dispatchEvent(new CustomEvent("bubble-mode-changed", {
+      detail: { userMode: newUserMode, aiMode: newAiMode }
+    }));
   };
 
   const toggleLink = () => {
     const next = !linked;
     setLinked(next);
     if (next) {
-      // 开启联动时，AI 同步为用户颜色
       setAiColor(userColor);
       document.documentElement.style.setProperty("--chat-ai-bg", userColor);
       if ((window as any)._bc) (window as any)._bc(userColor, userColor);
       onAiBubbleChange(userBubble);
+      if ((window as any)._bm) (window as any)._bm(userBubble, userBubble);
+      window.dispatchEvent(new CustomEvent("bubble-mode-changed", {
+        detail: { userMode: userBubble, aiMode: userBubble }
+      }));
     }
   };
 

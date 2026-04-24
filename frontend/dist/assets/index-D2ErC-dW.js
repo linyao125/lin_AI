@@ -49573,9 +49573,28 @@ function getBubbleTextColor(cssVar) {
     return "var(--foreground)";
   }
 }
-function ChatMessages({ messages }) {
+function getFlatTextColor(cssVar) {
+  try {
+    const hsl = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
+    if (!hsl) return "var(--foreground)";
+    return `hsl(${hsl})`;
+  } catch {
+    return "var(--foreground)";
+  }
+}
+function ChatMessages({ messages, onRetry, onEdit }) {
   const [hoveredId, setHoveredId] = reactExports.useState(null);
   const [bgStyle, setBgStyle] = reactExports.useState({});
+  const [copiedId, setCopiedId] = reactExports.useState(null);
+  const [editingId, setEditingId] = reactExports.useState(null);
+  const [editContent, setEditContent] = reactExports.useState("");
+  const editRef = reactExports.useRef(null);
+  const [userBubbleMode, setUserBubbleMode] = reactExports.useState(
+    () => window.__userBubbleMode || "bubble"
+  );
+  const [aiBubbleMode, setAiBubbleMode] = reactExports.useState(
+    () => window.__aiBubbleMode || "bubble"
+  );
   reactExports.useEffect(() => {
     const applyBg = (bg2, bgImage) => {
       if (!bg2 || bg2 === "default") {
@@ -49596,15 +49615,59 @@ function ChatMessages({ messages }) {
     const initBg = window.__chatBg || "default";
     const initImg = window.__chatBgImage || "";
     applyBg(initBg, initImg);
-    const handler = (e) => {
+    const bgHandler = (e) => {
       const detail = e.detail || {};
       applyBg(detail.bg || "default", detail.bgImage);
     };
-    window.addEventListener("chat-bg-changed", handler);
-    return () => window.removeEventListener("chat-bg-changed", handler);
+    window.addEventListener("chat-bg-changed", bgHandler);
+    const modeHandler = (e) => {
+      const detail = e.detail || {};
+      if (detail.userMode) setUserBubbleMode(detail.userMode);
+      if (detail.aiMode) setAiBubbleMode(detail.aiMode);
+    };
+    window.addEventListener("bubble-mode-changed", modeHandler);
+    return () => {
+      window.removeEventListener("chat-bg-changed", bgHandler);
+      window.removeEventListener("bubble-mode-changed", modeHandler);
+    };
   }, []);
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
+  reactExports.useEffect(() => {
+    if (editingId && editRef.current) {
+      editRef.current.style.height = "auto";
+      editRef.current.style.height = editRef.current.scrollHeight + "px";
+      editRef.current.focus();
+    }
+  }, [editingId, editContent]);
+  const handleCopy = (id2, text) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+    } else {
+      const el2 = document.createElement("textarea");
+      el2.value = text;
+      el2.style.position = "fixed";
+      el2.style.opacity = "0";
+      document.body.appendChild(el2);
+      el2.select();
+      document.execCommand("copy");
+      document.body.removeChild(el2);
+    }
+    setCopiedId(id2);
+    setTimeout(() => setCopiedId(null), 2e3);
+  };
+  const startEdit = (msg) => {
+    setEditingId(msg.id);
+    setEditContent(msg.content);
+  };
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditContent("");
+  };
+  const submitEdit = (msgId) => {
+    const trimmed = editContent.trim();
+    if (!trimmed) return;
+    onEdit == null ? void 0 : onEdit(msgId, trimmed);
+    setEditingId(null);
+    setEditContent("");
   };
   if (messages.length === 0) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-1 items-center justify-center relative", style: bgStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
@@ -49618,43 +49681,145 @@ function ChatMessages({ messages }) {
       className: "mb-6",
       onMouseEnter: () => setHoveredId(msg.id),
       onMouseLeave: () => setHoveredId(null),
-      children: msg.role === "assistant" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground/10", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Bot, { size: 14, className: "text-foreground" }) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "div",
-            {
-              className: "rounded-2xl px-4 py-3 text-sm leading-relaxed",
-              style: {
-                background: `hsl(var(--chat-ai-bg, var(--muted)))`,
-                color: getBubbleTextColor("--chat-ai-bg")
-              },
-              children: msg.content
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `mt-2 flex gap-1 transition-opacity duration-200 ${hoveredId === msg.id ? "opacity-100" : "opacity-0"}`, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => handleCopy(msg.content), className: "rounded-md p-1.5 hover:bg-accent transition-colors", title: "复制", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Copy, { size: 14, className: "text-muted-foreground hover:text-foreground" }) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "rounded-md p-1.5 hover:bg-accent transition-colors", title: "重新生成", children: /* @__PURE__ */ jsxRuntimeExports.jsx(RotateCcw, { size: 14, className: "text-muted-foreground hover:text-foreground" }) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "rounded-md p-1.5 hover:bg-accent transition-colors", title: "编辑", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Pencil, { size: 14, className: "text-muted-foreground hover:text-foreground" }) })
+      children: msg.role === "assistant" ? (
+        // ── AI 消息 ──────────────────────────────────────
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground/10", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Bot, { size: 14, className: "text-foreground" }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
+            aiBubbleMode === "flat" ? (
+              // 平铺模式：无背景，颜色作字体色
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "div",
+                {
+                  className: "px-1 py-1 text-sm leading-relaxed whitespace-pre-wrap",
+                  style: { color: getFlatTextColor("--chat-ai-bg") },
+                  children: msg.content
+                }
+              )
+            ) : (
+              // 气泡模式
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "div",
+                {
+                  className: "rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
+                  style: {
+                    background: `hsl(var(--chat-ai-bg, var(--muted)))`,
+                    color: getBubbleTextColor("--chat-ai-bg")
+                  },
+                  children: msg.content
+                }
+              )
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `mt-2 flex gap-1 transition-opacity duration-200 ${hoveredId === msg.id ? "opacity-100" : "opacity-0"}`, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: () => handleCopy(msg.id, msg.content),
+                  className: "rounded-md p-1.5 hover:bg-accent transition-colors",
+                  title: "复制",
+                  children: copiedId === msg.id ? /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { size: 14, className: "text-green-500" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Copy, { size: 14, className: "text-muted-foreground hover:text-foreground" })
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: () => onRetry == null ? void 0 : onRetry(msg.id),
+                  className: "rounded-md p-1.5 hover:bg-accent transition-colors",
+                  title: "重新生成",
+                  children: /* @__PURE__ */ jsxRuntimeExports.jsx(RotateCcw, { size: 14, className: "text-muted-foreground hover:text-foreground" })
+                }
+              )
+            ] })
           ] })
         ] })
-      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex justify-end", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-[85%]", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "div",
-          {
-            className: "rounded-2xl px-4 py-3 text-sm leading-relaxed",
-            style: {
-              background: `hsl(var(--chat-user-bg, var(--secondary)))`,
-              color: getBubbleTextColor("--chat-user-bg")
-            },
-            children: msg.content
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `mt-1.5 flex justify-end gap-1 transition-opacity duration-200 ${hoveredId === msg.id ? "opacity-100" : "opacity-0"}`, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => handleCopy(msg.content), className: "rounded-md p-1.5 hover:bg-accent transition-colors", title: "复制", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Copy, { size: 14, className: "text-muted-foreground hover:text-foreground" }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "rounded-md p-1.5 hover:bg-accent transition-colors", title: "编辑", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Pencil, { size: 14, className: "text-muted-foreground hover:text-foreground" }) })
-        ] })
-      ] }) })
+      ) : (
+        // ── 用户消息 ──────────────────────────────────────
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex justify-end", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-[85%] w-full", children: editingId === msg.id ? (
+          // 编辑模式
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "textarea",
+              {
+                ref: editRef,
+                value: editContent,
+                onChange: (e) => setEditContent(e.target.value),
+                onKeyDown: (e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    submitEdit(msg.id);
+                  }
+                  if (e.key === "Escape") cancelEdit();
+                },
+                className: "w-full rounded-2xl px-4 py-3 text-sm leading-relaxed resize-none border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring",
+                rows: 1
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-end gap-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: cancelEdit,
+                  className: "px-3 py-1.5 text-xs rounded-lg text-muted-foreground hover:bg-accent transition-colors",
+                  children: "取消"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: () => submitEdit(msg.id),
+                  className: "px-3 py-1.5 text-xs rounded-lg bg-foreground text-background hover:opacity-80 transition-opacity",
+                  children: "发送"
+                }
+              )
+            ] })
+          ] })
+        ) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-end", children: [
+          userBubbleMode === "flat" ? (
+            // 平铺模式：无背景，颜色作字体色，右对齐
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                className: "px-1 py-1 text-sm leading-relaxed whitespace-pre-wrap text-right",
+                style: { color: getFlatTextColor("--chat-user-bg") },
+                children: msg.content
+              }
+            )
+          ) : (
+            // 气泡模式
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                className: "rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap max-w-full",
+                style: {
+                  background: `hsl(var(--chat-user-bg, var(--secondary)))`,
+                  color: getBubbleTextColor("--chat-user-bg")
+                },
+                children: msg.content
+              }
+            )
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `mt-1.5 flex justify-end gap-1 transition-opacity duration-200 ${hoveredId === msg.id ? "opacity-100" : "opacity-0"}`, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: () => handleCopy(msg.id, msg.content),
+                className: "rounded-md p-1.5 hover:bg-accent transition-colors",
+                title: "复制",
+                children: copiedId === msg.id ? /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { size: 14, className: "text-green-500" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Copy, { size: 14, className: "text-muted-foreground hover:text-foreground" })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: () => startEdit(msg),
+                className: "rounded-md p-1.5 hover:bg-accent transition-colors",
+                title: "编辑",
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx(Pencil, { size: 14, className: "text-muted-foreground hover:text-foreground" })
+              }
+            )
+          ] })
+        ] }) }) })
+      )
     },
     msg.id
   )) }) });
@@ -51018,6 +51183,8 @@ function BubbleStylePanel({
     }
   };
   const handleModeChange = (side, mode) => {
+    const newUserMode = side === "user" ? mode : linked ? mode : userBubble;
+    const newAiMode = side === "ai" ? mode : linked ? mode : aiBubble;
     if (side === "user") {
       onUserBubbleChange(mode);
       if (linked) onAiBubbleChange(mode);
@@ -51025,6 +51192,10 @@ function BubbleStylePanel({
       onAiBubbleChange(mode);
       if (linked) onUserBubbleChange(mode);
     }
+    if (window._bm) window._bm(newUserMode, newAiMode);
+    window.dispatchEvent(new CustomEvent("bubble-mode-changed", {
+      detail: { userMode: newUserMode, aiMode: newAiMode }
+    }));
   };
   const toggleLink = () => {
     const next = !linked;
@@ -51034,6 +51205,10 @@ function BubbleStylePanel({
       document.documentElement.style.setProperty("--chat-ai-bg", userColor);
       if (window._bc) window._bc(userColor, userColor);
       onAiBubbleChange(userBubble);
+      if (window._bm) window._bm(userBubble, userBubble);
+      window.dispatchEvent(new CustomEvent("bubble-mode-changed", {
+        detail: { userMode: userBubble, aiMode: userBubble }
+      }));
     }
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pt-1", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-0", children: [
@@ -51200,8 +51375,12 @@ function UserProfileModal({ open, onClose }) {
   const [themeSat, setThemeSat] = reactExports.useState(0);
   const [themeLight, setThemeLight] = reactExports.useState(13);
   const [chatBg, setChatBg] = reactExports.useState(() => window.__chatBg || "default");
-  const [userBubble, setUserBubble] = reactExports.useState("bubble");
-  const [aiBubble, setAiBubble] = reactExports.useState("flat");
+  const [userBubble, setUserBubble] = reactExports.useState(
+    () => window.__userBubbleMode || "bubble"
+  );
+  const [aiBubble, setAiBubble] = reactExports.useState(
+    () => window.__aiBubbleMode || "bubble"
+  );
   reactExports.useEffect(() => {
     if (!open) return;
     loadSettings$1().then((s) => {
@@ -51211,6 +51390,8 @@ function UserProfileModal({ open, onClose }) {
       if (s.theme_sat !== void 0) setThemeSat(Number(s.theme_sat));
       if (s.theme_light !== void 0 && s.theme_light !== null) setThemeLight(Number(s.theme_light));
       if (s.chat_bg) setChatBg(s.chat_bg);
+      if (s.user_bubble_mode) setUserBubble(s.user_bubble_mode);
+      if (s.ai_bubble_mode) setAiBubble(s.ai_bubble_mode);
     });
   }, [open]);
   const handleClose = async () => {
@@ -51220,15 +51401,23 @@ function UserProfileModal({ open, onClose }) {
       user_birthday: userBirthday,
       theme_hue: themeHue,
       theme_sat: themeSat,
-      theme_light: themeLight
+      theme_light: themeLight,
+      // 气泡模式也在关闭时保存一次（BubbleStylePanel 已实时保存，这里兜底）
+      user_bubble_mode: userBubble,
+      ai_bubble_mode: aiBubble
     });
     setSaving(false);
-    window.dispatchEvent(
-      new CustomEvent("profile-updated", {
-        detail: { userName }
-      })
-    );
+    window.dispatchEvent(new CustomEvent("profile-updated", { detail: { userName } }));
     onClose();
+  };
+  const handleBubbleModeChange = (side, mode) => {
+    if (side === "user") {
+      setUserBubble(mode);
+      window.__userBubbleMode = mode;
+    } else {
+      setAiBubble(mode);
+      window.__aiBubbleMode = mode;
+    }
   };
   const handleBgImage = (e) => {
     var _a3;
@@ -51241,11 +51430,9 @@ function UserProfileModal({ open, onClose }) {
       await saveChatBg("custom-image", result);
       window.__chatBg = "custom-image";
       window.__chatBgImage = result;
-      window.dispatchEvent(
-        new CustomEvent("chat-bg-changed", {
-          detail: { bg: "custom-image", bgImage: result }
-        })
-      );
+      window.dispatchEvent(new CustomEvent("chat-bg-changed", {
+        detail: { bg: "custom-image", bgImage: result }
+      }));
     };
     reader.readAsDataURL(file);
   };
@@ -51332,8 +51519,8 @@ function UserProfileModal({ open, onClose }) {
                       {
                         userBubble,
                         aiBubble,
-                        onUserBubbleChange: (v2) => setUserBubble(v2),
-                        onAiBubbleChange: (v2) => setAiBubble(v2)
+                        onUserBubbleChange: (v2) => handleBubbleModeChange("user", v2),
+                        onAiBubbleChange: (v2) => handleBubbleModeChange("ai", v2)
                       }
                     ) })
                   ] }),
@@ -51348,9 +51535,7 @@ function UserProfileModal({ open, onClose }) {
                               setChatBg("default");
                               await saveChatBg("default");
                               window.__chatBg = "default";
-                              window.dispatchEvent(
-                                new CustomEvent("chat-bg-changed", { detail: { bg: "default" } })
-                              );
+                              window.dispatchEvent(new CustomEvent("chat-bg-changed", { detail: { bg: "default" } }));
                             },
                             className: `px-3 py-1.5 rounded-lg text-xs transition-colors ${chatBg === "default" ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50"}`,
                             children: "默认"
@@ -51363,9 +51548,7 @@ function UserProfileModal({ open, onClose }) {
                               setChatBg(g2.value);
                               await saveChatBg(g2.value);
                               window.__chatBg = g2.value;
-                              window.dispatchEvent(
-                                new CustomEvent("chat-bg-changed", { detail: { bg: g2.value } })
-                              );
+                              window.dispatchEvent(new CustomEvent("chat-bg-changed", { detail: { bg: g2.value } }));
                             },
                             className: "flex flex-col items-center gap-1",
                             children: [
@@ -92332,6 +92515,38 @@ const Index = () => {
       setIsLoading(false);
     }
   }, [activeId, convId, isLoading]);
+  const handleRetry = reactExports.useCallback((aiMsgId) => {
+    const conv = conversations.find((c) => c.id === activeId);
+    if (!conv) return;
+    const idx = conv.messages.findIndex((m2) => m2.id === aiMsgId);
+    if (idx <= 0) return;
+    let userMsg = null;
+    for (let i2 = idx - 1; i2 >= 0; i2--) {
+      if (conv.messages[i2].role === "user") {
+        userMsg = conv.messages[i2];
+        break;
+      }
+    }
+    if (!userMsg) return;
+    setConversations(
+      (prev) => prev.map(
+        (c) => c.id === activeId ? { ...c, messages: c.messages.filter((m2) => m2.id !== aiMsgId) } : c
+      )
+    );
+    handleSend(userMsg.content);
+  }, [conversations, activeId, handleSend]);
+  const handleEdit = reactExports.useCallback((userMsgId, newContent) => {
+    const conv = conversations.find((c) => c.id === activeId);
+    if (!conv) return;
+    const idx = conv.messages.findIndex((m2) => m2.id === userMsgId);
+    if (idx < 0) return;
+    setConversations(
+      (prev) => prev.map(
+        (c) => c.id === activeId ? { ...c, messages: c.messages.slice(0, idx) } : c
+      )
+    );
+    handleSend(newContent);
+  }, [conversations, activeId, handleSend]);
   const handleDelete = reactExports.useCallback((id2) => {
     setConversations((prev) => prev.filter((c) => c.id !== id2));
     if (activeId === id2) setActiveId(null);
@@ -92397,7 +92612,14 @@ const Index = () => {
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex flex-1 flex-col min-w-0 relative z-[1] transition-colors duration-500 ${isLightScene ? "text-[#1A1A1A]" : ""}`, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(ChatHeader, { onMenuClick: () => setSidebarOpen(true) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(ChatMessages, { messages: (activeConversation == null ? void 0 : activeConversation.messages) ?? [] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        ChatMessages,
+        {
+          messages: (activeConversation == null ? void 0 : activeConversation.messages) ?? [],
+          onRetry: handleRetry,
+          onEdit: handleEdit
+        }
+      ),
       /* @__PURE__ */ jsxRuntimeExports.jsx(ChatInput, { onSend: handleSend, weatherConfig, onWeatherChange: setWeatherConfig, isLightScene })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(AIProfileModal, { open: aiProfileOpen, onClose: () => setAiProfileOpen(false) }),

@@ -50,7 +50,6 @@ const Index = () => {
           setLoadingHistory(false);
           return;
         }
-        // 只加载对话列表，不加载消息（加快启动速度）
         const result: Conversation[] = convs.slice(0, 20).map((c: any) => ({
           id: c.id,
           title: c.title || "对话",
@@ -58,7 +57,6 @@ const Index = () => {
         }));
         setConversations(result);
         setLoadingHistory(false);
-        // 只选中第一个对话，不自动加载消息（点击时再加载）
         if (result.length > 0) {
           setActiveId(result[0].id);
         }
@@ -137,7 +135,6 @@ const Index = () => {
         );
       }
       setConvId(serverConvId);
-      // 如果是新对话，用服务器返回的ID替换本地临时ID
       if (currentId !== serverConvId) {
         setConversations((prev) =>
           prev.map((c) => (c.id === currentId ? { ...c, id: serverConvId } : c))
@@ -160,6 +157,49 @@ const Index = () => {
       setIsLoading(false);
     }
   }, [activeId, convId, isLoading]);
+
+  // 重试：找到 AI 消息前的最后一条用户消息，重新发送
+  const handleRetry = useCallback((aiMsgId: string) => {
+    const conv = conversations.find((c) => c.id === activeId);
+    if (!conv) return;
+    const idx = conv.messages.findIndex((m) => m.id === aiMsgId);
+    if (idx <= 0) return;
+    // 找该 AI 消息之前的最后一条用户消息
+    let userMsg: Message | null = null;
+    for (let i = idx - 1; i >= 0; i--) {
+      if (conv.messages[i].role === "user") {
+        userMsg = conv.messages[i];
+        break;
+      }
+    }
+    if (!userMsg) return;
+    // 删除这条 AI 消息，重新发送用户消息
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === activeId
+          ? { ...c, messages: c.messages.filter((m) => m.id !== aiMsgId) }
+          : c
+      )
+    );
+    handleSend(userMsg.content);
+  }, [conversations, activeId, handleSend]);
+
+  // 编辑：删除该用户消息之后的所有消息，用新内容重新发送
+  const handleEdit = useCallback((userMsgId: string, newContent: string) => {
+    const conv = conversations.find((c) => c.id === activeId);
+    if (!conv) return;
+    const idx = conv.messages.findIndex((m) => m.id === userMsgId);
+    if (idx < 0) return;
+    // 保留该消息之前的历史，删掉该消息及之后所有消息
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === activeId
+          ? { ...c, messages: c.messages.slice(0, idx) }
+          : c
+      )
+    );
+    handleSend(newContent);
+  }, [conversations, activeId, handleSend]);
 
   const handleDelete = useCallback((id: string) => {
     setConversations((prev) => prev.filter((c) => c.id !== id));
@@ -226,7 +266,11 @@ const Index = () => {
 
       <div className={`flex flex-1 flex-col min-w-0 relative z-[1] transition-colors duration-500 ${isLightScene ? "text-[#1A1A1A]" : ""}`}>
         <ChatHeader onMenuClick={() => setSidebarOpen(true)} />
-        <ChatMessages messages={activeConversation?.messages ?? []} />
+        <ChatMessages
+          messages={activeConversation?.messages ?? []}
+          onRetry={handleRetry}
+          onEdit={handleEdit}
+        />
         <ChatInput onSend={handleSend} weatherConfig={weatherConfig} onWeatherChange={setWeatherConfig} isLightScene={isLightScene} />
       </div>
 

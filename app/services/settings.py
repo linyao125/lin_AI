@@ -66,7 +66,10 @@ class SettingsService:
             "user_bubble_color": "",
             "ai_bubble_color": "",
             "bubble_linked": False,
-            # 外观：聊天背景（全部存后端，不走 localStorage）
+            # 外观：气泡模式（bubble=气泡 / flat=平铺）
+            "user_bubble_mode": "bubble",
+            "ai_bubble_mode": "bubble",
+            # 外观：聊天背景
             "chat_bg": "default",
             "chat_bg_image": "",
         }
@@ -83,11 +86,9 @@ class SettingsService:
 
     def update_frontend_settings(self, payload: dict) -> dict:
         current = self.get_frontend_settings()
-        # 敏感字段：空字符串不覆盖已有值
         protected = {
             "api_key", "image_api_key", "tts_api_key", "news_api_key",
             "vpn_subscription", "access_token",
-            # 图片是 base64 大字段，空字符串不覆盖
             "chat_bg_image",
         }
         for key, val in payload.items():
