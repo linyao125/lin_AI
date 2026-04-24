@@ -52129,7 +52129,17 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
       user_lon: saveLon
     });
   };
-  reactExports.useImperativeHandle(ref, () => ({ save: handleSave }));
+  reactExports.useImperativeHandle(ref, () => ({ save: handleSave }), [
+    newsEnabled,
+    mcpEnabled,
+    momentsEnabled,
+    scheduleEnabled,
+    emailEnabled,
+    emailInput,
+    city,
+    lat,
+    lon
+  ]);
   const handleLogoUpload = (e) => {
     var _a3;
     const file = (_a3 = e.target.files) == null ? void 0 : _a3[0];

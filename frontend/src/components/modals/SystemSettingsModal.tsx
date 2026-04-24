@@ -398,7 +398,10 @@ const FeaturesSettings = forwardRef<{ save: () => Promise<void> }>(function Feat
     });
   };
 
-  useImperativeHandle(ref, () => ({ save: handleSave }));
+  useImperativeHandle(ref, () => ({ save: handleSave }), [
+    newsEnabled, mcpEnabled, momentsEnabled, scheduleEnabled,
+    emailEnabled, emailInput, city, lat, lon
+  ]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
