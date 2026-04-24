@@ -52083,6 +52083,9 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
   const [momentsEnabled, setMomentsEnabled] = reactExports.useState(false);
   const [scheduleEnabled, setScheduleEnabled] = reactExports.useState(false);
   const [emailInput, setEmailInput] = reactExports.useState("");
+  const [smtpUser, setSmtpUser] = reactExports.useState("");
+  const [smtpPass, setSmtpPass] = reactExports.useState("");
+  const [smtpHost, setSmtpHost] = reactExports.useState("smtp.qq.com");
   const [city, setCity] = reactExports.useState("");
   const [lat, setLat] = reactExports.useState("");
   const [lon, setLon] = reactExports.useState("");
@@ -52093,6 +52096,9 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
       setMomentsEnabled(!!s.moments_enabled);
       setScheduleEnabled(!!s.scene_enabled);
       setEmailInput(s.user_email || "");
+      setSmtpUser(s.smtp_user || "");
+      setSmtpPass(s.smtp_pass || "");
+      setSmtpHost(s.smtp_host || "smtp.qq.com");
       setCity(s.user_city || "");
       setLat(s.user_lat || "");
       setLon(s.user_lon || "");
@@ -52121,6 +52127,10 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
       moments_enabled: momentsEnabled,
       scene_enabled: scheduleEnabled,
       user_email: emailInput,
+      smtp_user: smtpUser,
+      smtp_pass: smtpPass,
+      smtp_host: smtpHost,
+      smtp_port: 465,
       user_city: city,
       user_lat: saveLat,
       user_lon: saveLon
@@ -52167,15 +52177,45 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
       ] })
     ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "MCP 工具", enabled: mcpEnabled, onToggle: setMcpEnabled }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "邮件发送", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Mail, { size: 14, className: "text-muted-foreground shrink-0" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(FeatureToggle, { label: "邮件发送", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Mail, { size: 14, className: "text-muted-foreground shrink-0" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            type: "email",
+            value: emailInput,
+            onChange: (e) => setEmailInput(e.target.value),
+            placeholder: "收件邮箱（你的邮箱）",
+            className: "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          }
+        )
+      ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         "input",
         {
-          type: "email",
-          value: emailInput,
-          onChange: (e) => setEmailInput(e.target.value),
-          placeholder: "your@email.com",
+          value: smtpUser,
+          onChange: (e) => setSmtpUser(e.target.value),
+          placeholder: "发件邮箱（如 xxx@qq.com）",
+          className: "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          type: "password",
+          value: smtpPass,
+          onChange: (e) => setSmtpPass(e.target.value),
+          placeholder: "SMTP授权码",
+          className: "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          value: smtpHost,
+          onChange: (e) => setSmtpHost(e.target.value),
+          placeholder: "SMTP服务器（如 smtp.qq.com）",
           className: "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         }
       )
