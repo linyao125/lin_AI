@@ -759,12 +759,13 @@ async def tts_synthesize(request: Request):
             if not api_key:
                 raise HTTPException(status_code=400, detail="no api_key")
             voice = body.get("voice") or s.get("tts_voice", "alloy")
+            base_url = s.get("tts_base_url", "https://api.openai.com")
             proxy_url = s.get("proxy_url")
-            audio = await openai_tts(text, voice, api_key, proxy_url)
+            audio = await openai_tts(text, voice, api_key, base_url, proxy_url)
         else:
             voice = body.get("voice") or s.get("edge_voice", "zh-CN-XiaoxiaoNeural")
             rate = body.get("rate") or s.get("edge_rate", "+0%")
-            pitch = body.get("pitch") or s.get("edge_pitch", "+0%")
+            pitch = body.get("pitch") or s.get("edge_pitch", "+0Hz")
             volume = body.get("volume") or s.get("edge_volume", "+0%")
             style = body.get("style") or s.get("edge_style", "general")
             audio = await edge_tts_generate(text, voice, rate, pitch, volume, style)

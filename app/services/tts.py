@@ -4,12 +4,19 @@ import asyncio
 import tempfile
 import os
 
-async def openai_tts(text: str, voice: str, api_key: str, proxy_url: str = None) -> bytes:
+async def openai_tts(
+    text: str,
+    voice: str,
+    api_key: str,
+    base_url: str = "https://api.openai.com",
+    proxy_url: str = None,
+) -> bytes:
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {"model": "tts-1", "input": text, "voice": voice}
     transport = httpx.AsyncHTTPTransport(proxy=proxy_url) if proxy_url else None
+    url = f"{base_url.rstrip('/')}/v1/audio/speech"
     async with httpx.AsyncClient(transport=transport, timeout=30) as client:
-        r = await client.post("https://api.openai.com/v1/audio/speech", json=payload, headers=headers)
+        r = await client.post(url, json=payload, headers=headers)
         r.raise_for_status()
         return r.content
 

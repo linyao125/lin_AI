@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { X, ChevronDown, Upload, Mail, MapPin } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { synthesizeTTS } from "@/lib/linai";
 
 const API = "/api";
 
@@ -24,7 +25,7 @@ interface SystemSettingsModalProps {
 }
 
 const SECTIONS = [
-  { id: "api", label: "API 设置" },
+  { id: "api", label: "生成服务" },
   { id: "voice", label: "语音" },
   { id: "features", label: "功能" },
   { id: "data", label: "数据管理" },
@@ -509,10 +510,52 @@ function intToEdgePercent(n: number): string {
   return (n >= 0 ? `+${n}` : String(n)) + "%";
 }
 
+function intToEdgeHz(n: number): string {
+  return (n >= 0 ? `+${n}` : String(n)) + "Hz";
+}
+
+/** 旧存盘为 % 时迁移为同数值的 Hz。 */
+function normalizeEdgePitchValue(raw: string | undefined): string {
+  if (raw == null || raw === "") return "+0Hz";
+  const s = String(raw);
+  if (s.includes("Hz")) return s;
+  if (s.includes("%")) return intToEdgeHz(edgePercentToInt(s));
+  return "+0Hz";
+}
+
+const EDGE_TTS_VOICES: Record<"female" | "male", { value: string; label: string }[]> = {
+  female: [
+    { value: "zh-CN-XiaoxiaoNeural", label: "晓晓 · 温柔" },
+    { value: "zh-CN-XiaoyiNeural", label: "晓伊 · 活泼" },
+    { value: "zh-CN-XiaohanNeural", label: "晓涵 · 知性" },
+    { value: "zh-CN-XiaomoNeural", label: "晓墨 · 平静" },
+    { value: "zh-CN-XiaoqiuNeural", label: "晓秋 · 低沉" },
+    { value: "zh-CN-XiaoxuanNeural", label: "晓萱 · 理性" },
+    { value: "zh-CN-XiaoruiNeural", label: "晓睿 · 轻柔" },
+    { value: "zh-CN-XiaozhenNeural", label: "晓甄 · 激情" },
+    { value: "zh-CN-XiaoshuangNeural", label: "晓双 · 青年" },
+  ],
+  male: [
+    { value: "zh-CN-YunxiNeural", label: "云希 · 轻松" },
+    { value: "zh-CN-YunjianNeural", label: "云健 · 磁性" },
+    { value: "zh-CN-YunxiaNeural", label: "云夏 · 阳光" },
+    { value: "zh-CN-YunyangNeural", label: "云扬 · 播音" },
+    { value: "zh-CN-YunfengNeural", label: "云枫 · 激昂" },
+    { value: "zh-CN-YunhaoNeural", label: "云皓 · 活力" },
+  ],
+};
+
+function voiceToEdgeGender(voice: string): "female" | "male" {
+  if (EDGE_TTS_VOICES.female.some((x) => x.value === voice)) return "female";
+  if (EDGE_TTS_VOICES.male.some((x) => x.value === voice)) return "male";
+  return "female";
+}
+
 type VoiceForm = {
   tts_enabled: boolean;
   tts_mode: "official" | "edge";
   tts_voice: string;
+  tts_base_url: string;
   edge_voice: string;
   edge_rate: string;
   edge_pitch: string;
@@ -522,13 +565,17 @@ type VoiceForm = {
 };
 
 function VoiceSettings() {
+  const speakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const voiceSettingsPanelRef = useRef<HTMLDivElement | null>(null);
+  const [edgeGender, setEdgeGender] = useState<"female" | "male">("female");
   const [form, setForm] = useState<VoiceForm>({
     tts_enabled: false,
     tts_mode: "edge",
     tts_voice: "alloy",
+    tts_base_url: "https://api.openai.com",
     edge_voice: "zh-CN-XiaoxiaoNeural",
     edge_rate: "+0%",
-    edge_pitch: "+0%",
+    edge_pitch: "+0Hz",
     edge_volume: "+0%",
     edge_style: "general",
     primary_model: "",
@@ -537,23 +584,49 @@ function VoiceSettings() {
   useEffect(() => {
     void loadSettings().then((s) => {
       const m = (s.tts_mode as string) || "edge";
+      const ev = (s.edge_voice as string) || "zh-CN-XiaoxiaoNeural";
       setForm({
         tts_enabled: !!s.tts_enabled,
         tts_mode: m === "official" || m === "edge" ? (m as "official" | "edge") : "edge",
         tts_voice: (s.tts_voice as string) || "alloy",
-        edge_voice: (s.edge_voice as string) || "zh-CN-XiaoxiaoNeural",
+        tts_base_url: (s.tts_base_url as string) || "https://api.openai.com",
+        edge_voice: ev,
         edge_rate: (s.edge_rate as string) || "+0%",
-        edge_pitch: (s.edge_pitch as string) || "+0%",
+        edge_pitch: normalizeEdgePitchValue(s.edge_pitch as string | undefined),
         edge_volume: (s.edge_volume as string) || "+0%",
         edge_style: (s.edge_style as string) || "general",
         primary_model: (s.primary_model as string) || "",
       });
+      setEdgeGender(voiceToEdgeGender(ev));
     });
   }, []);
+
+  useEffect(
+    () => () => {
+      if (speakTimerRef.current) clearTimeout(speakTimerRef.current);
+    },
+    [],
+  );
 
   const saveSingle = async (key: string, value: unknown) => {
     await saveSettings({ [key]: value });
     setForm((prev) => ({ ...prev, [key]: value } as VoiceForm));
+  };
+
+  const handlePreview = (text: string) => {
+    if (speakTimerRef.current) clearTimeout(speakTimerRef.current);
+    speakTimerRef.current = setTimeout(async () => {
+      const url = await synthesizeTTS({
+        text,
+        mode: form.tts_mode,
+        voice: form.tts_mode === "official" ? form.tts_voice : form.edge_voice,
+        rate: form.edge_rate,
+        pitch: form.edge_pitch,
+        volume: form.edge_volume,
+        style: form.edge_style,
+      });
+      new Audio(url).play();
+    }, 800);
   };
 
   const detectedTTSProvider = () => {
@@ -565,7 +638,7 @@ function VoiceSettings() {
   };
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-200">
+    <div ref={voiceSettingsPanelRef} className="space-y-4 animate-in fade-in duration-200">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium">语音输出</p>
@@ -616,29 +689,62 @@ function VoiceSettings() {
             }`}
             onClick={() => void saveSingle("tts_mode", "edge")}
           >
-            <p className="text-xs font-medium mb-1">
+            <p className="text-xs font-medium">
               Edge TTS <span className="text-green-600 text-xs">免费</span>
             </p>
-            <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="w-full mt-3 text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePreview("你好，我是叮咚，很高兴认识你。");
+              }}
+            >
+              ▷ 试听
+            </button>
+            <div className="space-y-2 mt-2" onClick={(e) => e.stopPropagation()}>
+              <div className="flex gap-1 mb-2">
+                {(["female", "male"] as const).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    className={`flex-1 text-xs py-1 rounded-lg border transition-colors ${
+                      edgeGender === g
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground"
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (g === edgeGender) return;
+                      setEdgeGender(g);
+                      const inGroup = EDGE_TTS_VOICES[g].some((v) => v.value === form.edge_voice);
+                      if (!inGroup) {
+                        void saveSingle("edge_voice", EDGE_TTS_VOICES[g][0].value);
+                      }
+                    }}
+                  >
+                    {g === "female" ? "女声" : "男声"}
+                  </button>
+                ))}
+              </div>
               <select
                 className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
                 value={form.edge_voice}
                 onChange={(e) => void saveSingle("edge_voice", e.target.value)}
               >
-                <option value="zh-CN-XiaoxiaoNeural">晓晓 · 女 · 活泼</option>
-                <option value="zh-CN-YunxiNeural">云希 · 男 · 轻松</option>
-                <option value="zh-CN-XiaoyiNeural">晓伊 · 女 · 温柔</option>
-                <option value="zh-CN-YunjianNeural">云健 · 男 · 磁性</option>
-                <option value="zh-CN-XiaoshuangNeural">晓双 · 女 · 青年</option>
-                <option value="zh-CN-YunxiaNeural">云夏 · 男 · 阳光</option>
+                {EDGE_TTS_VOICES[edgeGender].map((v) => (
+                  <option key={v.value} value={v.value}>
+                    {v.label}
+                  </option>
+                ))}
               </select>
               {(
                 [
-                  { label: "语速", key: "edge_rate" as const, id: "er" },
-                  { label: "音调", key: "edge_pitch" as const, id: "ep" },
-                  { label: "音量", key: "edge_volume" as const, id: "ev" },
+                  { label: "语速", key: "edge_rate" as const, id: "er", unit: "percent" as const },
+                  { label: "音调", key: "edge_pitch" as const, id: "ep", unit: "hz" as const },
+                  { label: "音量", key: "edge_volume" as const, id: "ev", unit: "percent" as const },
                 ] as const
-              ).map(({ label, key, id }) => (
+              ).map(({ label, key, id, unit }) => (
                 <div key={id} className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground w-6">{label}</span>
                   <input
@@ -649,11 +755,17 @@ function VoiceSettings() {
                     value={edgePercentToInt(form[key])}
                     onChange={(e) => {
                       const n = Number(e.target.value);
-                      void saveSingle(key, intToEdgePercent(n));
+                      if (unit === "hz") {
+                        void saveSingle(key, intToEdgeHz(n));
+                      } else {
+                        void saveSingle(key, intToEdgePercent(n));
+                      }
                     }}
                     className="flex-1 h-1"
                   />
-                  <span className="text-xs w-8 text-right">{form[key] || "+0%"}</span>
+                  <span className="text-xs w-10 shrink-0 text-right tabular-nums">
+                    {form[key] || (unit === "hz" ? "+0Hz" : "+0%")}
+                  </span>
                 </div>
               ))}
               <select
@@ -672,6 +784,34 @@ function VoiceSettings() {
           </div>
         </div>
       ) : null}
+
+      {/* 图片生成区块，结构同语音 */}
+      <div className="mt-6">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm font-medium">图片生成</p>
+            <p className="text-xs text-muted-foreground">AI生成图片能力</p>
+          </div>
+          {/* 开关占位，功能后续接入 */}
+          <Switch disabled checked={false} />
+        </div>
+        <div className="flex gap-3 opacity-40 pointer-events-none">
+          <div className="flex-1 border rounded-xl p-4">
+            <p className="text-xs font-medium mb-1">官方</p>
+            <p className="text-xs text-muted-foreground mb-2">DALL·E 3 / GPT-Image</p>
+            <input
+              className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+              placeholder="中转地址 https://api.openai.com"
+            />
+          </div>
+          <div className="flex-1 border rounded-xl p-4">
+            <p className="text-xs font-medium mb-1">
+              第三方 <span className="text-green-600 text-xs">即将支持</span>
+            </p>
+            <p className="text-xs text-muted-foreground">Stable Diffusion / Flux</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

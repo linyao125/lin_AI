@@ -101,7 +101,7 @@ class FrontendSettingsPayload(BaseModel):
     tts_provider: str = "auto"
     edge_voice: str = "zh-CN-XiaoxiaoNeural"
     edge_rate: str = "+0%"
-    edge_pitch: str = "+0%"
+    edge_pitch: str = "+0Hz"
     edge_volume: str = "+0%"
     edge_style: str = "general"
     primary_model: str = "openai/gpt-4o"

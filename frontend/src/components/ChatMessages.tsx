@@ -277,23 +277,30 @@ export function ChatMessages({ messages, activeKey, onRetry, onEdit }: ChatMessa
                       }
                     </button>
                     <button
+                      onClick={() => onRetry?.(msg.id)}
+                      className="rounded-md p-1.5 hover:bg-accent transition-colors"
+                      title="重新生成"
+                    >
+                      <RotateCcw size={14} className="text-muted-foreground hover:text-foreground" />
+                    </button>
+                    <button
                       type="button"
                       onClick={() => void handleSpeak(msg.id, msg.content)}
                       className="p-1 rounded hover:bg-muted transition-colors"
                       title="朗读"
                     >
                       {playingId === msg.id ? (
-                        <span className="text-xs animate-spin inline-block">◌</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary animate-pulse">
+                          <rect x="6" y="4" width="4" height="16" rx="1" />
+                          <rect x="14" y="4" width="4" height="16" rx="1" />
+                        </svg>
                       ) : (
-                        <span className="text-xs">🔊</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground hover:text-foreground">
+                          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                          <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                          <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                        </svg>
                       )}
-                    </button>
-                    <button
-                      onClick={() => onRetry?.(msg.id)}
-                      className="rounded-md p-1.5 hover:bg-accent transition-colors"
-                      title="重新生成"
-                    >
-                      <RotateCcw size={14} className="text-muted-foreground hover:text-foreground" />
                     </button>
                   </div>
                 </div>

@@ -7232,6 +7232,16 @@ window._bc = function(uc2, ac2) {
 window._bg = function(bg2, img) {
   saveChatBg(bg2, img);
 };
+async function synthesizeTTS(params) {
+  const res = await fetch(`${LINAI_BASE}/tts/synthesize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params)
+  });
+  if (!res.ok) throw new Error("TTS failed");
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
 const linai = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   deleteConversation,
@@ -7244,7 +7254,8 @@ const linai = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePropert
   renameConversation,
   saveChatBg,
   saveSettings: saveSettings$2,
-  streamChat
+  streamChat,
+  synthesizeTTS
 }, Symbol.toStringTag, { value: "Module" }));
 var Subscribable = class {
   constructor() {
@@ -49604,6 +49615,8 @@ function TypingDots() {
   ] });
 }
 function ChatMessages({ messages, activeKey, onRetry, onEdit }) {
+  const [playingId, setPlayingId] = reactExports.useState(null);
+  const audioRef = reactExports.useRef(null);
   const bottomRef = reactExports.useRef(null);
   const containerRef = reactExports.useRef(null);
   const prevLengthRef = reactExports.useRef(0);
@@ -49711,6 +49724,27 @@ function ChatMessages({ messages, activeKey, onRetry, onEdit }) {
     setEditingId(null);
     setEditContent("");
   };
+  const handleSpeak = async (msgId, text) => {
+    var _a3, _b3;
+    if (playingId === msgId) {
+      (_a3 = audioRef.current) == null ? void 0 : _a3.pause();
+      setPlayingId(null);
+      return;
+    }
+    const clean = text.replace(/[\u0023\u002A\u0060_~\u005B\u005D\\]/g, "").trim();
+    if (!clean) return;
+    (_b3 = audioRef.current) == null ? void 0 : _b3.pause();
+    setPlayingId(msgId);
+    try {
+      const url = await synthesizeTTS({ text: clean, mode: "edge" });
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => setPlayingId(null);
+      void audio.play();
+    } catch {
+      setPlayingId(null);
+    }
+  };
   if (messages.length === 0) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-1 items-center justify-center relative", style: bgStyle, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mx-auto mb-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Heart, { size: 48, fill: "none", strokeWidth: 1, className: "text-foreground mx-auto" }) }),
@@ -49770,6 +49804,23 @@ function ChatMessages({ messages, activeKey, onRetry, onEdit }) {
                     className: "rounded-md p-1.5 hover:bg-accent transition-colors",
                     title: "重新生成",
                     children: /* @__PURE__ */ jsxRuntimeExports.jsx(RotateCcw, { size: 14, className: "text-muted-foreground hover:text-foreground" })
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => void handleSpeak(msg.id, msg.content),
+                    className: "p-1 rounded hover:bg-muted transition-colors",
+                    title: "朗读",
+                    children: playingId === msg.id ? /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", className: "text-primary animate-pulse", children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "6", y: "4", width: "4", height: "16", rx: "1" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "14", y: "4", width: "4", height: "16", rx: "1" })
+                    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", className: "text-muted-foreground hover:text-foreground", children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("polygon", { points: "11 5 6 9 2 9 2 15 6 15 11 19 11 5" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M15.54 8.46a5 5 0 0 1 0 7.07" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M19.07 4.93a10 10 0 0 1 0 14.14" })
+                    ] })
                   }
                 )
               ] })
@@ -51800,7 +51851,8 @@ async function saveSettings(data2) {
   });
 }
 const SECTIONS = [
-  { id: "api", label: "API 设置" },
+  { id: "api", label: "生成服务" },
+  { id: "voice", label: "语音" },
   { id: "features", label: "功能" },
   { id: "data", label: "数据管理" }
 ];
@@ -52226,6 +52278,273 @@ const FeaturesSettings = reactExports.forwardRef(function FeaturesSettings2(_2, 
     } })
   ] });
 });
+function edgePercentToInt(s) {
+  if (s == null || s === "") return 0;
+  const m2 = String(s).match(/(-?\d+)/);
+  return m2 ? parseInt(m2[1], 10) : 0;
+}
+function intToEdgePercent(n2) {
+  return (n2 >= 0 ? `+${n2}` : String(n2)) + "%";
+}
+const EDGE_TTS_VOICES = {
+  female: [
+    { value: "zh-CN-XiaoxiaoNeural", label: "晓晓 · 温柔" },
+    { value: "zh-CN-XiaoyiNeural", label: "晓伊 · 活泼" },
+    { value: "zh-CN-XiaohanNeural", label: "晓涵 · 知性" },
+    { value: "zh-CN-XiaomoNeural", label: "晓墨 · 平静" },
+    { value: "zh-CN-XiaoqiuNeural", label: "晓秋 · 低沉" },
+    { value: "zh-CN-XiaoxuanNeural", label: "晓萱 · 理性" },
+    { value: "zh-CN-XiaoruiNeural", label: "晓睿 · 轻柔" },
+    { value: "zh-CN-XiaozhenNeural", label: "晓甄 · 激情" },
+    { value: "zh-CN-XiaoshuangNeural", label: "晓双 · 青年" }
+  ],
+  male: [
+    { value: "zh-CN-YunxiNeural", label: "云希 · 轻松" },
+    { value: "zh-CN-YunjianNeural", label: "云健 · 磁性" },
+    { value: "zh-CN-YunxiaNeural", label: "云夏 · 阳光" },
+    { value: "zh-CN-YunyangNeural", label: "云扬 · 播音" },
+    { value: "zh-CN-YunfengNeural", label: "云枫 · 激昂" },
+    { value: "zh-CN-YunhaoNeural", label: "云皓 · 活力" }
+  ]
+};
+function voiceToEdgeGender(voice) {
+  if (EDGE_TTS_VOICES.female.some((x2) => x2.value === voice)) return "female";
+  if (EDGE_TTS_VOICES.male.some((x2) => x2.value === voice)) return "male";
+  return "female";
+}
+function VoiceSettings() {
+  const speakTimerRef = reactExports.useRef(null);
+  const voiceSettingsPanelRef = reactExports.useRef(null);
+  const [edgeGender, setEdgeGender] = reactExports.useState("female");
+  const [form, setForm] = reactExports.useState({
+    tts_enabled: false,
+    tts_mode: "edge",
+    tts_voice: "alloy",
+    tts_base_url: "https://api.openai.com",
+    edge_voice: "zh-CN-XiaoxiaoNeural",
+    edge_rate: "+0%",
+    edge_pitch: "+0%",
+    edge_volume: "+0%",
+    edge_style: "general",
+    primary_model: ""
+  });
+  reactExports.useEffect(() => {
+    void loadSettings().then((s) => {
+      const m2 = s.tts_mode || "edge";
+      const ev = s.edge_voice || "zh-CN-XiaoxiaoNeural";
+      setForm({
+        tts_enabled: !!s.tts_enabled,
+        tts_mode: m2 === "official" || m2 === "edge" ? m2 : "edge",
+        tts_voice: s.tts_voice || "alloy",
+        tts_base_url: s.tts_base_url || "https://api.openai.com",
+        edge_voice: ev,
+        edge_rate: s.edge_rate || "+0%",
+        edge_pitch: s.edge_pitch || "+0%",
+        edge_volume: s.edge_volume || "+0%",
+        edge_style: s.edge_style || "general",
+        primary_model: s.primary_model || ""
+      });
+      setEdgeGender(voiceToEdgeGender(ev));
+    });
+  }, []);
+  reactExports.useEffect(
+    () => () => {
+      if (speakTimerRef.current) clearTimeout(speakTimerRef.current);
+    },
+    []
+  );
+  const saveSingle = async (key, value) => {
+    await saveSettings({ [key]: value });
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+  const handlePreview = (text) => {
+    if (speakTimerRef.current) clearTimeout(speakTimerRef.current);
+    speakTimerRef.current = setTimeout(async () => {
+      const url = await synthesizeTTS({
+        text,
+        mode: form.tts_mode,
+        voice: form.tts_mode === "official" ? form.tts_voice : form.edge_voice,
+        rate: form.edge_rate,
+        pitch: form.edge_pitch,
+        volume: form.edge_volume,
+        style: form.edge_style
+      });
+      new Audio(url).play();
+    }, 800);
+  };
+  const detectedTTSProvider = () => {
+    const model = form.primary_model || "";
+    if (model.includes("openai")) return "gpt-4o → OpenAI TTS";
+    if (model.includes("anthropic")) return "claude → 暂不支持";
+    if (model.includes("google")) return "gemini → Google TTS";
+    return "未识别模型";
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: voiceSettingsPanelRef, className: "space-y-4 animate-in fade-in duration-200", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm font-medium", children: "语音输出" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground", children: "AI回复后可点击朗读" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        Switch,
+        {
+          checked: form.tts_enabled,
+          onCheckedChange: (v2) => {
+            void saveSingle("tts_enabled", v2);
+          }
+        }
+      )
+    ] }),
+    form.tts_enabled ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: `flex-1 border rounded-xl p-4 cursor-pointer transition-opacity ${form.tts_mode === "official" ? "border-primary" : "opacity-40"}`,
+          onClick: () => void saveSingle("tts_mode", "official"),
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs font-medium mb-1", children: "官方 TTS" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground mb-3", children: detectedTTSProvider() }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1.5", children: ["alloy", "echo", "fable", "onyx", "nova", "shimmer"].map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                type: "button",
+                className: `px-2.5 py-1 rounded-lg text-xs border transition-colors ${form.tts_voice === v2 ? "bg-primary text-primary-foreground border-primary" : "border-border"}`,
+                onClick: (e) => {
+                  e.stopPropagation();
+                  void saveSingle("tts_voice", v2);
+                },
+                children: v2
+              },
+              v2
+            )) })
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: `flex-1 border rounded-xl p-4 cursor-pointer transition-opacity ${form.tts_mode === "edge" ? "border-primary" : "opacity-40"}`,
+          onClick: () => void saveSingle("tts_mode", "edge"),
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs font-medium", children: [
+              "Edge TTS ",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-green-600 text-xs", children: "免费" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                type: "button",
+                className: "w-full mt-3 text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors",
+                onClick: (e) => {
+                  e.stopPropagation();
+                  handlePreview("你好，我是叮咚，很高兴认识你。");
+                },
+                children: "▷ 试听"
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2 mt-2", onClick: (e) => e.stopPropagation(), children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1 mb-2", children: ["female", "male"].map((g2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  type: "button",
+                  className: `flex-1 text-xs py-1 rounded-lg border transition-colors ${edgeGender === g2 ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`,
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    if (g2 === edgeGender) return;
+                    setEdgeGender(g2);
+                    const inGroup = EDGE_TTS_VOICES[g2].some((v2) => v2.value === form.edge_voice);
+                    if (!inGroup) {
+                      void saveSingle("edge_voice", EDGE_TTS_VOICES[g2][0].value);
+                    }
+                  },
+                  children: g2 === "female" ? "女声" : "男声"
+                },
+                g2
+              )) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "select",
+                {
+                  className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                  value: form.edge_voice,
+                  onChange: (e) => void saveSingle("edge_voice", e.target.value),
+                  children: EDGE_TTS_VOICES[edgeGender].map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2.value, children: v2.label }, v2.value))
+                }
+              ),
+              [
+                { label: "语速", key: "edge_rate", id: "er" },
+                { label: "音调", key: "edge_pitch", id: "ep" },
+                { label: "音量", key: "edge_volume", id: "ev" }
+              ].map(({ label, key, id: id2 }) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-muted-foreground w-6", children: label }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    type: "range",
+                    min: -50,
+                    max: 50,
+                    step: 5,
+                    value: edgePercentToInt(form[key]),
+                    onChange: (e) => {
+                      const n2 = Number(e.target.value);
+                      void saveSingle(key, intToEdgePercent(n2));
+                    },
+                    className: "flex-1 h-1"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs w-8 text-right", children: form[key] || "+0%" })
+              ] }, id2)),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "select",
+                {
+                  className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                  value: form.edge_style,
+                  onChange: (e) => void saveSingle("edge_style", e.target.value),
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "general", children: "通用" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "cheerful", children: "开朗活泼" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "calm", children: "平静舒缓" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "newscast", children: "播音腔" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "affectionate", children: "温柔亲切" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "lyrical", children: "诗意抒情" })
+                  ]
+                }
+              )
+            ] })
+          ]
+        }
+      )
+    ] }) : null,
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-6", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm font-medium", children: "图片生成" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground", children: "AI生成图片能力" })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Switch, { disabled: true, checked: false })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3 opacity-40 pointer-events-none", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 border rounded-xl p-4", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs font-medium mb-1", children: "官方" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground mb-2", children: "DALL·E 3 / GPT-Image" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+              placeholder: "中转地址 https://api.openai.com"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 border rounded-xl p-4", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs font-medium mb-1", children: [
+            "第三方 ",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-green-600 text-xs", children: "即将支持" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground", children: "Stable Diffusion / Flux" })
+        ] })
+      ] })
+    ] })
+  ] });
+}
 function DataSettings() {
   const handleExport = (fmt) => {
     window.location.href = `/api/data/export?fmt=${fmt}`;
@@ -52310,6 +52629,7 @@ function SystemSettingsModal({ open, onClose }) {
           )) }) }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-[70%] p-5 pt-14 overflow-y-auto scrollbar-thin", children: [
             activeSection === "api" && /* @__PURE__ */ jsxRuntimeExports.jsx(APISettings, { ref: apiRef }),
+            activeSection === "voice" && /* @__PURE__ */ jsxRuntimeExports.jsx(VoiceSettings, {}),
             activeSection === "features" && /* @__PURE__ */ jsxRuntimeExports.jsx(FeaturesSettings, { ref: featuresRef }),
             activeSection === "data" && /* @__PURE__ */ jsxRuntimeExports.jsx(DataSettings, {})
           ] })
@@ -80698,7 +81018,7 @@ class AudioListener extends Object3D {
     }
   }
 }
-class Audio extends Object3D {
+let Audio$1 = class Audio2 extends Object3D {
   constructor(listener) {
     super();
     this.type = "Audio";
@@ -80915,12 +81235,12 @@ class Audio extends Object3D {
     this.gain.gain.setTargetAtTime(value, this.context.currentTime, 0.01);
     return this;
   }
-}
+};
 const _position = /* @__PURE__ */ new Vector3();
 const _quaternion = /* @__PURE__ */ new Quaternion();
 const _scale = /* @__PURE__ */ new Vector3();
 const _orientation = /* @__PURE__ */ new Vector3();
-class PositionalAudio extends Audio {
+class PositionalAudio extends Audio$1 {
   constructor(listener) {
     super(listener);
     this.panner = this.context.createPanner();
@@ -83858,7 +84178,7 @@ const THREE = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePropert
   ArrayCamera,
   ArrowHelper,
   AttachedBindMode,
-  Audio,
+  Audio: Audio$1,
   AudioAnalyser,
   AudioContext,
   AudioListener,
