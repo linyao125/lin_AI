@@ -133,7 +133,10 @@ const APISettings = forwardRef<{ save: () => Promise<void> }>(function APISettin
     }
   };
 
-  useImperativeHandle(ref, () => ({ save: handleSave }));
+  useImperativeHandle(ref, () => ({ save: handleSave }), [
+    apiKey, serverUrl, vpn, imageApi, ttsApi,
+    imageEnabled, ttsEnabled, imageType, ttsVoice
+  ]);
 
   const delayColor = (delay: number) => {
     if (delay < 200) return "text-green-500";

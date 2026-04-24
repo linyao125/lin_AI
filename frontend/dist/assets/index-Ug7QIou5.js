@@ -51898,7 +51898,17 @@ const APISettings = reactExports.forwardRef(function APISettings2(_2, ref) {
       await fetchNodes();
     }
   };
-  reactExports.useImperativeHandle(ref, () => ({ save: handleSave }));
+  reactExports.useImperativeHandle(ref, () => ({ save: handleSave }), [
+    apiKey,
+    serverUrl,
+    vpn,
+    imageApi,
+    ttsApi,
+    imageEnabled,
+    ttsEnabled,
+    imageType,
+    ttsVoice
+  ]);
   const delayColor = (delay) => {
     if (delay < 200) return "text-green-500";
     if (delay < 500) return "text-yellow-500";
