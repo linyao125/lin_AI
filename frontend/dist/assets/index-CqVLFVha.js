@@ -93295,9 +93295,9 @@ const Index = () => {
           setLoadingHistory(false);
           return;
         }
-        const result = convs.slice(0, 20).map((c) => ({
+        const result = convs.filter((c) => c.title && c.title.trim() !== "" && c.title !== "日常心跳").slice(0, 20).map((c) => ({
           id: c.id,
-          title: c.title || "对话",
+          title: c.title,
           messages: []
         }));
         setConversations(result);

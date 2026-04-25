@@ -156,10 +156,21 @@ const APISettings = forwardRef<{ save: () => Promise<void> }>(function APISettin
                   </span>
                 )}
               </span>
-              <ChevronDown
-                size={16}
-                className={`transition-transform duration-200 shrink-0 ${vpnOpen ? "rotate-180" : ""}`}
-              />
+              <span className="flex items-center gap-2">
+                {vpnOpen && (
+                  <span
+                    role="button"
+                    onClick={(e) => { e.stopPropagation(); void fetchNodes(); }}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1"
+                  >
+                    ↻
+                  </span>
+                )}
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform duration-200 shrink-0 ${vpnOpen ? "rotate-180" : ""}`}
+                />
+              </span>
             </button>
             {vpnOpen && (
               <div className="border-t border-border/60 p-2 space-y-1 max-h-48 overflow-y-auto scrollbar-thin">
