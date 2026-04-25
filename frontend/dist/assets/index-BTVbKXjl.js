@@ -51980,13 +51980,27 @@ const APISettings = reactExports.forwardRef(function APISettings2(_2, ref) {
                   currentNode
                 ] })
               ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                ChevronDown,
-                {
-                  size: 16,
-                  className: `transition-transform duration-200 shrink-0 ${vpnOpen ? "rotate-180" : ""}`
-                }
-              )
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-2", children: [
+                vpnOpen && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "span",
+                  {
+                    role: "button",
+                    onClick: (e) => {
+                      e.stopPropagation();
+                      void fetchNodes();
+                    },
+                    className: "text-xs text-muted-foreground hover:text-foreground transition-colors px-1",
+                    children: "↻"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  ChevronDown,
+                  {
+                    size: 16,
+                    className: `transition-transform duration-200 shrink-0 ${vpnOpen ? "rotate-180" : ""}`
+                  }
+                )
+              ] })
             ]
           }
         ),

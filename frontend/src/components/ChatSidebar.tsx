@@ -37,7 +37,7 @@ interface ChatSidebarProps {
   onOpenAIProfile: () => void;
   onOpenUserProfile: () => void;
   onOpenSettings: () => void;
-  onOpenSchedule: () => void;
+  onOpenSchedule?: () => void;
 }
 
 const FEATURE_ICONS_ROW1 = [
@@ -201,15 +201,23 @@ function SidebarContent({
   onOpenAIProfile: () => void;
   onOpenUserProfile: () => void;
   onOpenSettings: () => void;
-  onOpenSchedule: () => void;
+  onOpenSchedule?: () => void;
   onExpandSidebar: () => void;
 }) {
   const [featuresOpen, setFeaturesOpen] = useState(false);
   const [hasPending, setHasPending] = useState(false);
   const { aiName, userName } = useProfileNames();
+  const row2Icons = onOpenSchedule
+    ? FEATURE_ICONS_ROW2
+    : FEATURE_ICONS_ROW2.filter((i) => i.label !== "通知");
+  const collapsedAllIcons = [...FEATURE_ICONS_ROW1, ...row2Icons];
 
   useEffect(() => {
     const check = async () => {
+      if (!onOpenSchedule) {
+        setHasPending(false);
+        return;
+      }
       try {
         const r = await fetch("/api/schedules");
         const d = await r.json();
@@ -220,7 +228,7 @@ function SidebarContent({
     check();
     const timer = setInterval(check, 60000);
     return () => clearInterval(timer);
-  }, []);
+  }, [onOpenSchedule]);
 
   return (
     <>
@@ -260,17 +268,20 @@ function SidebarContent({
       {collapsed ? (
         <div className="flex items-center justify-center py-3">
           <div className="flex flex-col items-center gap-1">
-            {[...FEATURE_ICONS_ROW1, ...FEATURE_ICONS_ROW2].map(({ icon: Icon, label }) => (
+            {collapsedAllIcons.map(({ icon: Icon, label }) => (
               <button
                 key={label}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (label === "通知") onOpenSchedule();
+                  if (label === "通知") onOpenSchedule?.();
                   else console.log(`${label} clicked`);
                 }}
                 title={label}
+                disabled={label === "通知" && !onOpenSchedule}
                 className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors active:scale-90 ${
-                  label === "通知" && hasPending
+                  label === "通知" && !onOpenSchedule
+                    ? "opacity-30 cursor-not-allowed"
+                    : label === "通知" && hasPending
                     ? "text-primary"
                     : "text-sidebar-foreground/50 hover:text-sidebar-foreground"
                 }`}
@@ -307,17 +318,20 @@ function SidebarContent({
                 ))}
               </div>
               <div className="grid grid-cols-4 gap-1 px-3 pb-2.5">
-                {FEATURE_ICONS_ROW2.map(({ icon: Icon, label }) => (
+                {row2Icons.map(({ icon: Icon, label }) => (
                   <button
                     key={label}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (label === "通知") onOpenSchedule();
+                      if (label === "通知") onOpenSchedule?.();
                       else console.log(`${label} clicked`);
                     }}
                     title={label}
+                    disabled={label === "通知" && !onOpenSchedule}
                     className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg transition-all active:scale-90 ${
-                      label === "通知" && hasPending
+                      label === "通知" && !onOpenSchedule
+                        ? "opacity-30 cursor-not-allowed"
+                        : label === "通知" && hasPending
                         ? "text-primary hover:bg-sidebar-accent/50"
                         : "text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                     }`}

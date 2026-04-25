@@ -71,8 +71,17 @@ const Index = () => {
   const [userProfileOpen, setUserProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [sceneEnabled, setSceneEnabled] = useState(true);
   const [weatherConfig, setWeatherConfig] = useState<WeatherConfig>(defaultWeather);
   const [isLightScene, setIsLightScene] = useState(false);
+
+  useEffect(() => {
+    import("@/lib/linai").then(({ loadSettings }) => {
+      loadSettings().then((s: any) => {
+        setSceneEnabled(s.scene_enabled !== false);
+      });
+    });
+  }, []);
 
   const activeConversation = conversations.find((c) => c.id === activeId);
 
@@ -311,7 +320,7 @@ const Index = () => {
         onOpenAIProfile={() => setAiProfileOpen(true)}
         onOpenUserProfile={() => setUserProfileOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
-        onOpenSchedule={() => setScheduleOpen(true)}
+        onOpenSchedule={sceneEnabled ? () => setScheduleOpen(true) : undefined}
       />
 
       <div className={`flex flex-1 flex-col min-w-0 relative z-[1] transition-colors duration-500 ${isLightScene ? "text-[#1A1A1A]" : ""}`}>
@@ -328,7 +337,7 @@ const Index = () => {
       <AIProfileModal open={aiProfileOpen} onClose={() => setAiProfileOpen(false)} />
       <UserProfileModal open={userProfileOpen} onClose={() => setUserProfileOpen(false)} />
       <SystemSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <ScheduleModal open={scheduleOpen} onClose={() => setScheduleOpen(false)} />
+      {sceneEnabled && <ScheduleModal open={scheduleOpen} onClose={() => setScheduleOpen(false)} />}
       <ScheduleNotification />
     </div>
   );
