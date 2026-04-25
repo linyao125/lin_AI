@@ -50,11 +50,14 @@ const Index = () => {
           setLoadingHistory(false);
           return;
         }
-        const result: Conversation[] = convs.slice(0, 20).map((c: any) => ({
-          id: c.id,
-          title: c.title || "对话",
-          messages: [],
-        }));
+        const result: Conversation[] = convs
+          .filter((c: any) => c.title && c.title.trim() !== "" && c.title !== "日常心跳")
+          .slice(0, 20)
+          .map((c: any) => ({
+            id: c.id,
+            title: c.title,
+            messages: [],
+          }));
         setConversations(result);
         setLoadingHistory(false);
         // 不自动选中，让用户主动点击
