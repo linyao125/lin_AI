@@ -320,7 +320,7 @@ const Index = () => {
         onOpenAIProfile={() => setAiProfileOpen(true)}
         onOpenUserProfile={() => setUserProfileOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
-        onOpenSchedule={sceneEnabled ? () => setScheduleOpen(true) : undefined}
+        onOpenSchedule={() => setScheduleOpen(true)}
       />
 
       <div className={`flex flex-1 flex-col min-w-0 relative z-[1] transition-colors duration-500 ${isLightScene ? "text-[#1A1A1A]" : ""}`}>
@@ -337,7 +337,7 @@ const Index = () => {
       <AIProfileModal open={aiProfileOpen} onClose={() => setAiProfileOpen(false)} />
       <UserProfileModal open={userProfileOpen} onClose={() => setUserProfileOpen(false)} />
       <SystemSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      {sceneEnabled && <ScheduleModal open={scheduleOpen} onClose={() => setScheduleOpen(false)} />}
+      <ScheduleModal open={scheduleOpen} onClose={() => setScheduleOpen(false)} sceneEnabled={sceneEnabled} />
       <ScheduleNotification />
     </div>
   );

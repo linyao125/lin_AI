@@ -14,6 +14,7 @@ interface Schedule {
 interface ScheduleModalProps {
   open: boolean;
   onClose: () => void;
+  sceneEnabled?: boolean;
 }
 
 const REPEAT_OPTIONS = [
@@ -35,7 +36,7 @@ const WEEKDAYS = [
 
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 
-export function ScheduleModal({ open, onClose }: ScheduleModalProps) {
+export function ScheduleModal({ open, onClose, sceneEnabled = true }: ScheduleModalProps) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [title, setTitle] = useState("");
   const [remindAt, setRemindAt] = useState("");
@@ -59,6 +60,10 @@ export function ScheduleModal({ open, onClose }: ScheduleModalProps) {
   useEffect(() => {
     if (open) load();
   }, [open]);
+
+  useEffect(() => {
+    if (open && !sceneEnabled) onClose();
+  }, [open, sceneEnabled, onClose]);
 
   const toggleRepeatDay = (day: number) => {
     setRepeatDays((prev) =>
@@ -136,6 +141,7 @@ export function ScheduleModal({ open, onClose }: ScheduleModalProps) {
   const done = schedules.filter((s) => s.done);
 
   if (!open) return null;
+  if (!sceneEnabled) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center" onClick={onClose}>
@@ -157,8 +163,14 @@ export function ScheduleModal({ open, onClose }: ScheduleModalProps) {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              type="button"
+              onClick={() => sceneEnabled && setShowForm(!showForm)}
+              disabled={!sceneEnabled}
+              className={`flex h-7 items-center gap-1 rounded-lg px-2.5 text-xs font-medium border ${
+                sceneEnabled
+                  ? "text-primary border-primary/30 hover:bg-primary/10"
+                  : "text-muted-foreground border-border opacity-40 cursor-not-allowed"
+              }`}
             >
               <Plus size={13} />
               新建

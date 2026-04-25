@@ -49345,8 +49345,14 @@ function SidebarContent({
   const [featuresOpen, setFeaturesOpen] = reactExports.useState(false);
   const [hasPending, setHasPending] = reactExports.useState(false);
   const { aiName, userName } = useProfileNames();
+  const row2Icons = onOpenSchedule ? FEATURE_ICONS_ROW2 : FEATURE_ICONS_ROW2.filter((i2) => i2.label !== "通知");
+  const collapsedAllIcons = [...FEATURE_ICONS_ROW1, ...row2Icons];
   reactExports.useEffect(() => {
     const check = async () => {
+      if (!onOpenSchedule) {
+        setHasPending(false);
+        return;
+      }
       try {
         const r2 = await fetch("/api/schedules");
         const d = await r2.json();
@@ -49358,7 +49364,7 @@ function SidebarContent({
     check();
     const timer = setInterval(check, 6e4);
     return () => clearInterval(timer);
-  }, []);
+  }, [onOpenSchedule]);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-11 shrink-0 border-b border-sidebar-border flex items-center px-3", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex items-center w-full transition-all duration-300 ease-in-out ${collapsed ? "justify-center" : ""}`, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -49397,16 +49403,17 @@ function SidebarContent({
         }
       )
     ] }) }),
-    collapsed ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center py-3", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-col items-center gap-1", children: [...FEATURE_ICONS_ROW1, ...FEATURE_ICONS_ROW2].map(({ icon: Icon2, label }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+    collapsed ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center py-3", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-col items-center gap-1", children: collapsedAllIcons.map(({ icon: Icon2, label }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
       "button",
       {
         onClick: (e) => {
           e.stopPropagation();
-          if (label === "通知") onOpenSchedule();
+          if (label === "通知") onOpenSchedule == null ? void 0 : onOpenSchedule();
           else console.log(`${label} clicked`);
         },
         title: label,
-        className: `flex h-9 w-9 items-center justify-center rounded-lg transition-colors active:scale-90 ${label === "通知" && hasPending ? "text-primary" : "text-sidebar-foreground/50 hover:text-sidebar-foreground"}`,
+        disabled: label === "通知" && !onOpenSchedule,
+        className: `flex h-9 w-9 items-center justify-center rounded-lg transition-colors active:scale-90 ${label === "通知" && !onOpenSchedule ? "opacity-30 cursor-not-allowed" : label === "通知" && hasPending ? "text-primary" : "text-sidebar-foreground/50 hover:text-sidebar-foreground"}`,
         children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon2, { size: 20 })
       },
       label
@@ -49438,16 +49445,17 @@ function SidebarContent({
               },
               label
             )) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-4 gap-1 px-3 pb-2.5", children: FEATURE_ICONS_ROW2.map(({ icon: Icon2, label }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-4 gap-1 px-3 pb-2.5", children: row2Icons.map(({ icon: Icon2, label }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
               "button",
               {
                 onClick: (e) => {
                   e.stopPropagation();
-                  if (label === "通知") onOpenSchedule();
+                  if (label === "通知") onOpenSchedule == null ? void 0 : onOpenSchedule();
                   else console.log(`${label} clicked`);
                 },
                 title: label,
-                className: `flex h-8 w-8 mx-auto items-center justify-center rounded-lg transition-all active:scale-90 ${label === "通知" && hasPending ? "text-primary hover:bg-sidebar-accent/50" : "text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`,
+                disabled: label === "通知" && !onOpenSchedule,
+                className: `flex h-8 w-8 mx-auto items-center justify-center rounded-lg transition-all active:scale-90 ${label === "通知" && !onOpenSchedule ? "opacity-30 cursor-not-allowed" : label === "通知" && hasPending ? "text-primary hover:bg-sidebar-accent/50" : "text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"}`,
                 children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon2, { size: 18 })
               },
               label
@@ -93325,8 +93333,19 @@ const Index = () => {
   const [userProfileOpen, setUserProfileOpen] = reactExports.useState(false);
   const [settingsOpen, setSettingsOpen] = reactExports.useState(false);
   const [scheduleOpen, setScheduleOpen] = reactExports.useState(false);
+  const [sceneEnabled, setSceneEnabled] = reactExports.useState(true);
   const [weatherConfig, setWeatherConfig] = reactExports.useState(defaultWeather);
   const [isLightScene, setIsLightScene] = reactExports.useState(false);
+  reactExports.useEffect(() => {
+    __vitePreload(async () => {
+      const { loadSettings: loadSettings2 } = await Promise.resolve().then(() => linai);
+      return { loadSettings: loadSettings2 };
+    }, true ? void 0 : void 0).then(({ loadSettings: loadSettings2 }) => {
+      loadSettings2().then((s) => {
+        setSceneEnabled(s.scene_enabled !== false);
+      });
+    });
+  }, []);
   const activeConversation = conversations.find((c) => c.id === activeId);
   const [convId, setConvId] = reactExports.useState("new");
   reactExports.useEffect(() => {
@@ -93547,7 +93566,7 @@ const Index = () => {
         onOpenAIProfile: () => setAiProfileOpen(true),
         onOpenUserProfile: () => setUserProfileOpen(true),
         onOpenSettings: () => setSettingsOpen(true),
-        onOpenSchedule: () => setScheduleOpen(true)
+        onOpenSchedule: sceneEnabled ? () => setScheduleOpen(true) : void 0
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex flex-1 flex-col min-w-0 relative z-[1] transition-colors duration-500 ${isLightScene ? "text-[#1A1A1A]" : ""}`, children: [
@@ -93566,7 +93585,7 @@ const Index = () => {
     /* @__PURE__ */ jsxRuntimeExports.jsx(AIProfileModal, { open: aiProfileOpen, onClose: () => setAiProfileOpen(false) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(UserProfileModal, { open: userProfileOpen, onClose: () => setUserProfileOpen(false) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(SystemSettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(ScheduleModal, { open: scheduleOpen, onClose: () => setScheduleOpen(false) }),
+    sceneEnabled && /* @__PURE__ */ jsxRuntimeExports.jsx(ScheduleModal, { open: scheduleOpen, onClose: () => setScheduleOpen(false) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(ScheduleNotification, {})
   ] });
 };
