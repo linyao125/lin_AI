@@ -848,50 +848,100 @@ async def third_party_voices(provider: str = "minimax"):
         return {"ok": False, "error": "未知服务商"}
 
 
+def _image_api_error(data: Any, r: httpx.Response) -> str:
+    err = data.get("error")
+    if isinstance(err, dict):
+        return str(err.get("message", r.text[:200]))
+    if err is not None:
+        return str(err)
+    return r.text[:200]
+
+
 @api_router.post("/image/generate")
 async def image_generate(request: Request):
     body = await request.json()
     mode = body.get("mode", "free")
     prompt = body.get("prompt", "")
-    model = body.get("model", "dall-e-3")
-    base_url = (body.get("base_url") or "https://api.openai.com").rstrip("/")
-    api_key = body.get("api_key") or ""
 
     if mode == "free":
-        # 免费模式由前端 Puter.js 直接调用，后端不处理
+        # 免费模式由前端（Pollinations 等）直接生成，后端不处理
         return {"ok": False, "error": "免费模式请从前端直接调用"}
 
-    if not api_key:
-        s = settings_service.get_frontend_settings()
-        if mode == "official":
-            api_key = (s.get("api_key") or "").strip()
-            base_url = (s.get("image_base_url") or "https://api.openai.com").rstrip("/")
-            model = s.get("image_model") or "dall-e-3"
+    s = settings_service.get_frontend_settings()
+    if mode == "official":
+        api_key = (body.get("api_key") or s.get("image_api_key") or "").strip()
+        model = (body.get("model") or s.get("image_model") or "")
+        if not api_key:
+            return {"ok": False, "error": "未填写官方 API Key"}
+        if api_key.startswith("sk-") and "or-v1" not in api_key:
+            base_url = "https://api.openai.com"
+            model = model or "dall-e-3"
+            try:
+                async with httpx.AsyncClient(timeout=60) as client:
+                    r = await client.post(
+                        f"{base_url}/v1/images/generations",
+                        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                        json={"model": model, "prompt": prompt, "n": 1, "size": "1024x1024"},
+                    )
+                    data = r.json()
+                    if r.status_code != 200:
+                        return {"ok": False, "error": _image_api_error(data, r)}
+                    img_url = data["data"][0].get("url", "")
+                    return {"ok": True, "url": img_url}
+            except Exception as e:
+                return {"ok": False, "error": str(e)}
+        elif api_key.startswith("AIza"):
+            model = model or "imagen-3.0-generate-002"
+            try:
+                async with httpx.AsyncClient(timeout=60) as client:
+                    r = await client.post(
+                        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateImages?key={api_key}",
+                        headers={"Content-Type": "application/json"},
+                        json={"prompt": {"text": prompt}, "number_of_images": 1},
+                    )
+                    data = r.json()
+                    if r.status_code != 200:
+                        return {"ok": False, "error": _image_api_error(data, r)}
+                    b64 = data["generatedImages"][0]["image"]["imageBytes"]
+                    return {"ok": True, "url": f"data:image/png;base64,{b64}"}
+            except Exception as e:
+                return {"ok": False, "error": str(e)}
+        elif api_key.startswith("xai-"):
+            model = model or "grok-2-image"
+            try:
+                async with httpx.AsyncClient(timeout=60) as client:
+                    r = await client.post(
+                        "https://api.x.ai/v1/images/generations",
+                        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                        json={"model": model, "prompt": prompt, "n": 1},
+                    )
+                    data = r.json()
+                    if r.status_code != 200:
+                        return {"ok": False, "error": _image_api_error(data, r)}
+                    img_url = data["data"][0].get("url", "")
+                    return {"ok": True, "url": img_url}
+            except Exception as e:
+                return {"ok": False, "error": str(e)}
         else:
-            api_key = (s.get("image_api_key") or "").strip()
-            base_url = (s.get("image_base_url") or "").rstrip("/")
-            model = s.get("image_model") or model
-
-    if not api_key:
-        return {"ok": False, "error": "未配置 API Key"}
-
-    try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            r = await client.post(
-                f"{base_url}/v1/images/generations",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"model": model, "prompt": prompt, "n": 1, "size": "1024x1024"},
-            )
-            data = r.json()
-            if r.status_code != 200:
-                err = data.get("error")
-                err_msg = (
-                    err.get("message", r.text[:200])
-                    if isinstance(err, dict)
-                    else (err if err is not None else r.text[:200])
+            return {"ok": False, "error": "暂不支持该服务商，请使用中转/自设模式"}
+    elif mode == "custom":
+        api_key = (body.get("api_key") or s.get("image_api_key") or "").strip()
+        base_url = (body.get("base_url") or s.get("image_base_url") or "").rstrip("/")
+        model = body.get("model") or s.get("image_model") or "dall-e-3"
+        if not api_key or not base_url:
+            return {"ok": False, "error": "请填写 API Key 和接口地址"}
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                r = await client.post(
+                    f"{base_url}/images/generations",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={"model": model, "prompt": prompt, "n": 1, "size": "1024x1024"},
                 )
-                return {"ok": False, "error": err_msg}
-            url = data["data"][0].get("url", "")
-            return {"ok": True, "url": url}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
+                data = r.json()
+                if r.status_code != 200:
+                    return {"ok": False, "error": _image_api_error(data, r)}
+                img_url = data["data"][0].get("url", "")
+                return {"ok": True, "url": img_url}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+    return {"ok": False, "error": "未知模式"}

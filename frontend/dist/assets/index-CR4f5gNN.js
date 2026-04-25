@@ -52234,7 +52234,8 @@ function VoiceSettings() {
     image_mode: "free",
     image_base_url: "",
     image_api_key: "",
-    image_model: "flux-schnell"
+    image_model: "flux-schnell",
+    image_style: "anime"
   });
   reactExports.useEffect(() => {
     void loadSettings().then((s) => {
@@ -52264,7 +52265,8 @@ function VoiceSettings() {
         image_mode: s.image_mode || "free",
         image_base_url: s.image_base_url || "",
         image_api_key: s.image_api_key || "",
-        image_model: s.image_model || "flux-schnell"
+        image_model: s.image_model || "flux-schnell",
+        image_style: s.image_style || "anime"
       });
       setEdgeGender(voiceToEdgeGender(ev));
     });
@@ -52713,9 +52715,10 @@ function VoiceSettings() {
           setImgErrMsg("");
           if (activeImg === "free") {
             try {
-              const encoded = encodeURIComponent(imgPrompt);
-              const model = form.image_model === "stable-diffusion-xl-base-1.0" ? "turbo" : "flux";
-              const url = `https://image.pollinations.ai/prompt/${encoded}?model=${model}&width=512&height=512&nologo=true&seed=${Date.now()}`;
+              const style = form.image_style || "anime";
+              const styledPrompt = encodeURIComponent(`${imgPrompt}, ${style} style`);
+              const model = form.image_model === "turbo" ? "turbo" : "flux";
+              const url = `https://image.pollinations.ai/prompt/${styledPrompt}?model=${model}&width=512&height=512&nologo=true&seed=${Date.now()}`;
               setImgResultUrl(url);
               setImgTestState("ok");
             } catch (e) {
@@ -52775,8 +52778,26 @@ function VoiceSettings() {
                         value: form.image_model || "flux-schnell",
                         onChange: (e) => void saveSingle("image_model", e.target.value),
                         children: [
-                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "flux-schnell", children: "Flux Schnell（快速）" }),
-                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "stable-diffusion-xl-base-1.0", children: "Stable Diffusion XL" })
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "flux-schnell", children: "Flux（高质量）" }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "turbo", children: "Turbo（极速）" })
+                        ]
+                      }
+                    ),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                      "select",
+                      {
+                        className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                        value: form.image_style || "anime",
+                        onChange: (e) => void saveSingle("image_style", e.target.value),
+                        children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "anime", children: "动漫" }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "realistic", children: "写实" }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "cyberpunk", children: "赛博朋克" }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "watercolor", children: "水彩" }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "oil painting", children: "油画" }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "pixel art", children: "像素风" }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "sketch", children: "素描" }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "fantasy", children: "奇幻" })
                         ]
                       }
                     )

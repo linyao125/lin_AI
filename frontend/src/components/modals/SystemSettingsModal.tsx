@@ -971,8 +971,6 @@ function VoiceSettings() {
         {form.image_enabled &&
           (() => {
             const activeImg = form.image_mode || "free";
-            const apiKey = form.openai_tts_key || "";
-            const isNativeOpenAI = apiKey.startsWith("sk-") && !apiKey.includes("or-v1");
 
             const ImgPanelHeader = ({
               id,
@@ -1096,27 +1094,65 @@ function VoiceSettings() {
                     <ImgPanelHeader id="official" title="官方 DALL·E" active={activeImg === "official"} />
                     {activeImg === "official" && (
                       <div className="px-4 pb-4 space-y-2">
-                        {isNativeOpenAI ? (
-                          <>
-                            <p className="text-xs text-muted-foreground">已检测到 OpenAI 原生 Key</p>
-                            <select
-                              className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
-                              value={form.image_model || "dall-e-3"}
-                              onChange={(e) => void saveSingle("image_model", e.target.value)}
-                            >
-                              <option value="dall-e-3">DALL·E 3（高质量）</option>
-                              <option value="dall-e-2">DALL·E 2（快速）</option>
-                            </select>
-                            <input
-                              className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
-                              placeholder="中转地址（默认 https://api.openai.com）"
-                              value={form.image_base_url || ""}
-                              onChange={(e) => void saveSingle("image_base_url", e.target.value)}
-                            />
-                          </>
-                        ) : (
-                          <p className="text-xs text-muted-foreground py-2">需要 OpenAI 原生 Key（API设置里填 sk- 开头的Key）</p>
-                        )}
+                        <p className="text-xs text-muted-foreground">填入各家官网原生 Key，自动识别服务商</p>
+                        <input
+                          type="password"
+                          className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2 font-mono"
+                          placeholder="官方 API Key（sk- / AIza / xai-）"
+                          value={form.image_api_key || ""}
+                          onChange={(e) => void saveSingle("image_api_key", e.target.value)}
+                        />
+                        {(() => {
+                          const k = form.image_api_key || "";
+                          if (k.startsWith("sk-") && !k.includes("or-v1")) {
+                            return (
+                              <div className="space-y-1">
+                                <p className="text-xs text-green-500">✓ 检测到 OpenAI Key</p>
+                                <select
+                                  className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                                  value={form.image_model || "dall-e-3"}
+                                  onChange={(e) => void saveSingle("image_model", e.target.value)}
+                                >
+                                  <option value="dall-e-3">DALL·E 3（高质量）</option>
+                                  <option value="dall-e-2">DALL·E 2（快速）</option>
+                                </select>
+                              </div>
+                            );
+                          }
+                          if (k.startsWith("AIza")) {
+                            return (
+                              <div className="space-y-1">
+                                <p className="text-xs text-green-500">✓ 检测到 Google Key</p>
+                                <select
+                                  className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                                  value={form.image_model || "imagen-3.0-generate-002"}
+                                  onChange={(e) => void saveSingle("image_model", e.target.value)}
+                                >
+                                  <option value="imagen-3.0-generate-002">Imagen 3（高质量）</option>
+                                  <option value="imagen-3.0-fast-generate-001">Imagen 3 Fast</option>
+                                </select>
+                              </div>
+                            );
+                          }
+                          if (k.startsWith("xai-")) {
+                            return (
+                              <div className="space-y-1">
+                                <p className="text-xs text-green-500">✓ 检测到 xAI Key</p>
+                                <select
+                                  className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                                  value={form.image_model || "grok-2-image"}
+                                  onChange={(e) => void saveSingle("image_model", e.target.value)}
+                                >
+                                  <option value="grok-2-image">Grok 2 Image</option>
+                                </select>
+                              </div>
+                            );
+                          }
+                          if (k.length > 0) {
+                            return <p className="text-xs text-yellow-500">⚠ 暂不支持该服务商</p>;
+                          }
+                          return null;
+                        })()}
                       </div>
                     )}
                   </div>
@@ -1126,7 +1162,7 @@ function VoiceSettings() {
                     className={`flex-1 border rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${activeImg === "custom" ? "flex-[2]" : "flex-[0.6] opacity-60"}`}
                     style={{ minHeight: "200px" }}
                   >
-                    <ImgPanelHeader id="custom" title="自设" active={activeImg === "custom"} />
+                    <ImgPanelHeader id="custom" title="中转/自设" active={activeImg === "custom"} />
                     {activeImg === "custom" && (
                       <div className="px-4 pb-4 space-y-2">
                         <input
@@ -1138,7 +1174,7 @@ function VoiceSettings() {
                         />
                         <input
                           className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
-                          placeholder="接口地址 https://..."
+                          placeholder="接口地址（如 https://openrouter.ai/api/v1）"
                           value={form.image_base_url || ""}
                           onChange={(e) => void saveSingle("image_base_url", e.target.value)}
                         />
