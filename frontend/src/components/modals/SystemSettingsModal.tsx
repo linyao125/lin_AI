@@ -447,6 +447,7 @@ type VoiceForm = {
   image_base_url?: string;
   image_api_key?: string;
   image_model?: string;
+  image_style?: string;
   primary_model?: string;
 };
 
@@ -487,6 +488,7 @@ function VoiceSettings() {
     image_base_url: "",
     image_api_key: "",
     image_model: "flux-schnell",
+    image_style: "anime",
   });
 
   useEffect(() => {
@@ -518,6 +520,7 @@ function VoiceSettings() {
         image_base_url: (s.image_base_url as string) || "",
         image_api_key: (s.image_api_key as string) || "",
         image_model: (s.image_model as string) || "flux-schnell",
+        image_style: (s.image_style as string) || "anime",
       });
       setEdgeGender(voiceToEdgeGender(ev));
     });
@@ -1003,9 +1006,10 @@ function VoiceSettings() {
               // 免费模式：Pollinations 图链（无需后端）
               if (activeImg === "free") {
                 try {
-                  const encoded = encodeURIComponent(imgPrompt);
-                  const model = form.image_model === "stable-diffusion-xl-base-1.0" ? "turbo" : "flux";
-                  const url = `https://image.pollinations.ai/prompt/${encoded}?model=${model}&width=512&height=512&nologo=true&seed=${Date.now()}`;
+                  const style = form.image_style || "anime";
+                  const styledPrompt = encodeURIComponent(`${imgPrompt}, ${style} style`);
+                  const model = form.image_model === "turbo" ? "turbo" : "flux";
+                  const url = `https://image.pollinations.ai/prompt/${styledPrompt}?model=${model}&width=512&height=512&nologo=true&seed=${Date.now()}`;
                   setImgResultUrl(url);
                   setImgTestState("ok");
                 } catch (e: any) {
@@ -1063,8 +1067,22 @@ function VoiceSettings() {
                           value={form.image_model || "flux-schnell"}
                           onChange={(e) => void saveSingle("image_model", e.target.value)}
                         >
-                          <option value="flux-schnell">Flux Schnell（快速）</option>
-                          <option value="stable-diffusion-xl-base-1.0">Stable Diffusion XL</option>
+                          <option value="flux-schnell">Flux（高质量）</option>
+                          <option value="turbo">Turbo（极速）</option>
+                        </select>
+                        <select
+                          className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                          value={form.image_style || "anime"}
+                          onChange={(e) => void saveSingle("image_style", e.target.value)}
+                        >
+                          <option value="anime">动漫</option>
+                          <option value="realistic">写实</option>
+                          <option value="cyberpunk">赛博朋克</option>
+                          <option value="watercolor">水彩</option>
+                          <option value="oil painting">油画</option>
+                          <option value="pixel art">像素风</option>
+                          <option value="sketch">素描</option>
+                          <option value="fantasy">奇幻</option>
                         </select>
                       </div>
                     )}

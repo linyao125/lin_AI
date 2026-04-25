@@ -52713,17 +52713,13 @@ function VoiceSettings() {
           setImgErrMsg("");
           if (activeImg === "free") {
             try {
-              const puter = window.puter;
-              if (!puter) {
-                setImgErrMsg("Puter.js未加载，请刷新页面重试");
-                setImgTestState("err");
-                return;
-              }
-              const img = await puter.ai.txt2img(imgPrompt, { model: form.image_model || "flux-schnell" });
-              setImgResultUrl(img.src);
+              const encoded = encodeURIComponent(imgPrompt);
+              const model = form.image_model === "stable-diffusion-xl-base-1.0" ? "turbo" : "flux";
+              const url = `https://image.pollinations.ai/prompt/${encoded}?model=${model}&width=512&height=512&nologo=true&seed=${Date.now()}`;
+              setImgResultUrl(url);
               setImgTestState("ok");
             } catch (e) {
-              setImgErrMsg(e instanceof Error ? e.message : "生成失败");
+              setImgErrMsg(e.message || "生成失败");
               setImgTestState("err");
             }
             return;
