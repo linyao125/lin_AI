@@ -759,22 +759,25 @@ function VoiceSettings() {
                   <PanelHeader id="fish" title="自设 TTS" active={activePanel === "fish"} />
                   {activePanel === "fish" && (
                     <div className="px-4 pb-4 space-y-2">
-                      <a
-                        href="https://fish.audio/zh-CN/go-api/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-primary underline"
-                      >
-                        注册 Fish Audio → 获取 API Key
-                      </a>
-                      {/* API Key */}
                       <input
                         type="password"
                         className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
-                        placeholder="Fish Audio API Key（sk-...）"
+                        placeholder="第三方 API Key"
                         value={form.fish_tts_key || ""}
                         onChange={(e) => void saveSingle("fish_tts_key", e.target.value)}
                       />
+                      <button
+                        type="button"
+                        className="w-full text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors"
+                        onClick={() => {
+                          if (!form.fish_tts_key?.trim()) return;
+                          void synthesizeTTS({ text: "你好，我是叮咚，很高兴认识你。", mode: "fish" }).then(
+                            (url) => new Audio(url).play(),
+                          );
+                        }}
+                      >
+                        ▷ 试听
+                      </button>
                       {/* 音色同步 */}
                       <div className="flex gap-1">
                         <button
@@ -875,19 +878,6 @@ function VoiceSettings() {
                         <option value="disgusted">厌恶</option>
                         <option value="surprised">惊讶</option>
                       </select>
-                      {/* 试听 */}
-                      <button
-                        type="button"
-                        className="w-full text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors"
-                        onClick={() => {
-                          if (!form.fish_tts_key?.trim()) return;
-                          void synthesizeTTS({ text: "你好，我是叮咚，很高兴认识你。", mode: "fish" }).then(
-                            (url) => new Audio(url).play(),
-                          );
-                        }}
-                      >
-                        ▷ 试听
-                      </button>
                     </div>
                   )}
                 </div>
