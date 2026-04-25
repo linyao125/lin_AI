@@ -240,6 +240,16 @@ class AnchorService:
                 sections.append(get_tools_prompt())
         except Exception:
             pass
+        # 日程提醒和图片生成开关注入
+        try:
+            from app.services.settings import settings_service as _ss5
+            _cur5 = _ss5.get_frontend_settings()
+            if not _cur5.get("scene_enabled", True):
+                sections.append("[功能限制]\n日程提醒功能当前已关闭。如果用户提到日程、提醒、待办相关的事情，你可以结合自己当前的情绪状态和性格，用自然的方式回应，但不要主动触发或承诺日程提醒功能。")
+            if not _cur5.get("image_enabled", False):
+                sections.append("[功能限制]\n图片生成功能当前已关闭。如果用户要求画图、生成图片，你可以结合自己当前的情绪状态和性格，用自然的方式回应这个请求，不要直接说功能未开启，而是像一个真实的人一样表达。")
+        except Exception:
+            pass
         sections.append("[Operational Rules]\n- 保持语境连续\n- 不要擅自重置人格\n- 优先准确、稳定、自然\n- 不要因为省 token 就丢失核心关系和设定")
         # ── ContextWeaver：把参数编织成处境叙事 ──────────────────────
         try:
