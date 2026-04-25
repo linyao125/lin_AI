@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import time
+
+import httpx
 from pathlib import Path
 from typing import Any
 
@@ -743,7 +745,7 @@ async def update_scene():
 
 @api_router.post("/tts/synthesize")
 async def tts_synthesize(request: Request):
-    from app.services.tts import openai_tts, edge_tts_generate, fish_tts
+    from app.services.tts import openai_tts, edge_tts_generate
 
     body = await request.json()
     text = body.get("text", "").strip()
@@ -777,13 +779,22 @@ async def tts_synthesize(request: Request):
                 text, voice, api_key, "https://api.openai.com", s.get("proxy_url")
             )
         elif provider == "fish":
+            from app.services.tts import minimax_tts, fish_tts
+
             api_key = (s.get("fish_tts_key") or "").strip()
-            model_id = s.get("fish_model_id", "")
+            tts_provider = s.get("fish_tts_provider") or "minimax"
+            voice_id = s.get("fish_model_id") or ""
             speed = float(s.get("fish_speed", 1.0))
-            pitch = int(s.get("fish_pitch", 0) or 0)
-            volume = int(s.get("fish_volume", 100) or 100)
-            emotion = s.get("fish_emotion", "auto") or "auto"
-            audio = await fish_tts(text, api_key, model_id, speed, pitch, volume, emotion)
+            if tts_provider == "fish":
+                audio = await fish_tts(text, api_key, voice_id, speed)
+            else:
+                pitch = int(s.get("fish_pitch", 0) or 0)
+                volume = float(s.get("fish_volume", 100) or 100) / 100.0
+                emotion = s.get("fish_emotion", "neutral") or "neutral"
+                model = s.get("fish_tts_model") or "speech-02-hd"
+                if not voice_id:
+                    voice_id = "Calm_Woman"
+                audio = await minimax_tts(text, api_key, voice_id, speed, pitch, volume, emotion, model)
         else:
             voice = body.get("voice") or s.get("edge_voice", "zh-CN-XiaoxiaoNeural")
             rate = body.get("rate") or s.get("edge_rate", "+0%")
@@ -799,17 +810,88 @@ async def tts_synthesize(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@api_router.get("/tts/fish/voices")
-async def fish_voices():
-    """拉取 Fish Audio 账号音色列表"""
-    from app.services.tts import fish_tts_list_voices
-
-    s = settings_service.get_frontend_settings()
-    key = (s.get("fish_tts_key") or "").strip()
-    if not key:
-        raise HTTPException(status_code=400, detail="未填写 Fish Audio API Key")
-    try:
-        voices = await fish_tts_list_voices(key)
+@api_router.get("/tts/third/voices")
+async def third_party_voices(provider: str = "minimax"):
+    """拉取第三方TTS音色列表"""
+    if provider == "minimax":
+        voices = [
+            {"id": "Calm_Woman", "title": "温柔女声"},
+            {"id": "Energetic_Man", "title": "活力男声"},
+            {"id": "Gentle_Man", "title": "温和男声"},
+            {"id": "Lively_Girl", "title": "活泼女声"},
+            {"id": "Sweet_Girl", "title": "甜美女声"},
+            {"id": "Deep_Voice_Man", "title": "低沉男声"},
+            {"id": "Cute_Boy", "title": "阳光男孩"},
+            {"id": "Charming_Lady", "title": "知性女声"},
+        ]
         return {"ok": True, "voices": voices}
+    elif provider == "fish":
+        s = settings_service.get_frontend_settings()
+        key = (s.get("fish_tts_key") or "").strip()
+        if not key:
+            return {"ok": False, "error": "未填写 Fish Audio API Key"}
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                r = await client.get(
+                    "https://api.fish.audio/model",
+                    headers={"Authorization": f"Bearer {key}"},
+                    params={"self": "true", "page_size": 50},
+                )
+                r.raise_for_status()
+                data = r.json()
+                items = data.get("items", [])
+                voices = [{"id": m["_id"], "title": m.get("title", m["_id"])} for m in items]
+            return {"ok": True, "voices": voices}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+    else:
+        return {"ok": False, "error": "未知服务商"}
+
+
+@api_router.post("/image/generate")
+async def image_generate(request: Request):
+    body = await request.json()
+    mode = body.get("mode", "free")
+    prompt = body.get("prompt", "")
+    model = body.get("model", "dall-e-3")
+    base_url = (body.get("base_url") or "https://api.openai.com").rstrip("/")
+    api_key = body.get("api_key") or ""
+
+    if mode == "free":
+        # 免费模式由前端 Puter.js 直接调用，后端不处理
+        return {"ok": False, "error": "免费模式请从前端直接调用"}
+
+    if not api_key:
+        s = settings_service.get_frontend_settings()
+        if mode == "official":
+            api_key = (s.get("api_key") or "").strip()
+            base_url = (s.get("image_base_url") or "https://api.openai.com").rstrip("/")
+            model = s.get("image_model") or "dall-e-3"
+        else:
+            api_key = (s.get("image_api_key") or "").strip()
+            base_url = (s.get("image_base_url") or "").rstrip("/")
+            model = s.get("image_model") or model
+
+    if not api_key:
+        return {"ok": False, "error": "未配置 API Key"}
+
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            r = await client.post(
+                f"{base_url}/v1/images/generations",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": model, "prompt": prompt, "n": 1, "size": "1024x1024"},
+            )
+            data = r.json()
+            if r.status_code != 200:
+                err = data.get("error")
+                err_msg = (
+                    err.get("message", r.text[:200])
+                    if isinstance(err, dict)
+                    else (err if err is not None else r.text[:200])
+                )
+                return {"ok": False, "error": err_msg}
+            url = data["data"][0].get("url", "")
+            return {"ok": True, "url": url}
     except Exception as e:
         return {"ok": False, "error": str(e)}

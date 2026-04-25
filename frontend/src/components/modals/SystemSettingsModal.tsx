@@ -440,6 +440,13 @@ type VoiceForm = {
   fish_pitch?: number;
   fish_volume?: number;
   fish_emotion?: string;
+  fish_tts_model?: string;
+  fish_tts_provider?: string;
+  image_enabled?: boolean;
+  image_mode?: string;
+  image_base_url?: string;
+  image_api_key?: string;
+  image_model?: string;
   primary_model?: string;
 };
 
@@ -450,6 +457,11 @@ function VoiceSettings() {
   const [fishVoices, setFishVoices] = useState<{ id: string; title: string }[]>([]);
   const [fishVoiceLoading, setFishVoiceLoading] = useState(false);
   const [fishVoiceErr, setFishVoiceErr] = useState("");
+  const [showFishKey, setShowFishKey] = useState(false);
+  const [imgTestState, setImgTestState] = useState<"idle" | "loading" | "ok" | "err">("idle");
+  const [imgResultUrl, setImgResultUrl] = useState("");
+  const [imgErrMsg, setImgErrMsg] = useState("");
+  const [imgPrompt, setImgPrompt] = useState("一只可爱的猫咪坐在窗边看雨");
   const [form, setForm] = useState<VoiceForm>({
     tts_enabled: false,
     tts_mode: "edge",
@@ -467,7 +479,14 @@ function VoiceSettings() {
     fish_speed: 1,
     fish_pitch: 0,
     fish_volume: 100,
-    fish_emotion: "auto",
+    fish_emotion: "neutral",
+    fish_tts_model: "speech-02-hd",
+    fish_tts_provider: "minimax",
+    image_enabled: false,
+    image_mode: "free",
+    image_base_url: "",
+    image_api_key: "",
+    image_model: "flux-schnell",
   });
 
   useEffect(() => {
@@ -491,7 +510,14 @@ function VoiceSettings() {
         fish_speed: typeof s.fish_speed === "number" ? s.fish_speed : Number(s.fish_speed) || 1,
         fish_pitch: typeof s.fish_pitch === "number" ? s.fish_pitch : Number(s.fish_pitch) || 0,
         fish_volume: typeof s.fish_volume === "number" ? s.fish_volume : Number(s.fish_volume) || 100,
-        fish_emotion: (s.fish_emotion as string) || "auto",
+        fish_emotion: (s.fish_emotion as string) || "neutral",
+        fish_tts_model: (s.fish_tts_model as string) || "speech-02-hd",
+        fish_tts_provider: (s.fish_tts_provider as string) || "minimax",
+        image_enabled: !!s.image_enabled,
+        image_mode: (s.image_mode as string) || "free",
+        image_base_url: (s.image_base_url as string) || "",
+        image_api_key: (s.image_api_key as string) || "",
+        image_model: (s.image_model as string) || "flux-schnell",
       });
       setEdgeGender(voiceToEdgeGender(ev));
     });
@@ -517,7 +543,9 @@ function VoiceSettings() {
     setFishVoiceLoading(true);
     setFishVoiceErr("");
     try {
-      const res = await fetch("/api/tts/fish/voices");
+      const res = await fetch(
+        `/api/tts/third/voices?provider=${encodeURIComponent(form.fish_tts_provider || "minimax")}`,
+      );
       const data = await res.json();
       if (data.ok) {
         setFishVoices(data.voices);
@@ -756,9 +784,33 @@ function VoiceSettings() {
                   }`}
                   style={{ minHeight: "340px" }}
                 >
-                  <PanelHeader id="fish" title="自设 TTS" active={activePanel === "fish"} />
+                  <PanelHeader id="fish" title="MiniMax TTS" active={activePanel === "fish"} />
                   {activePanel === "fish" && (
                     <div className="px-4 pb-4 space-y-2">
+                      <div className="flex gap-1">
+                        {(
+                          [
+                            { id: "minimax", label: "MiniMax" },
+                            { id: "fish", label: "Fish Audio" },
+                          ] as const
+                        ).map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            className={`flex-1 text-xs py-1 rounded-lg border transition-colors ${
+                              (form.fish_tts_provider || "minimax") === p.id
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border text-muted-foreground"
+                            }`}
+                            onClick={() => {
+                              void saveSingle("fish_tts_provider", p.id);
+                              setFishVoices([]);
+                            }}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
                       <input
                         type="password"
                         className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
@@ -766,18 +818,6 @@ function VoiceSettings() {
                         value={form.fish_tts_key || ""}
                         onChange={(e) => void saveSingle("fish_tts_key", e.target.value)}
                       />
-                      <button
-                        type="button"
-                        className="w-full text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors"
-                        onClick={() => {
-                          if (!form.fish_tts_key?.trim()) return;
-                          void synthesizeTTS({ text: "你好，我是叮咚，很高兴认识你。", mode: "fish" }).then(
-                            (url) => new Audio(url).play(),
-                          );
-                        }}
-                      >
-                        ▷ 试听
-                      </button>
                       {/* 音色同步 */}
                       <div className="flex gap-1">
                         <button
@@ -786,7 +826,7 @@ function VoiceSettings() {
                           disabled={fishVoiceLoading}
                           onClick={fetchFishVoices}
                         >
-                          {fishVoiceLoading ? "同步中…" : "↻ 同步音色"}
+                          {fishVoiceLoading ? "加载中…" : "↻ 加载音色列表"}
                         </button>
                         {fishVoiceErr && (
                           <span className="text-xs text-red-500 self-center">{fishVoiceErr}</span>
@@ -832,52 +872,78 @@ function VoiceSettings() {
                           {(form.fish_speed || 1).toFixed(1)}x
                         </span>
                       </div>
-                      {/* 音调 */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground w-6">音调</span>
-                        <input
-                          type="range"
-                          min={-10}
-                          max={10}
-                          step={1}
-                          value={form.fish_pitch || 0}
-                          onChange={(e) => void saveSingle("fish_pitch", Number(e.target.value))}
-                          className="flex-1 h-1"
-                        />
-                        <span className="text-xs w-10 shrink-0 text-right tabular-nums">
-                          {(form.fish_pitch || 0) > 0 ? `+${form.fish_pitch}` : form.fish_pitch}
-                        </span>
-                      </div>
-                      {/* 音量 */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground w-6">音量</span>
-                        <input
-                          type="range"
-                          min={50}
-                          max={150}
-                          step={5}
-                          value={form.fish_volume || 100}
-                          onChange={(e) => void saveSingle("fish_volume", Number(e.target.value))}
-                          className="flex-1 h-1"
-                        />
-                        <span className="text-xs w-10 shrink-0 text-right tabular-nums">
-                          {form.fish_volume || 100}%
-                        </span>
-                      </div>
-                      {/* 情感风格 */}
-                      <select
-                        className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
-                        value={form.fish_emotion || "auto"}
-                        onChange={(e) => void saveSingle("fish_emotion", e.target.value)}
+                      {(form.fish_tts_provider || "minimax") === "minimax" && (
+                        <>
+                          {/* 音调 */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground w-6">音调</span>
+                            <input
+                              type="range"
+                              min={-10}
+                              max={10}
+                              step={1}
+                              value={form.fish_pitch || 0}
+                              onChange={(e) => void saveSingle("fish_pitch", Number(e.target.value))}
+                              className="flex-1 h-1"
+                            />
+                            <span className="text-xs w-10 shrink-0 text-right tabular-nums">
+                              {(form.fish_pitch || 0) > 0 ? `+${form.fish_pitch}` : form.fish_pitch}
+                            </span>
+                          </div>
+                          {/* 音量 */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground w-6">音量</span>
+                            <input
+                              type="range"
+                              min={50}
+                              max={150}
+                              step={5}
+                              value={form.fish_volume || 100}
+                              onChange={(e) => void saveSingle("fish_volume", Number(e.target.value))}
+                              className="flex-1 h-1"
+                            />
+                            <span className="text-xs w-10 shrink-0 text-right tabular-nums">
+                              {form.fish_volume || 100}%
+                            </span>
+                          </div>
+                          {/* 情感风格 */}
+                          <select
+                            className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                            value={form.fish_emotion || "neutral"}
+                            onChange={(e) => void saveSingle("fish_emotion", e.target.value)}
+                          >
+                            <option value="neutral">中性</option>
+                            <option value="happy">开心</option>
+                            <option value="sad">悲伤</option>
+                            <option value="angry">愤怒</option>
+                            <option value="fearful">恐惧</option>
+                            <option value="disgusted">厌恶</option>
+                            <option value="surprised">惊讶</option>
+                          </select>
+                          <select
+                            className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                            value={form.fish_tts_model || "speech-02-hd"}
+                            onChange={(e) => void saveSingle("fish_tts_model", e.target.value)}
+                          >
+                            <option value="speech-02-hd">speech-02-hd（高质量）</option>
+                            <option value="speech-02-turbo">speech-02-turbo（快速）</option>
+                            <option value="speech-2.6-hd">speech-2.6-hd（最新）</option>
+                            <option value="speech-2.6-turbo">speech-2.6-turbo（最新快速）</option>
+                          </select>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        className="w-full text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors"
+                        onClick={() => {
+                          if (!form.fish_tts_key?.trim()) return;
+                          void synthesizeTTS({ text: "你好，我是叮咚，很高兴认识你。", mode: "fish" }).then(
+                            (url) => new Audio(url).play(),
+                          );
+                        }}
                       >
-                        <option value="auto">自动情感</option>
-                        <option value="happy">开心</option>
-                        <option value="sad">悲伤</option>
-                        <option value="angry">愤怒</option>
-                        <option value="fearful">恐惧</option>
-                        <option value="disgusted">厌恶</option>
-                        <option value="surprised">惊讶</option>
-                      </select>
+                        ▷ 试听
+                      </button>
                     </div>
                   )}
                 </div>
@@ -886,32 +952,219 @@ function VoiceSettings() {
           })()
         : null}
 
-      {/* 图片生成区块，结构同语音 */}
+      {/* 图片生成区块 */}
       <div className="mt-6">
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className="text-sm font-medium">图片生成</p>
-            <p className="text-xs text-muted-foreground">AI生成图片能力</p>
+            <p className="text-xs text-muted-foreground">朋友圈配图、AI换头像、用户绘图</p>
           </div>
-          {/* 开关占位，功能后续接入 */}
-          <Switch disabled checked={false} />
+          <Switch
+            checked={!!form.image_enabled}
+            onCheckedChange={(v) => void saveSingle("image_enabled", v)}
+          />
         </div>
-        <div className="flex gap-3 opacity-40 pointer-events-none">
-          <div className="flex-1 border rounded-xl p-4">
-            <p className="text-xs font-medium mb-1">官方</p>
-            <p className="text-xs text-muted-foreground mb-2">DALL·E 3 / GPT-Image</p>
-            <input
-              className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
-              placeholder="中转地址 https://api.openai.com"
-            />
-          </div>
-          <div className="flex-1 border rounded-xl p-4">
-            <p className="text-xs font-medium mb-1">
-              第三方 <span className="text-green-600 text-xs">即将支持</span>
-            </p>
-            <p className="text-xs text-muted-foreground">Stable Diffusion / Flux</p>
-          </div>
-        </div>
+
+        {form.image_enabled &&
+          (() => {
+            const activeImg = form.image_mode || "free";
+            const apiKey = form.openai_tts_key || "";
+            const isNativeOpenAI = apiKey.startsWith("sk-") && !apiKey.includes("or-v1");
+
+            const ImgPanelHeader = ({
+              id,
+              title,
+              badge,
+              active,
+            }: {
+              id: string;
+              title: string;
+              badge?: ReactNode;
+              active: boolean;
+            }) => (
+              <button
+                type="button"
+                className={`w-full flex items-center justify-between px-4 py-3 transition-colors rounded-t-xl ${active ? "bg-primary/5" : "hover:bg-muted/50"}`}
+                onClick={() => void saveSingle("image_mode", id)}
+              >
+                <span className="text-xs font-medium flex items-center gap-2">
+                  {title}
+                  {badge}
+                </span>
+                <span className="text-xs text-muted-foreground">{active ? "▾" : "▸"}</span>
+              </button>
+            );
+
+            const handleImgTest = async () => {
+              setImgTestState("loading");
+              setImgResultUrl("");
+              setImgErrMsg("");
+
+              // 免费模式用 Puter.js 前端直接调用
+              if (activeImg === "free") {
+                try {
+                  const puter = (window as any).puter;
+                  if (!puter) {
+                    setImgErrMsg("Puter.js未加载，请刷新页面重试");
+                    setImgTestState("err");
+                    return;
+                  }
+                  const img = await puter.ai.txt2img(imgPrompt, { model: form.image_model || "flux-schnell" });
+                  setImgResultUrl(img.src);
+                  setImgTestState("ok");
+                } catch (e: unknown) {
+                  setImgErrMsg(e instanceof Error ? e.message : "生成失败");
+                  setImgTestState("err");
+                }
+                return;
+              }
+
+              try {
+                const res = await fetch("/api/image/generate", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    prompt: imgPrompt,
+                    mode: activeImg,
+                    model: form.image_model,
+                    base_url: form.image_base_url,
+                    api_key: form.image_api_key,
+                  }),
+                });
+                const data = await res.json();
+                if (data.ok && data.url) {
+                  setImgResultUrl(data.url);
+                  setImgTestState("ok");
+                } else {
+                  setImgErrMsg(data.error || "生成失败");
+                  setImgTestState("err");
+                }
+              } catch (e: unknown) {
+                setImgErrMsg(e instanceof Error ? e.message : String(e));
+                setImgTestState("err");
+              }
+            };
+
+            return (
+              <div className="space-y-3">
+                <div className="flex gap-2 items-stretch">
+                  {/* 免费 */}
+                  <div
+                    className={`flex-1 border rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${activeImg === "free" ? "flex-[2]" : "flex-[0.6] opacity-60"}`}
+                    style={{ minHeight: "200px" }}
+                  >
+                    <ImgPanelHeader
+                      id="free"
+                      title="免费"
+                      badge={<span className="text-green-600 text-xs">Flux</span>}
+                      active={activeImg === "free"}
+                    />
+                    {activeImg === "free" && (
+                      <div className="px-4 pb-4 space-y-2">
+                        <p className="text-xs text-muted-foreground">无需注册，直接生成</p>
+                        <select
+                          className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                          value={form.image_model || "flux-schnell"}
+                          onChange={(e) => void saveSingle("image_model", e.target.value)}
+                        >
+                          <option value="flux-schnell">Flux Schnell（快速）</option>
+                          <option value="stable-diffusion-xl-base-1.0">Stable Diffusion XL</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 官方 */}
+                  <div
+                    className={`flex-1 border rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${activeImg === "official" ? "flex-[2]" : "flex-[0.6] opacity-60"}`}
+                    style={{ minHeight: "200px" }}
+                  >
+                    <ImgPanelHeader id="official" title="官方 DALL·E" active={activeImg === "official"} />
+                    {activeImg === "official" && (
+                      <div className="px-4 pb-4 space-y-2">
+                        {isNativeOpenAI ? (
+                          <>
+                            <p className="text-xs text-muted-foreground">已检测到 OpenAI 原生 Key</p>
+                            <select
+                              className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                              value={form.image_model || "dall-e-3"}
+                              onChange={(e) => void saveSingle("image_model", e.target.value)}
+                            >
+                              <option value="dall-e-3">DALL·E 3（高质量）</option>
+                              <option value="dall-e-2">DALL·E 2（快速）</option>
+                            </select>
+                            <input
+                              className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                              placeholder="中转地址（默认 https://api.openai.com）"
+                              value={form.image_base_url || ""}
+                              onChange={(e) => void saveSingle("image_base_url", e.target.value)}
+                            />
+                          </>
+                        ) : (
+                          <p className="text-xs text-muted-foreground py-2">需要 OpenAI 原生 Key（API设置里填 sk- 开头的Key）</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 自设 */}
+                  <div
+                    className={`flex-1 border rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${activeImg === "custom" ? "flex-[2]" : "flex-[0.6] opacity-60"}`}
+                    style={{ minHeight: "200px" }}
+                  >
+                    <ImgPanelHeader id="custom" title="自设" active={activeImg === "custom"} />
+                    {activeImg === "custom" && (
+                      <div className="px-4 pb-4 space-y-2">
+                        <input
+                          type="password"
+                          className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                          placeholder="API Key"
+                          value={form.image_api_key || ""}
+                          onChange={(e) => void saveSingle("image_api_key", e.target.value)}
+                        />
+                        <input
+                          className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                          placeholder="接口地址 https://..."
+                          value={form.image_base_url || ""}
+                          onChange={(e) => void saveSingle("image_base_url", e.target.value)}
+                        />
+                        <input
+                          className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                          placeholder="模型名称 如 dall-e-3"
+                          value={form.image_model || ""}
+                          onChange={(e) => void saveSingle("image_model", e.target.value)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 测试区 */}
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      className="flex-1 text-xs h-8 rounded-lg border border-border bg-background px-2"
+                      placeholder="测试提示词"
+                      value={imgPrompt}
+                      onChange={(e) => setImgPrompt(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="text-xs px-3 h-8 rounded-lg border border-border hover:bg-muted transition-colors"
+                      disabled={imgTestState === "loading"}
+                      onClick={handleImgTest}
+                    >
+                      {imgTestState === "loading" ? "生成中…" : "▷ 测试生成"}
+                    </button>
+                  </div>
+                  {imgTestState === "ok" && imgResultUrl && (
+                    <img src={imgResultUrl} alt="生成结果" className="rounded-lg max-h-48 object-contain border w-full" />
+                  )}
+                  {imgTestState === "err" && <p className="text-xs text-red-500">{imgErrMsg}</p>}
+                </div>
+              </div>
+            );
+          })()}
       </div>
     </div>
   );

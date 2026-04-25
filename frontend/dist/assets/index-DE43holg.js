@@ -52202,6 +52202,9 @@ function VoiceSettings() {
   const speakTimerRef = reactExports.useRef(null);
   const voiceSettingsPanelRef = reactExports.useRef(null);
   const [edgeGender, setEdgeGender] = reactExports.useState("female");
+  const [fishVoices, setFishVoices] = reactExports.useState([]);
+  const [fishVoiceLoading, setFishVoiceLoading] = reactExports.useState(false);
+  const [fishVoiceErr, setFishVoiceErr] = reactExports.useState("");
   const [form, setForm] = reactExports.useState({
     tts_enabled: false,
     tts_mode: "edge",
@@ -52216,7 +52219,12 @@ function VoiceSettings() {
     openai_tts_key: "",
     fish_tts_key: "",
     fish_model_id: "",
-    fish_speed: 1
+    fish_speed: 1,
+    fish_pitch: 0,
+    fish_volume: 100,
+    fish_emotion: "neutral",
+    fish_tts_model: "speech-02-hd",
+    fish_tts_provider: "minimax"
   });
   reactExports.useEffect(() => {
     void loadSettings().then((s) => {
@@ -52236,7 +52244,12 @@ function VoiceSettings() {
         openai_tts_key: s.openai_tts_key || "",
         fish_tts_key: s.fish_tts_key || "",
         fish_model_id: s.fish_model_id || "",
-        fish_speed: typeof s.fish_speed === "number" ? s.fish_speed : Number(s.fish_speed) || 1
+        fish_speed: typeof s.fish_speed === "number" ? s.fish_speed : Number(s.fish_speed) || 1,
+        fish_pitch: typeof s.fish_pitch === "number" ? s.fish_pitch : Number(s.fish_pitch) || 0,
+        fish_volume: typeof s.fish_volume === "number" ? s.fish_volume : Number(s.fish_volume) || 100,
+        fish_emotion: s.fish_emotion || "neutral",
+        fish_tts_model: s.fish_tts_model || "speech-02-hd",
+        fish_tts_provider: s.fish_tts_provider || "minimax"
       });
       setEdgeGender(voiceToEdgeGender(ev));
     });
@@ -52250,6 +52263,33 @@ function VoiceSettings() {
   const saveSingle = async (key, value) => {
     await saveSettings({ [key]: value });
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+  const fetchFishVoices = async () => {
+    var _a3;
+    if (!((_a3 = form.fish_tts_key) == null ? void 0 : _a3.trim())) {
+      setFishVoiceErr("请先填写 API Key");
+      return;
+    }
+    setFishVoiceLoading(true);
+    setFishVoiceErr("");
+    try {
+      const res = await fetch(
+        `/api/tts/third/voices?provider=${encodeURIComponent(form.fish_tts_provider || "minimax")}`
+      );
+      const data2 = await res.json();
+      if (data2.ok) {
+        setFishVoices(data2.voices);
+        if (data2.voices.length > 0 && !form.fish_model_id) {
+          void saveSingle("fish_model_id", data2.voices[0].id);
+        }
+      } else {
+        setFishVoiceErr(data2.error || "拉取失败");
+      }
+    } catch (e) {
+      setFishVoiceErr(e.message);
+    } finally {
+      setFishVoiceLoading(false);
+    }
   };
   const handlePreview = (text) => {
     if (speakTimerRef.current) clearTimeout(speakTimerRef.current);
@@ -52443,25 +52483,65 @@ function VoiceSettings() {
             className: `flex-1 border rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${activePanel === "fish" ? "flex-[2]" : "flex-[0.6] opacity-60"}`,
             style: { minHeight: "340px" },
             children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(PanelHeader, { id: "fish", title: "自设 TTS", active: activePanel === "fish" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(PanelHeader, { id: "fish", title: "MiniMax TTS", active: activePanel === "fish" }),
               activePanel === "fish" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 pb-4 space-y-2", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground", children: "Fish Audio 自定义声音" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1", children: [
+                  { id: "minimax", label: "MiniMax" },
+                  { id: "fish", label: "Fish Audio" }
+                ].map((p2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    className: `flex-1 text-xs py-1 rounded-lg border transition-colors ${(form.fish_tts_provider || "minimax") === p2.id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`,
+                    onClick: () => {
+                      void saveSingle("fish_tts_provider", p2.id);
+                      setFishVoices([]);
+                    },
+                    children: p2.label
+                  },
+                  p2.id
+                )) }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx(
                   "input",
                   {
                     type: "password",
                     className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
-                    placeholder: "Fish Audio API Key",
+                    placeholder: "第三方 API Key",
                     value: form.fish_tts_key || "",
                     onChange: (e) => void saveSingle("fish_tts_key", e.target.value)
                   }
                 ),
-                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "button",
+                    {
+                      type: "button",
+                      className: "flex-1 text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors",
+                      disabled: fishVoiceLoading,
+                      onClick: fetchFishVoices,
+                      children: fishVoiceLoading ? "加载中…" : "↻ 加载音色列表"
+                    }
+                  ),
+                  fishVoiceErr && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-red-500 self-center", children: fishVoiceErr })
+                ] }),
+                fishVoices.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "select",
+                  {
+                    className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                    value: form.fish_model_id || "",
+                    onChange: (e) => void saveSingle("fish_model_id", e.target.value),
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "默认音色" }),
+                      fishVoices.map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2.id, children: v2.title }, v2.id))
+                    ]
+                  }
+                ),
+                fishVoices.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
                   "input",
                   {
                     type: "text",
                     className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
-                    placeholder: "声音模型 ID（留空用默认）",
+                    placeholder: "声音模型 ID（同步后自动填充）",
                     value: form.fish_model_id || "",
                     onChange: (e) => void saveSingle("fish_model_id", e.target.value)
                   }
@@ -52484,6 +52564,74 @@ function VoiceSettings() {
                     (form.fish_speed || 1).toFixed(1),
                     "x"
                   ] })
+                ] }),
+                (form.fish_tts_provider || "minimax") === "minimax" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-muted-foreground w-6", children: "音调" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "input",
+                      {
+                        type: "range",
+                        min: -10,
+                        max: 10,
+                        step: 1,
+                        value: form.fish_pitch || 0,
+                        onChange: (e) => void saveSingle("fish_pitch", Number(e.target.value)),
+                        className: "flex-1 h-1"
+                      }
+                    ),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs w-10 shrink-0 text-right tabular-nums", children: (form.fish_pitch || 0) > 0 ? `+${form.fish_pitch}` : form.fish_pitch })
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-muted-foreground w-6", children: "音量" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "input",
+                      {
+                        type: "range",
+                        min: 50,
+                        max: 150,
+                        step: 5,
+                        value: form.fish_volume || 100,
+                        onChange: (e) => void saveSingle("fish_volume", Number(e.target.value)),
+                        className: "flex-1 h-1"
+                      }
+                    ),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs w-10 shrink-0 text-right tabular-nums", children: [
+                      form.fish_volume || 100,
+                      "%"
+                    ] })
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                    "select",
+                    {
+                      className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                      value: form.fish_emotion || "neutral",
+                      onChange: (e) => void saveSingle("fish_emotion", e.target.value),
+                      children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "neutral", children: "中性" }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "happy", children: "开心" }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "sad", children: "悲伤" }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "angry", children: "愤怒" }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "fearful", children: "恐惧" }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "disgusted", children: "厌恶" }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "surprised", children: "惊讶" })
+                      ]
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                    "select",
+                    {
+                      className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                      value: form.fish_tts_model || "speech-02-hd",
+                      onChange: (e) => void saveSingle("fish_tts_model", e.target.value),
+                      children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "speech-02-hd", children: "speech-02-hd（高质量）" }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "speech-02-turbo", children: "speech-02-turbo（快速）" }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "speech-2.6-hd", children: "speech-2.6-hd（最新）" }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "speech-2.6-turbo", children: "speech-2.6-turbo（最新快速）" })
+                      ]
+                    }
+                  )
                 ] }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx(
                   "button",
