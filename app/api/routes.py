@@ -780,7 +780,10 @@ async def tts_synthesize(request: Request):
             api_key = (s.get("fish_tts_key") or "").strip()
             model_id = s.get("fish_model_id", "")
             speed = float(s.get("fish_speed", 1.0))
-            audio = await fish_tts(text, api_key, model_id, speed)
+            pitch = int(s.get("fish_pitch", 0) or 0)
+            volume = int(s.get("fish_volume", 100) or 100)
+            emotion = s.get("fish_emotion", "auto") or "auto"
+            audio = await fish_tts(text, api_key, model_id, speed, pitch, volume, emotion)
         else:
             voice = body.get("voice") or s.get("edge_voice", "zh-CN-XiaoxiaoNeural")
             rate = body.get("rate") or s.get("edge_rate", "+0%")
@@ -794,3 +797,19 @@ async def tts_synthesize(request: Request):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/tts/fish/voices")
+async def fish_voices():
+    """拉取 Fish Audio 账号音色列表"""
+    from app.services.tts import fish_tts_list_voices
+
+    s = settings_service.get_frontend_settings()
+    key = (s.get("fish_tts_key") or "").strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="未填写 Fish Audio API Key")
+    try:
+        voices = await fish_tts_list_voices(key)
+        return {"ok": True, "voices": voices}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}

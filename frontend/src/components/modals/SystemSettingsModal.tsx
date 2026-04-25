@@ -437,6 +437,9 @@ type VoiceForm = {
   fish_tts_key?: string;
   fish_model_id?: string;
   fish_speed?: number;
+  fish_pitch?: number;
+  fish_volume?: number;
+  fish_emotion?: string;
   primary_model?: string;
 };
 
@@ -444,6 +447,9 @@ function VoiceSettings() {
   const speakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voiceSettingsPanelRef = useRef<HTMLDivElement | null>(null);
   const [edgeGender, setEdgeGender] = useState<"female" | "male">("female");
+  const [fishVoices, setFishVoices] = useState<{ id: string; title: string }[]>([]);
+  const [fishVoiceLoading, setFishVoiceLoading] = useState(false);
+  const [fishVoiceErr, setFishVoiceErr] = useState("");
   const [form, setForm] = useState<VoiceForm>({
     tts_enabled: false,
     tts_mode: "edge",
@@ -459,6 +465,9 @@ function VoiceSettings() {
     fish_tts_key: "",
     fish_model_id: "",
     fish_speed: 1,
+    fish_pitch: 0,
+    fish_volume: 100,
+    fish_emotion: "auto",
   });
 
   useEffect(() => {
@@ -480,6 +489,9 @@ function VoiceSettings() {
         fish_tts_key: (s.fish_tts_key as string) || "",
         fish_model_id: (s.fish_model_id as string) || "",
         fish_speed: typeof s.fish_speed === "number" ? s.fish_speed : Number(s.fish_speed) || 1,
+        fish_pitch: typeof s.fish_pitch === "number" ? s.fish_pitch : Number(s.fish_pitch) || 0,
+        fish_volume: typeof s.fish_volume === "number" ? s.fish_volume : Number(s.fish_volume) || 100,
+        fish_emotion: (s.fish_emotion as string) || "auto",
       });
       setEdgeGender(voiceToEdgeGender(ev));
     });
@@ -495,6 +507,31 @@ function VoiceSettings() {
   const saveSingle = async (key: string, value: unknown) => {
     await saveSettings({ [key]: value });
     setForm((prev) => ({ ...prev, [key]: value } as VoiceForm));
+  };
+
+  const fetchFishVoices = async () => {
+    if (!form.fish_tts_key?.trim()) {
+      setFishVoiceErr("请先填写 API Key");
+      return;
+    }
+    setFishVoiceLoading(true);
+    setFishVoiceErr("");
+    try {
+      const res = await fetch("/api/tts/fish/voices");
+      const data = await res.json();
+      if (data.ok) {
+        setFishVoices(data.voices);
+        if (data.voices.length > 0 && !form.fish_model_id) {
+          void saveSingle("fish_model_id", data.voices[0].id);
+        }
+      } else {
+        setFishVoiceErr(data.error || "拉取失败");
+      }
+    } catch (e: any) {
+      setFishVoiceErr(e.message);
+    } finally {
+      setFishVoiceLoading(false);
+    }
   };
 
   const handlePreview = (text: string) => {
@@ -722,21 +759,61 @@ function VoiceSettings() {
                   <PanelHeader id="fish" title="自设 TTS" active={activePanel === "fish"} />
                   {activePanel === "fish" && (
                     <div className="px-4 pb-4 space-y-2">
-                      <p className="text-xs text-muted-foreground">Fish Audio 自定义声音</p>
+                      <a
+                        href="https://fish.audio/zh-CN/go-api/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary underline"
+                      >
+                        注册 Fish Audio → 获取 API Key
+                      </a>
+                      {/* API Key */}
                       <input
                         type="password"
                         className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
-                        placeholder="Fish Audio API Key"
+                        placeholder="Fish Audio API Key（sk-...）"
                         value={form.fish_tts_key || ""}
                         onChange={(e) => void saveSingle("fish_tts_key", e.target.value)}
                       />
-                      <input
-                        type="text"
-                        className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
-                        placeholder="声音模型 ID（留空用默认）"
-                        value={form.fish_model_id || ""}
-                        onChange={(e) => void saveSingle("fish_model_id", e.target.value)}
-                      />
+                      {/* 音色同步 */}
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          className="flex-1 text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors"
+                          disabled={fishVoiceLoading}
+                          onClick={fetchFishVoices}
+                        >
+                          {fishVoiceLoading ? "同步中…" : "↻ 同步音色"}
+                        </button>
+                        {fishVoiceErr && (
+                          <span className="text-xs text-red-500 self-center">{fishVoiceErr}</span>
+                        )}
+                      </div>
+                      {/* 音色下拉 */}
+                      {fishVoices.length > 0 && (
+                        <select
+                          className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                          value={form.fish_model_id || ""}
+                          onChange={(e) => void saveSingle("fish_model_id", e.target.value)}
+                        >
+                          <option value="">默认音色</option>
+                          {fishVoices.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.title}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      {fishVoices.length === 0 && (
+                        <input
+                          type="text"
+                          className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                          placeholder="声音模型 ID（同步后自动填充）"
+                          value={form.fish_model_id || ""}
+                          onChange={(e) => void saveSingle("fish_model_id", e.target.value)}
+                        />
+                      )}
+                      {/* 语速 */}
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground w-6">语速</span>
                         <input
@@ -752,13 +829,60 @@ function VoiceSettings() {
                           {(form.fish_speed || 1).toFixed(1)}x
                         </span>
                       </div>
+                      {/* 音调 */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-6">音调</span>
+                        <input
+                          type="range"
+                          min={-10}
+                          max={10}
+                          step={1}
+                          value={form.fish_pitch || 0}
+                          onChange={(e) => void saveSingle("fish_pitch", Number(e.target.value))}
+                          className="flex-1 h-1"
+                        />
+                        <span className="text-xs w-10 shrink-0 text-right tabular-nums">
+                          {(form.fish_pitch || 0) > 0 ? `+${form.fish_pitch}` : form.fish_pitch}
+                        </span>
+                      </div>
+                      {/* 音量 */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-6">音量</span>
+                        <input
+                          type="range"
+                          min={50}
+                          max={150}
+                          step={5}
+                          value={form.fish_volume || 100}
+                          onChange={(e) => void saveSingle("fish_volume", Number(e.target.value))}
+                          className="flex-1 h-1"
+                        />
+                        <span className="text-xs w-10 shrink-0 text-right tabular-nums">
+                          {form.fish_volume || 100}%
+                        </span>
+                      </div>
+                      {/* 情感风格 */}
+                      <select
+                        className="w-full text-xs h-8 rounded-lg border border-border bg-background px-2"
+                        value={form.fish_emotion || "auto"}
+                        onChange={(e) => void saveSingle("fish_emotion", e.target.value)}
+                      >
+                        <option value="auto">自动情感</option>
+                        <option value="happy">开心</option>
+                        <option value="sad">悲伤</option>
+                        <option value="angry">愤怒</option>
+                        <option value="fearful">恐惧</option>
+                        <option value="disgusted">厌恶</option>
+                        <option value="surprised">惊讶</option>
+                      </select>
+                      {/* 试听 */}
                       <button
                         type="button"
                         className="w-full text-xs h-8 rounded-lg border border-border hover:bg-muted transition-colors"
                         onClick={() => {
                           if (!form.fish_tts_key?.trim()) return;
-                          void synthesizeTTS({ text: "你好，我是叮咚，很高兴认识你。", mode: "fish" }).then((url) =>
-                            new Audio(url).play(),
+                          void synthesizeTTS({ text: "你好，我是叮咚，很高兴认识你。", mode: "fish" }).then(
+                            (url) => new Audio(url).play(),
                           );
                         }}
                       >
