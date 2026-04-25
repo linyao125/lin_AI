@@ -52205,6 +52205,11 @@ function VoiceSettings() {
   const [fishVoices, setFishVoices] = reactExports.useState([]);
   const [fishVoiceLoading, setFishVoiceLoading] = reactExports.useState(false);
   const [fishVoiceErr, setFishVoiceErr] = reactExports.useState("");
+  const [showFishKey, setShowFishKey] = reactExports.useState(false);
+  const [imgTestState, setImgTestState] = reactExports.useState("idle");
+  const [imgResultUrl, setImgResultUrl] = reactExports.useState("");
+  const [imgErrMsg, setImgErrMsg] = reactExports.useState("");
+  const [imgPrompt, setImgPrompt] = reactExports.useState("一只可爱的猫咪坐在窗边看雨");
   const [form, setForm] = reactExports.useState({
     tts_enabled: false,
     tts_mode: "edge",
@@ -52224,7 +52229,12 @@ function VoiceSettings() {
     fish_volume: 100,
     fish_emotion: "neutral",
     fish_tts_model: "speech-02-hd",
-    fish_tts_provider: "minimax"
+    fish_tts_provider: "minimax",
+    image_enabled: false,
+    image_mode: "free",
+    image_base_url: "",
+    image_api_key: "",
+    image_model: "flux-schnell"
   });
   reactExports.useEffect(() => {
     void loadSettings().then((s) => {
@@ -52249,7 +52259,12 @@ function VoiceSettings() {
         fish_volume: typeof s.fish_volume === "number" ? s.fish_volume : Number(s.fish_volume) || 100,
         fish_emotion: s.fish_emotion || "neutral",
         fish_tts_model: s.fish_tts_model || "speech-02-hd",
-        fish_tts_provider: s.fish_tts_provider || "minimax"
+        fish_tts_provider: s.fish_tts_provider || "minimax",
+        image_enabled: !!s.image_enabled,
+        image_mode: s.image_mode || "free",
+        image_base_url: s.image_base_url || "",
+        image_api_key: s.image_api_key || "",
+        image_model: s.image_model || "flux-schnell"
       });
       setEdgeGender(voiceToEdgeGender(ev));
     });
@@ -52658,30 +52673,223 @@ function VoiceSettings() {
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-3", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm font-medium", children: "图片生成" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground", children: "AI生成图片能力" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground", children: "朋友圈配图、AI换头像、用户绘图" })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(Switch, { disabled: true, checked: false })
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Switch,
+          {
+            checked: !!form.image_enabled,
+            onCheckedChange: (v2) => void saveSingle("image_enabled", v2)
+          }
+        )
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3 opacity-40 pointer-events-none", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 border rounded-xl p-4", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs font-medium mb-1", children: "官方" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground mb-2", children: "DALL·E 3 / GPT-Image" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
-              placeholder: "中转地址 https://api.openai.com"
+      form.image_enabled && (() => {
+        const activeImg = form.image_mode || "free";
+        const apiKey = form.openai_tts_key || "";
+        const isNativeOpenAI = apiKey.startsWith("sk-") && !apiKey.includes("or-v1");
+        const ImgPanelHeader = ({
+          id: id2,
+          title,
+          badge,
+          active
+        }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            type: "button",
+            className: `w-full flex items-center justify-between px-4 py-3 transition-colors rounded-t-xl ${active ? "bg-primary/5" : "hover:bg-muted/50"}`,
+            onClick: () => void saveSingle("image_mode", id2),
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs font-medium flex items-center gap-2", children: [
+                title,
+                badge
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-muted-foreground", children: active ? "▾" : "▸" })
+            ]
+          }
+        );
+        const handleImgTest = async () => {
+          setImgTestState("loading");
+          setImgResultUrl("");
+          setImgErrMsg("");
+          if (activeImg === "free") {
+            try {
+              const puter = window.puter;
+              if (!puter) {
+                setImgErrMsg("Puter.js未加载，请刷新页面重试");
+                setImgTestState("err");
+                return;
+              }
+              const img = await puter.ai.txt2img(imgPrompt, { model: form.image_model || "flux-schnell" });
+              setImgResultUrl(img.src);
+              setImgTestState("ok");
+            } catch (e) {
+              setImgErrMsg(e instanceof Error ? e.message : "生成失败");
+              setImgTestState("err");
             }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 border rounded-xl p-4", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs font-medium mb-1", children: [
-            "第三方 ",
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-green-600 text-xs", children: "即将支持" })
+            return;
+          }
+          try {
+            const res = await fetch("/api/image/generate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                prompt: imgPrompt,
+                mode: activeImg,
+                model: form.image_model,
+                base_url: form.image_base_url,
+                api_key: form.image_api_key
+              })
+            });
+            const data2 = await res.json();
+            if (data2.ok && data2.url) {
+              setImgResultUrl(data2.url);
+              setImgTestState("ok");
+            } else {
+              setImgErrMsg(data2.error || "生成失败");
+              setImgTestState("err");
+            }
+          } catch (e) {
+            setImgErrMsg(e instanceof Error ? e.message : String(e));
+            setImgTestState("err");
+          }
+        };
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 items-stretch", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "div",
+              {
+                className: `flex-1 border rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${activeImg === "free" ? "flex-[2]" : "flex-[0.6] opacity-60"}`,
+                style: { minHeight: "200px" },
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    ImgPanelHeader,
+                    {
+                      id: "free",
+                      title: "免费",
+                      badge: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-green-600 text-xs", children: "Flux" }),
+                      active: activeImg === "free"
+                    }
+                  ),
+                  activeImg === "free" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 pb-4 space-y-2", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground", children: "无需注册，直接生成" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                      "select",
+                      {
+                        className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                        value: form.image_model || "flux-schnell",
+                        onChange: (e) => void saveSingle("image_model", e.target.value),
+                        children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "flux-schnell", children: "Flux Schnell（快速）" }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "stable-diffusion-xl-base-1.0", children: "Stable Diffusion XL" })
+                        ]
+                      }
+                    )
+                  ] })
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "div",
+              {
+                className: `flex-1 border rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${activeImg === "official" ? "flex-[2]" : "flex-[0.6] opacity-60"}`,
+                style: { minHeight: "200px" },
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(ImgPanelHeader, { id: "official", title: "官方 DALL·E", active: activeImg === "official" }),
+                  activeImg === "official" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-4 pb-4 space-y-2", children: isNativeOpenAI ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground", children: "已检测到 OpenAI 原生 Key" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                      "select",
+                      {
+                        className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                        value: form.image_model || "dall-e-3",
+                        onChange: (e) => void saveSingle("image_model", e.target.value),
+                        children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "dall-e-3", children: "DALL·E 3（高质量）" }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "dall-e-2", children: "DALL·E 2（快速）" })
+                        ]
+                      }
+                    ),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "input",
+                      {
+                        className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                        placeholder: "中转地址（默认 https://api.openai.com）",
+                        value: form.image_base_url || "",
+                        onChange: (e) => void saveSingle("image_base_url", e.target.value)
+                      }
+                    )
+                  ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground py-2", children: "需要 OpenAI 原生 Key（API设置里填 sk- 开头的Key）" }) })
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "div",
+              {
+                className: `flex-1 border rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${activeImg === "custom" ? "flex-[2]" : "flex-[0.6] opacity-60"}`,
+                style: { minHeight: "200px" },
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(ImgPanelHeader, { id: "custom", title: "自设", active: activeImg === "custom" }),
+                  activeImg === "custom" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 pb-4 space-y-2", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "input",
+                      {
+                        type: "password",
+                        className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                        placeholder: "API Key",
+                        value: form.image_api_key || "",
+                        onChange: (e) => void saveSingle("image_api_key", e.target.value)
+                      }
+                    ),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "input",
+                      {
+                        className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                        placeholder: "接口地址 https://...",
+                        value: form.image_base_url || "",
+                        onChange: (e) => void saveSingle("image_base_url", e.target.value)
+                      }
+                    ),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "input",
+                      {
+                        className: "w-full text-xs h-8 rounded-lg border border-border bg-background px-2",
+                        placeholder: "模型名称 如 dall-e-3",
+                        value: form.image_model || "",
+                        onChange: (e) => void saveSingle("image_model", e.target.value)
+                      }
+                    )
+                  ] })
+                ]
+              }
+            )
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-muted-foreground", children: "Stable Diffusion / Flux" })
-        ] })
-      ] })
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  className: "flex-1 text-xs h-8 rounded-lg border border-border bg-background px-2",
+                  placeholder: "测试提示词",
+                  value: imgPrompt,
+                  onChange: (e) => setImgPrompt(e.target.value)
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  type: "button",
+                  className: "text-xs px-3 h-8 rounded-lg border border-border hover:bg-muted transition-colors",
+                  disabled: imgTestState === "loading",
+                  onClick: handleImgTest,
+                  children: imgTestState === "loading" ? "生成中…" : "▷ 测试生成"
+                }
+              )
+            ] }),
+            imgTestState === "ok" && imgResultUrl && /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: imgResultUrl, alt: "生成结果", className: "rounded-lg max-h-48 object-contain border w-full" }),
+            imgTestState === "err" && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-red-500", children: imgErrMsg })
+          ] })
+        ] });
+      })()
     ] })
   ] });
 }

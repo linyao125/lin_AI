@@ -1000,20 +1000,16 @@ function VoiceSettings() {
               setImgResultUrl("");
               setImgErrMsg("");
 
-              // 免费模式用 Puter.js 前端直接调用
+              // 免费模式：Pollinations 图链（无需后端）
               if (activeImg === "free") {
                 try {
-                  const puter = (window as any).puter;
-                  if (!puter) {
-                    setImgErrMsg("Puter.js未加载，请刷新页面重试");
-                    setImgTestState("err");
-                    return;
-                  }
-                  const img = await puter.ai.txt2img(imgPrompt, { model: form.image_model || "flux-schnell" });
-                  setImgResultUrl(img.src);
+                  const encoded = encodeURIComponent(imgPrompt);
+                  const model = form.image_model === "stable-diffusion-xl-base-1.0" ? "turbo" : "flux";
+                  const url = `https://image.pollinations.ai/prompt/${encoded}?model=${model}&width=512&height=512&nologo=true&seed=${Date.now()}`;
+                  setImgResultUrl(url);
                   setImgTestState("ok");
-                } catch (e: unknown) {
-                  setImgErrMsg(e instanceof Error ? e.message : "生成失败");
+                } catch (e: any) {
+                  setImgErrMsg(e.message || "生成失败");
                   setImgTestState("err");
                 }
                 return;
