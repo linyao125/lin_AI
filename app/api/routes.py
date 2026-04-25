@@ -100,9 +100,9 @@ def proxy_nodes():
                     continue
                 history = info.get("history", [])
                 delay = history[-1].get("delay", 0) if history else 0
-                if delay == 0 or delay > 3000:
+                if delay > 3000:
                     continue
-                nodes.append({"name": name, "type": info.get("type", ""), "delay": delay})
+                nodes.append({"name": name, "type": info.get("type", ""), "delay": delay if delay > 0 else 9999})
             nodes.sort(key=lambda x: x["delay"])
             current = ""
             try:

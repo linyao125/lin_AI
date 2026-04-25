@@ -112,11 +112,10 @@ class HeartbeatService:
             state = mood_state.decay()
         except Exception:
             state = {}
-        cid = runtime.yaml.heartbeat.conversation_id
+        cid = repo.get_setting("heartbeat_conv_id") or runtime.yaml.heartbeat.conversation_id
         conversation = repo.get_conversation(cid)
         if not conversation:
             cid = repo.create_conversation("日常心跳")
-            # 与 REPLACE INTO settings (key, value, updated_at) 等效，避免缺 updated_at
             repo.set_setting("heartbeat_conv_id", cid)
         last_message_time = repo.get_last_message_time(cid)
         if not last_message_time:
